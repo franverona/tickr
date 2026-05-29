@@ -28,7 +28,7 @@
     "@uiw/react-md-editor": "^4.1.1",
     "better-sqlite3": "^12.10.0",
     "next": "16.2.6",
-    "react": "19.2.4",
+    "react": "19.2.6",
     "react-dom": "19.2.6",
     "uuid": "^14.0.0"
   },
@@ -37,7 +37,7 @@
     "@commitlint/config-conventional": "^21.0.2",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
-    "@types/node": "^20",
+    "@types/node": "^25",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@types/uuid": "^11.0.0",
