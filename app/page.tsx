@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { getTasks, getTags } from '@/app/actions'
+import { getTasks, getTags, reorderTasks } from '@/app/actions'
 import TaskCard from '@/components/TaskCard'
 import TaskDetail from '@/components/TaskDetail'
 import CreateTaskModal from '@/components/CreateTaskModal'
@@ -15,6 +15,10 @@ export default function Page() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [tab, setTab] = useState<'active' | 'done'>('active')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
+  const dragSrcIdxRef = useRef<number | null>(null)
+  const dragOverIdxRef = useRef<number | null>(null)
 
   useEffect(() => {
     Promise.all([getTasks(), getTags()]).then(([t, g]) => {
@@ -53,6 +57,49 @@ export default function Page() {
     setTab('active')
     setSelectedTaskId(task.id)
     setIsCreateOpen(false)
+  }
+
+  function handleDragStart(i: number) {
+    dragSrcIdxRef.current = i
+    dragOverIdxRef.current = null
+    setDragSrcIdx(i)
+    setDragOverIdx(null)
+  }
+
+  function handleDragOver(e: React.DragEvent, i: number) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverIdxRef.current !== i) {
+      dragOverIdxRef.current = i
+      setDragOverIdx(i)
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    const src = dragSrcIdxRef.current
+    const over = dragOverIdxRef.current
+    dragSrcIdxRef.current = null
+    dragOverIdxRef.current = null
+    setDragSrcIdx(null)
+    setDragOverIdx(null)
+
+    if (src === null || over === null || src === over || over === src + 1) return
+
+    const active = tasks.filter((t) => !t.completed)
+    const reordered = [...active]
+    const [item] = reordered.splice(src, 1)
+    reordered.splice(over > src ? over - 1 : over, 0, item)
+
+    setTasks((prev) => [...reordered, ...prev.filter((t) => t.completed)])
+    reorderTasks(reordered.map((t) => t.id))
+  }
+
+  function handleDragEnd() {
+    dragSrcIdxRef.current = null
+    dragOverIdxRef.current = null
+    setDragSrcIdx(null)
+    setDragOverIdx(null)
   }
 
   const hasNoTasks = !isLoading && tasks.length === 0
@@ -127,6 +174,50 @@ export default function Page() {
                 <p className="text-sm">
                   {tab === 'done' ? 'No completed tasks yet' : 'No active tasks'}
                 </p>
+              </div>
+            ) : tab === 'active' ? (
+              <div className="flex flex-col gap-2">
+                {filteredTasks.map((task, i) => (
+                  <div key={task.id}>
+                    {dragSrcIdx !== null &&
+                      dragOverIdx === i &&
+                      dragSrcIdx !== i &&
+                      dragOverIdx !== dragSrcIdx + 1 && (
+                        <div className="mb-2 h-0.5 rounded-full bg-blue-500" />
+                      )}
+                    <div
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move'
+                        handleDragStart(i)
+                      }}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
+                      className={dragSrcIdx === i ? 'opacity-40' : ''}
+                    >
+                      <TaskCard
+                        task={task}
+                        tags={tags}
+                        isSelected={task.id === selectedTaskId}
+                        onClick={() =>
+                          setSelectedTaskId(task.id === selectedTaskId ? null : task.id)
+                        }
+                      />
+                    </div>
+                  </div>
+                ))}
+                <div
+                  className="h-4"
+                  onDragOver={(e) => handleDragOver(e, filteredTasks.length)}
+                  onDrop={handleDrop}
+                >
+                  {dragSrcIdx !== null &&
+                    dragOverIdx === filteredTasks.length &&
+                    dragOverIdx !== dragSrcIdx + 1 && (
+                      <div className="h-0.5 rounded-full bg-blue-500" />
+                    )}
+                </div>
               </div>
             ) : (
               <div className="space-y-2">

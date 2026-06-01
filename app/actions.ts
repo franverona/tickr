@@ -50,6 +50,7 @@ interface DbRow {
   completed: number
   created_at: string
   updated_at: string
+  sort_order: number
 }
 
 function rowToTask(row: DbRow): Task {
@@ -67,7 +68,7 @@ function rowToTask(row: DbRow): Task {
 
 export async function getTasks(): Promise<Task[]> {
   const db = getDb()
-  const rows = db.prepare('SELECT * FROM tasks ORDER BY created_at DESC').all() as DbRow[]
+  const rows = db.prepare('SELECT * FROM tasks ORDER BY sort_order ASC').all() as DbRow[]
   return rows.map(rowToTask)
 }
 
@@ -81,10 +82,26 @@ export async function createTask(data: {
   const id = randomUUID()
   const now = new Date().toISOString()
 
+  const minRow = db
+    .prepare('SELECT MIN(sort_order) AS min FROM tasks WHERE completed = 0')
+    .get() as {
+    min: number | null
+  }
+  const sortOrder = minRow.min !== null ? minRow.min - 1000 : 0
+
   db.prepare(
-    `INSERT INTO tasks (id, title, description, tags, due_date, completed, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
-  ).run(id, data.title, data.description, JSON.stringify(data.tags), data.dueDate, now, now)
+    `INSERT INTO tasks (id, title, description, tags, due_date, completed, created_at, updated_at, sort_order)
+     VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+  ).run(
+    id,
+    data.title,
+    data.description,
+    JSON.stringify(data.tags),
+    data.dueDate,
+    now,
+    now,
+    sortOrder,
+  )
 
   return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow)
 }
@@ -119,6 +136,15 @@ export async function updateTask(
   ).run(next.title, next.description, next.tags, next.due_date, next.completed, now, id)
 
   return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow)
+}
+
+export async function reorderTasks(orderedIds: string[]): Promise<void> {
+  const db = getDb()
+  const update = db.prepare('UPDATE tasks SET sort_order = ? WHERE id = ?')
+  const tx = db.transaction(() => {
+    orderedIds.forEach((id, i) => update.run(i * 1000, id))
+  })
+  tx()
 }
 
 export async function deleteTask(id: string): Promise<void> {
