@@ -272,7 +272,13 @@ export default function TaskDetail({
             </div>
           ) : (
             <div
-              onClick={() => {
+              onClick={(e) => {
+                const anchor = (e.target as HTMLElement).closest('a')
+                if (anchor) {
+                  e.preventDefault()
+                  window.open(anchor.getAttribute('href') ?? '', '_blank', 'noopener,noreferrer')
+                  return
+                }
                 setDescriptionDraft(task.description)
                 setIsEditingDescription(true)
               }}
