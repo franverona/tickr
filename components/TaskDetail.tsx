@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import { updateTask, deleteTask } from '@/app/actions'
 import TagSelector from './TagSelector'
-import { MDEditor, MDPreview } from './MdEditor'
+import { MDEditor, MDPreview, makeImageHandlers } from './MdEditor'
 
 interface TaskDetailProps {
   task: Task
@@ -39,6 +39,7 @@ export default function TaskDetail({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const imageHandlers = makeImageHandlers(setDescriptionDraft)
 
   // task.id changes are handled by key={task.id} in the parent, which remounts
   // this component entirely — no manual state reset needed here.
@@ -249,6 +250,7 @@ export default function TaskDetail({
                   onChange={(val) => setDescriptionDraft(val || '')}
                   height={320}
                   preview="live"
+                  textareaProps={imageHandlers}
                 />
               </div>
               <div className="mt-2 flex gap-2">
