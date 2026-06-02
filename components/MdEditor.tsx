@@ -9,3 +9,57 @@ export const MDEditor = dynamic(() => import('@uiw/react-md-editor'), {
 export const MDPreview = dynamic(() => import('@uiw/react-markdown-preview'), {
   ssr: false,
 })
+
+async function uploadImage(file: File): Promise<string> {
+  const body = new FormData()
+  body.append('file', file)
+  const res = await fetch('/api/upload', { method: 'POST', body })
+  if (!res.ok) {
+    const { error } = await res.json()
+    throw new Error(error ?? 'Upload failed')
+  }
+  const { url } = await res.json()
+  return url as string
+}
+
+function pickImageFiles(list: FileList | null): File[] {
+  if (!list) return []
+  return Array.from(list).filter((f) => f.type.startsWith('image/'))
+}
+
+function insertAtCursor(textarea: HTMLTextAreaElement, text: string): string {
+  const { value, selectionStart, selectionEnd } = textarea
+  return value.slice(0, selectionStart) + text + value.slice(selectionEnd)
+}
+
+export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<string>>) {
+  async function handleFiles(files: File[], textarea: HTMLTextAreaElement) {
+    for (const file of files) {
+      const placeholder = `\`Uploading ${file.name}…\``
+      setValue(insertAtCursor(textarea, placeholder))
+      try {
+        const url = await uploadImage(file)
+        setValue((v) => v.replace(placeholder, `![image](${url})`))
+      } catch (err) {
+        setValue((v) => v.replace(placeholder, ''))
+        console.error('Image upload failed:', err)
+      }
+    }
+  }
+
+  function onDrop(e: React.DragEvent<HTMLTextAreaElement>) {
+    const files = pickImageFiles(e.dataTransfer.files)
+    if (!files.length) return
+    e.preventDefault()
+    handleFiles(files, e.currentTarget)
+  }
+
+  function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const files = pickImageFiles(e.clipboardData.files)
+    if (!files.length) return
+    e.preventDefault()
+    handleFiles(files, e.currentTarget)
+  }
+
+  return { onDrop, onPaste }
+}
