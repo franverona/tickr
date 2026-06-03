@@ -42,12 +42,60 @@ export function exportToCSV(tasks: Task[], tags: Tag[]): string {
   return [headers.join(','), ...rows].join('\n')
 }
 
-export function downloadFile(content: string, filename: string, mimeType: string): void {
-  const blob = new Blob([content], { type: mimeType })
+function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
   a.download = filename
   a.click()
   URL.revokeObjectURL(url)
+}
+
+function extractImagePaths(tasks: Task[]): string[] {
+  const paths = new Set<string>()
+  const regex = /\/uploads\/[\w.-]+/g
+  for (const task of tasks) {
+    const matches = task.description.match(regex)
+    if (matches) matches.forEach((p) => paths.add(p))
+  }
+  return [...paths]
+}
+
+export async function exportToZip(
+  tasks: Task[],
+  tags: Tag[],
+  format: 'json' | 'csv',
+): Promise<void> {
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
+
+  // Rewrite absolute /uploads/ paths to relative uploads/ so the ZIP is self-contained
+  const rawContent = format === 'json' ? exportToJSON(tasks, tags) : exportToCSV(tasks, tags)
+  zip.file(`tasks.${format}`, rawContent.replace(/\/uploads\//g, 'uploads/'))
+
+  const imagePaths = extractImagePaths(tasks)
+  if (imagePaths.length > 0) {
+    const uploadsFolder = zip.folder('uploads')!
+    await Promise.all(
+      imagePaths.map(async (imagePath) => {
+        try {
+          const res = await fetch(imagePath)
+          if (res.ok) {
+            uploadsFolder.file(imagePath.split('/').pop()!, await res.arrayBuffer())
+          }
+        } catch {
+          // skip images that can't be fetched
+        }
+      }),
+    )
+  }
+
+  const blob = await zip.generateAsync({
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+  })
+
+  const date = new Date().toISOString().split('T')[0]
+  downloadBlob(blob, `tickr-tasks-${date}.zip`)
 }

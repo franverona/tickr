@@ -8,7 +8,7 @@ import TaskDetail from '@/components/TaskDetail'
 import CreateTaskModal from '@/components/CreateTaskModal'
 import TagManagementModal from '@/components/TagManagementModal'
 import Logo from '@/components/Logo'
-import { exportToJSON, exportToCSV, downloadFile } from '@/lib/export'
+import { exportToZip } from '@/lib/export'
 
 export default function Page() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -19,6 +19,7 @@ export default function Page() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isTagsOpen, setIsTagsOpen] = useState(false)
   const [isExportOpen, setIsExportOpen] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
@@ -43,14 +44,14 @@ export default function Page() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [isExportOpen])
 
-  function handleExport(format: 'json' | 'csv') {
-    const date = new Date().toISOString().split('T')[0]
-    if (format === 'json') {
-      downloadFile(exportToJSON(tasks, tags), `tickr-tasks-${date}.json`, 'application/json')
-    } else {
-      downloadFile(exportToCSV(tasks, tags), `tickr-tasks-${date}.csv`, 'text/csv')
-    }
+  async function handleExport(format: 'json' | 'csv') {
     setIsExportOpen(false)
+    setIsExporting(true)
+    try {
+      await exportToZip(tasks, tags, format)
+    } finally {
+      setIsExporting(false)
+    }
   }
 
   function handleTagCreated(tag: Tag) {
@@ -181,8 +182,9 @@ export default function Page() {
           </button>
           <div ref={exportRef} className="relative">
             <button
-              onClick={() => setIsExportOpen((o) => !o)}
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-400 hover:text-zinc-100"
+              onClick={() => !isExporting && setIsExportOpen((o) => !o)}
+              disabled={isExporting}
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-400 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <svg
                 width="13"
@@ -198,7 +200,7 @@ export default function Page() {
                 <polyline points="7 10 12 15 17 10" />
                 <line x1="12" y1="15" x2="12" y2="3" />
               </svg>
-              Export
+              {isExporting ? 'Exporting…' : 'Export'}
             </button>
             {isExportOpen && (
               <div className="absolute top-full right-0 z-20 mt-1 w-36 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
