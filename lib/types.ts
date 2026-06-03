@@ -5,6 +5,7 @@ export interface Task {
   tags: string[]
   dueDate: string | null
   completed: boolean
+  archived: boolean
   createdAt: string
   updatedAt: string
 }

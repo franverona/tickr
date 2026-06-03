@@ -95,6 +95,11 @@ export default function TaskDetail({
     onUpdate(updated)
   }
 
+  async function toggleArchived() {
+    const updated = await updateTask(task.id, { archived: !task.archived })
+    onUpdate(updated)
+  }
+
   async function handleDelete() {
     await deleteTask(task.id)
     onDelete(task.id)
@@ -146,16 +151,34 @@ export default function TaskDetail({
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={toggleComplete}
-            className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-              task.completed
-                ? 'bg-zinc-600 text-zinc-200 hover:bg-zinc-500'
-                : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
-            }`}
-          >
-            {task.completed ? 'Reopen' : 'Mark Complete'}
-          </button>
+          {task.archived ? (
+            <button
+              onClick={toggleArchived}
+              className="flex-1 rounded-md bg-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-500"
+            >
+              Unarchive
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={toggleComplete}
+                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                  task.completed
+                    ? 'bg-zinc-600 text-zinc-200 hover:bg-zinc-500'
+                    : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
+                }`}
+              >
+                {task.completed ? 'Reopen' : 'Mark Complete'}
+              </button>
+              <button
+                onClick={toggleArchived}
+                className="rounded-md bg-zinc-700 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-600 hover:text-zinc-100"
+                title="Archive task"
+              >
+                Archive
+              </button>
+            </>
+          )}
 
           {showDeleteConfirm ? (
             <div className="flex gap-1.5">

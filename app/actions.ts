@@ -85,6 +85,7 @@ interface DbRow {
   tags: string
   due_date: string | null
   completed: number
+  archived: number
   created_at: string
   updated_at: string
   sort_order: number
@@ -98,6 +99,7 @@ function rowToTask(row: DbRow): Task {
     tags: JSON.parse(row.tags),
     dueDate: row.due_date,
     completed: row.completed === 1,
+    archived: row.archived === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -151,6 +153,7 @@ export async function updateTask(
     tags: string[]
     dueDate: string | null
     completed: boolean
+    archived: boolean
   }>,
 ): Promise<Task> {
   const db = getDb()
@@ -164,13 +167,23 @@ export async function updateTask(
     tags: data.tags !== undefined ? JSON.stringify(data.tags) : current.tags,
     due_date: data.dueDate !== undefined ? data.dueDate : current.due_date,
     completed: data.completed !== undefined ? (data.completed ? 1 : 0) : current.completed,
+    archived: data.archived !== undefined ? (data.archived ? 1 : 0) : current.archived,
   }
 
   db.prepare(
     `UPDATE tasks
-     SET title = ?, description = ?, tags = ?, due_date = ?, completed = ?, updated_at = ?
+     SET title = ?, description = ?, tags = ?, due_date = ?, completed = ?, archived = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(next.title, next.description, next.tags, next.due_date, next.completed, now, id)
+  ).run(
+    next.title,
+    next.description,
+    next.tags,
+    next.due_date,
+    next.completed,
+    next.archived,
+    now,
+    id,
+  )
 
   return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow)
 }

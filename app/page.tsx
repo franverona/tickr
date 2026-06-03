@@ -14,7 +14,7 @@ export default function Page() {
   const [tags, setTags] = useState<Tag[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
-  const [tab, setTab] = useState<'active' | 'done'>('active')
+  const [tab, setTab] = useState<'active' | 'done' | 'archived'>('active')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isTagsOpen, setIsTagsOpen] = useState(false)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
@@ -50,14 +50,22 @@ export default function Page() {
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
 
   const filteredTasks = tasks.filter((task) =>
-    tab === 'active' ? !task.completed : task.completed,
+    tab === 'active'
+      ? !task.completed && !task.archived
+      : tab === 'done'
+        ? task.completed && !task.archived
+        : task.archived,
   )
 
   function handleTaskUpdated(updated: Task) {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
-    // Deselect if the task moved to the other tab (e.g. just completed or reopened)
     if (updated.id === selectedTaskId) {
-      const stillInTab = tab === 'active' ? !updated.completed : updated.completed
+      const stillInTab =
+        tab === 'active'
+          ? !updated.completed && !updated.archived
+          : tab === 'done'
+            ? updated.completed && !updated.archived
+            : updated.archived
       if (!stillInTab) setSelectedTaskId(null)
     }
   }
@@ -168,7 +176,7 @@ export default function Page() {
         >
           <div className="flex h-10 items-center border-b border-zinc-700 px-4">
             <div className="flex h-full gap-5">
-              {(['active', 'done'] as const).map((t) => (
+              {(['active', 'done', 'archived'] as const).map((t) => (
                 <button
                   key={t}
                   onClick={() => {
@@ -181,7 +189,7 @@ export default function Page() {
                       : 'border-transparent text-zinc-400 hover:text-zinc-200'
                   }`}
                 >
-                  {t === 'active' ? 'Active' : 'Done'}
+                  {t === 'active' ? 'Active' : t === 'done' ? 'Done' : 'Archived'}
                 </button>
               ))}
             </div>
@@ -206,7 +214,11 @@ export default function Page() {
             ) : filteredTasks.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-zinc-500">
                 <p className="text-sm">
-                  {tab === 'done' ? 'No completed tasks yet' : 'No active tasks'}
+                  {tab === 'done'
+                    ? 'No completed tasks yet'
+                    : tab === 'archived'
+                      ? 'No archived tasks'
+                      : 'No active tasks'}
                 </p>
               </div>
             ) : tab === 'active' ? (

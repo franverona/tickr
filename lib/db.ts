@@ -18,6 +18,12 @@ function ensureMigrations(db: Database.Database) {
     // column already exists
   }
 
+  try {
+    db.exec('ALTER TABLE tasks ADD COLUMN archived INTEGER NOT NULL DEFAULT 0')
+  } catch {
+    // column already exists
+  }
+
   // Initialize sort_order for any tasks that don't have one yet,
   // preserving the current newest-first display order (created_at DESC).
   const uninit = db
