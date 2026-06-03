@@ -20,6 +20,43 @@ function slugify(text: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
+export async function updateTag(
+  id: string,
+  data: { label?: string; color?: string },
+): Promise<Tag> {
+  const db = getDb()
+  const current = db.prepare('SELECT id, label, color FROM tags WHERE id = ?').get(id) as
+    | Tag
+    | undefined
+  if (!current) throw new Error(`Tag ${id} not found`)
+
+  const label = data.label?.trim() ?? current.label
+  const color = data.color ?? current.color
+
+  db.prepare('UPDATE tags SET label = ?, color = ? WHERE id = ?').run(label, color, id)
+  return { id, label, color }
+}
+
+export async function deleteTag(id: string): Promise<void> {
+  const db = getDb()
+  const affected = db.prepare('SELECT id, tags FROM tasks WHERE tags LIKE ?').all(`%"${id}"%`) as {
+    id: string
+    tags: string
+  }[]
+
+  const updateTaskTags = db.prepare('UPDATE tasks SET tags = ?, updated_at = ? WHERE id = ?')
+  const now = new Date().toISOString()
+
+  const tx = db.transaction(() => {
+    for (const row of affected) {
+      const filtered = (JSON.parse(row.tags) as string[]).filter((t) => t !== id)
+      updateTaskTags.run(JSON.stringify(filtered), now, row.id)
+    }
+    db.prepare('DELETE FROM tags WHERE id = ?').run(id)
+  })
+  tx()
+}
+
 export async function createTag(data: { label: string; color: string }): Promise<Tag> {
   const db = getDb()
   const id = slugify(data.label)

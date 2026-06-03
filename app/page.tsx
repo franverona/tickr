@@ -6,6 +6,7 @@ import { getTasks, getTags, reorderTasks } from '@/app/actions'
 import TaskCard from '@/components/TaskCard'
 import TaskDetail from '@/components/TaskDetail'
 import CreateTaskModal from '@/components/CreateTaskModal'
+import TagManagementModal from '@/components/TagManagementModal'
 import Logo from '@/components/Logo'
 
 export default function Page() {
@@ -15,6 +16,7 @@ export default function Page() {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [tab, setTab] = useState<'active' | 'done'>('active')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
+  const [isTagsOpen, setIsTagsOpen] = useState(false)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
@@ -30,6 +32,19 @@ export default function Page() {
 
   function handleTagCreated(tag: Tag) {
     setTags((prev) => [...prev, tag])
+  }
+
+  function handleTagUpdated(tag: Tag) {
+    setTags((prev) => prev.map((t) => (t.id === tag.id ? tag : t)))
+  }
+
+  function handleTagDeleted(id: string) {
+    setTags((prev) => prev.filter((t) => t.id !== id))
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.tags.includes(id) ? { ...t, tags: t.tags.filter((tid) => tid !== id) } : t,
+      ),
+    )
   }
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
@@ -113,7 +128,26 @@ export default function Page() {
           <h1 className="text-base font-bold tracking-tight text-zinc-100">Tickr</h1>
         </div>
 
-        <div className="ml-auto flex items-center gap-4">
+        <div className="ml-auto flex items-center gap-3">
+          <button
+            onClick={() => setIsTagsOpen(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-400 hover:text-zinc-100"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+            Tags
+          </button>
           <button
             onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500"
@@ -263,6 +297,15 @@ export default function Page() {
           onCreated={handleTaskCreated}
           onClose={() => setIsCreateOpen(false)}
           onTagCreated={handleTagCreated}
+        />
+      )}
+
+      {isTagsOpen && (
+        <TagManagementModal
+          tags={tags}
+          onClose={() => setIsTagsOpen(false)}
+          onTagUpdated={handleTagUpdated}
+          onTagDeleted={handleTagDeleted}
         />
       )}
     </div>
