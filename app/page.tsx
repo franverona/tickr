@@ -8,6 +8,7 @@ import TaskDetail from '@/components/TaskDetail'
 import CreateTaskModal from '@/components/CreateTaskModal'
 import TagManagementModal from '@/components/TagManagementModal'
 import Logo from '@/components/Logo'
+import { exportToJSON, exportToCSV, downloadFile } from '@/lib/export'
 
 export default function Page() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -17,10 +18,12 @@ export default function Page() {
   const [tab, setTab] = useState<'active' | 'done' | 'archived'>('active')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isTagsOpen, setIsTagsOpen] = useState(false)
+  const [isExportOpen, setIsExportOpen] = useState(false)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
   const dragOverIdxRef = useRef<number | null>(null)
+  const exportRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     Promise.all([getTasks(), getTags()]).then(([t, g]) => {
@@ -29,6 +32,26 @@ export default function Page() {
       setIsLoading(false)
     })
   }, [])
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
+        setIsExportOpen(false)
+      }
+    }
+    if (isExportOpen) document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [isExportOpen])
+
+  function handleExport(format: 'json' | 'csv') {
+    const date = new Date().toISOString().split('T')[0]
+    if (format === 'json') {
+      downloadFile(exportToJSON(tasks, tags), `tickr-tasks-${date}.json`, 'application/json')
+    } else {
+      downloadFile(exportToCSV(tasks, tags), `tickr-tasks-${date}.csv`, 'text/csv')
+    }
+    setIsExportOpen(false)
+  }
 
   function handleTagCreated(tag: Tag) {
     setTags((prev) => [...prev, tag])
@@ -156,6 +179,44 @@ export default function Page() {
             </svg>
             Tags
           </button>
+          <div ref={exportRef} className="relative">
+            <button
+              onClick={() => setIsExportOpen((o) => !o)}
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-400 hover:text-zinc-100"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Export
+            </button>
+            {isExportOpen && (
+              <div className="absolute top-full right-0 z-20 mt-1 w-36 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
+                <button
+                  onClick={() => handleExport('json')}
+                  className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                >
+                  JSON
+                </button>
+                <button
+                  onClick={() => handleExport('csv')}
+                  className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                >
+                  CSV
+                </button>
+              </div>
+            )}
+          </div>
           <button
             onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500"
