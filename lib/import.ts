@@ -35,7 +35,7 @@ async function uploadImage(filename: string, data: ArrayBuffer): Promise<string 
 }
 
 // Minimal RFC 4180 CSV parser
-function parseCSVRows(content: string): string[][] {
+export function parseCSVRows(content: string): string[][] {
   const rows: string[][] = []
   let row: string[] = []
   let field = ''
@@ -81,7 +81,7 @@ function parseCSVRows(content: string): string[][] {
   return rows
 }
 
-function parseJSONContent(content: string): ImportedTask[] {
+export function parseJSONContent(content: string): ImportedTask[] {
   const data = JSON.parse(content)
   if (!Array.isArray(data)) throw new Error('Expected a JSON array')
 
@@ -106,7 +106,7 @@ function parseJSONContent(content: string): ImportedTask[] {
     .filter((t): t is ImportedTask => t !== null)
 }
 
-function parseCSVContent(content: string): ImportedTask[] {
+export function parseCSVContent(content: string): ImportedTask[] {
   const rows = parseCSVRows(content)
   if (rows.length < 2) return []
 

@@ -61,6 +61,13 @@ public/
 - Predefined tags seeded with `INSERT OR IGNORE` on every startup
 - To reset: delete `./data/tasks.db` and restart
 
+## Testing
+
+- **Vitest** — run with `npm test` (or `npm run test:watch`)
+- Tests live in `__tests__/`: `export.test.ts`, `import.test.ts`, `actions.test.ts`
+- `actions.test.ts` mocks `lib/db` with an in-memory SQLite DB via `vi.hoisted` + `vi.mock`; `beforeEach` wipes all rows for isolation
+- `parseCSVRows`, `parseJSONContent`, `parseCSVContent` in `lib/import.ts` are exported so they can be unit-tested directly
+
 ## Running
 
 ```bash

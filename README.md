@@ -81,6 +81,8 @@ pm2 restart tickr
 ```bash
 npm run dev          # Start dev server
 npm run build        # Production build
+npm test             # Run unit tests (Vitest)
+npm run test:watch   # Run tests in watch mode
 npm run lint         # ESLint
 npm run format       # Prettier (write)
 npm run format:check # Prettier (check)
