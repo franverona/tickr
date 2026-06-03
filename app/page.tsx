@@ -414,8 +414,14 @@ export default function Page() {
           </div>
         ) : (
           !hasNoTasks && (
-            <div className="hidden flex-1 items-center justify-center text-sm text-zinc-600 select-none md:flex">
-              Select a task
+            <div className="hidden flex-1 flex-col items-center justify-center gap-1.5 select-none md:flex">
+              <p className="text-sm font-medium text-zinc-400">Select a task to view details</p>
+              <button
+                onClick={() => setIsCreateOpen(true)}
+                className="text-sm text-blue-500 transition-colors hover:text-blue-400"
+              >
+                or create a new one →
+              </button>
             </div>
           )
         )}
