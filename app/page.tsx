@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { getTasks, getTags, reorderTasks } from '@/app/actions'
+import { getTasks, getTags, reorderTasks, importTasks } from '@/app/actions'
 import TaskCard from '@/components/TaskCard'
 import TaskDetail from '@/components/TaskDetail'
 import CreateTaskModal from '@/components/CreateTaskModal'
 import TagManagementModal from '@/components/TagManagementModal'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
+import { processImportZip } from '@/lib/import'
 
 export default function Page() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -20,6 +21,9 @@ export default function Page() {
   const [isTagsOpen, setIsTagsOpen] = useState(false)
   const [isExportOpen, setIsExportOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
+  const [isImporting, setIsImporting] = useState(false)
+  const [importLabel, setImportLabel] = useState('Import')
+  const importInputRef = useRef<HTMLInputElement>(null)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
@@ -51,6 +55,27 @@ export default function Page() {
       await exportToZip(tasks, tags, format)
     } finally {
       setIsExporting(false)
+    }
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setIsImporting(true)
+    setImportLabel('Importing…')
+    try {
+      const items = await processImportZip(file)
+      const { imported, tasks: newTasks, tags: newTags } = await importTasks(items)
+      setTasks(newTasks)
+      setTags(newTags)
+      setImportLabel(`Imported ${imported}`)
+    } catch (err) {
+      console.error('Import failed:', err)
+      setImportLabel('Failed')
+    } finally {
+      setIsImporting(false)
+      setTimeout(() => setImportLabel('Import'), 4000)
     }
   }
 
@@ -218,6 +243,36 @@ export default function Page() {
                 </button>
               </div>
             )}
+          </div>
+          <div>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".zip"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+            <button
+              onClick={() => importInputRef.current?.click()}
+              disabled={isImporting}
+              className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-400 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              {importLabel}
+            </button>
           </div>
           <button
             onClick={() => setIsCreateOpen(true)}

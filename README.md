@@ -20,11 +20,15 @@ A local task management app for tracking work.
 
 ## Features
 
-- Active / Done task tabs
-- Inline editing — title, description (Markdown), tags, due date
-- Tag system with color picker — create tags directly from the UI
-- Mark complete / reopen / delete
-- Overdue date indicator
+- **Active / Done / Archived** task tabs
+- **Inline editing** — title, description (Markdown), tags, due date
+- **Tag system** — create tags with a color picker; rename, recolor, or delete tags via the Tags modal
+- **Mark complete / reopen / archive / unarchive / delete**
+- **Drag-and-drop reordering** of active tasks
+- **Overdue date indicator**
+- **Image support** — drag-and-drop or paste images into descriptions (stored in `public/uploads/`)
+- **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv` plus any referenced images
+- **Import** — restore from an exported ZIP; images are re-uploaded and tag labels are matched or created automatically
 
 ## Getting Started
 
@@ -85,3 +89,5 @@ npm run format:check # Prettier (check)
 ## Data
 
 The database lives at `./data/tasks.db` and is excluded from version control. To reset, delete the file and restart the server.
+
+Uploaded images are stored at `public/uploads/` (gitignored). They are included automatically when using the Export feature.

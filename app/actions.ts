@@ -3,6 +3,8 @@
 import { randomUUID } from 'crypto'
 import { getDb } from '@/lib/db'
 import type { Tag, Task } from '@/lib/types'
+import { COLOR_PALETTE } from '@/lib/constants'
+import type { ImportedTask } from '@/lib/import'
 
 // ── Tags ─────────────────────────────────────────────────────────────────────
 
@@ -200,4 +202,88 @@ export async function reorderTasks(orderedIds: string[]): Promise<void> {
 export async function deleteTask(id: string): Promise<void> {
   const db = getDb()
   db.prepare('DELETE FROM tasks WHERE id = ?').run(id)
+}
+
+export async function importTasks(
+  items: ImportedTask[],
+): Promise<{ imported: number; tasks: Task[]; tags: Tag[] }> {
+  const db = getDb()
+  const now = new Date().toISOString()
+
+  // Resolve existing tags by label
+  const existingTags = db
+    .prepare('SELECT id, label, color FROM tags ORDER BY created_at ASC')
+    .all() as Tag[]
+  let colorIndex = existingTags.length
+  const tagMap = new Map<string, string>() // label.toLowerCase() → id
+  for (const tag of existingTags) {
+    tagMap.set(tag.label.toLowerCase(), tag.id)
+  }
+
+  // Determine which tags need to be created
+  const tagsToCreate: Array<{ id: string; label: string; color: string }> = []
+  for (const item of items) {
+    for (const label of item.tagLabels) {
+      const key = label.toLowerCase()
+      if (tagMap.has(key)) continue
+      const id = slugify(label)
+      if (!id) continue
+      const byId = db.prepare('SELECT id FROM tags WHERE id = ?').get(id)
+      if (byId) {
+        tagMap.set(key, id)
+        continue
+      }
+      const color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
+      colorIndex++
+      tagsToCreate.push({ id, label: label.trim(), color })
+      tagMap.set(key, id)
+    }
+  }
+
+  const maxRow = db.prepare('SELECT MAX(sort_order) AS max FROM tasks').get() as {
+    max: number | null
+  }
+  let sortOrder = (maxRow.max ?? -1000) + 1000
+  let imported = 0
+
+  const insertTag = db.prepare(
+    'INSERT OR IGNORE INTO tags (id, label, color, created_at) VALUES (?, ?, ?, ?)',
+  )
+  const insertTask = db.prepare(
+    `INSERT INTO tasks (id, title, description, tags, due_date, completed, archived, created_at, updated_at, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  )
+
+  db.transaction(() => {
+    for (const tag of tagsToCreate) {
+      insertTag.run(tag.id, tag.label, tag.color, now)
+    }
+    for (const item of items) {
+      if (!item.title.trim()) continue
+      const tagIds = item.tagLabels
+        .map((label) => tagMap.get(label.toLowerCase()))
+        .filter((id): id is string => id !== undefined)
+
+      insertTask.run(
+        randomUUID(),
+        item.title.trim(),
+        item.description,
+        JSON.stringify(tagIds),
+        item.dueDate,
+        item.completed ? 1 : 0,
+        item.archived ? 1 : 0,
+        now,
+        now,
+        sortOrder,
+      )
+      sortOrder += 1000
+      imported++
+    }
+  })()
+
+  const allTasks = db.prepare('SELECT * FROM tasks ORDER BY sort_order ASC').all() as DbRow[]
+  const allTags = db
+    .prepare('SELECT id, label, color FROM tags ORDER BY created_at ASC')
+    .all() as Tag[]
+  return { imported, tasks: allTasks.map(rowToTask), tags: allTags }
 }
