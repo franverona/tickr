@@ -19,16 +19,16 @@ export default function Page() {
   const [tab, setTab] = useState<'active' | 'done' | 'archived'>('active')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isTagsOpen, setIsTagsOpen] = useState(false)
-  const [isExportOpen, setIsExportOpen] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [isImporting, setIsImporting] = useState(false)
-  const [importLabel, setImportLabel] = useState('Import')
+  const [menuFeedback, setMenuFeedback] = useState<string | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
   const dragOverIdxRef = useRef<number | null>(null)
-  const exportRef = useRef<HTMLDivElement>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     Promise.all([getTasks(), getTags()]).then(([t, g]) => {
@@ -40,21 +40,23 @@ export default function Page() {
 
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
-      if (exportRef.current && !exportRef.current.contains(e.target as Node)) {
-        setIsExportOpen(false)
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false)
       }
     }
-    if (isExportOpen) document.addEventListener('mousedown', onClickOutside)
+    if (isMenuOpen) document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
-  }, [isExportOpen])
+  }, [isMenuOpen])
 
   async function handleExport(format: 'json' | 'csv') {
-    setIsExportOpen(false)
+    setIsMenuOpen(false)
     setIsExporting(true)
+    setMenuFeedback('Exporting…')
     try {
       await exportToZip(tasks, tags, format)
     } finally {
       setIsExporting(false)
+      setMenuFeedback(null)
     }
   }
 
@@ -63,19 +65,19 @@ export default function Page() {
     if (!file) return
     e.target.value = ''
     setIsImporting(true)
-    setImportLabel('Importing…')
+    setMenuFeedback('Importing…')
     try {
       const items = await processImportZip(file)
       const { imported, tasks: newTasks, tags: newTags } = await importTasks(items)
       setTasks(newTasks)
       setTags(newTags)
-      setImportLabel(`Imported ${imported}`)
+      setMenuFeedback(`Imported ${imported}`)
     } catch (err) {
       console.error('Import failed:', err)
-      setImportLabel('Failed')
+      setMenuFeedback('Failed')
     } finally {
       setIsImporting(false)
-      setTimeout(() => setImportLabel('Import'), 4000)
+      setTimeout(() => setMenuFeedback(null), 4000)
     }
   }
 
@@ -186,94 +188,124 @@ export default function Page() {
         </div>
 
         <div className="ml-auto flex items-center gap-3">
-          <button
-            onClick={() => setIsTagsOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-400 hover:text-zinc-100"
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-              <line x1="7" y1="7" x2="7.01" y2="7" />
-            </svg>
-            Tags
-          </button>
-          <div ref={exportRef} className="relative">
+          {menuFeedback && <span className="text-xs text-zinc-500">{menuFeedback}</span>}
+
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".zip"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+
+          {/* ··· menu */}
+          <div ref={menuRef} className="relative">
             <button
-              onClick={() => !isExporting && setIsExportOpen((o) => !o)}
-              disabled={isExporting}
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-400 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              onClick={() => setIsMenuOpen((o) => !o)}
+              disabled={isExporting || isImporting}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-600 text-base font-bold tracking-widest text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              title="More options"
             >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-              {isExporting ? 'Exporting…' : 'Export'}
+              ···
             </button>
-            {isExportOpen && (
-              <div className="absolute top-full right-0 z-20 mt-1 w-36 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
+
+            {isMenuOpen && (
+              <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    setIsTagsOpen(true)
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+                    <line x1="7" y1="7" x2="7.01" y2="7" />
+                  </svg>
+                  Tags
+                </button>
+
+                <div className="my-1 border-t border-zinc-700" />
+
                 <button
                   onClick={() => handleExport('json')}
-                  className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
                 >
-                  JSON
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Export as JSON
                 </button>
                 <button
                   onClick={() => handleExport('csv')}
-                  className="w-full px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
                 >
-                  CSV
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                  </svg>
+                  Export as CSV
+                </button>
+
+                <div className="my-1 border-t border-zinc-700" />
+
+                <button
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    importInputRef.current?.click()
+                  }}
+                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  Import
                 </button>
               </div>
             )}
           </div>
-          <div>
-            <input
-              ref={importInputRef}
-              type="file"
-              accept=".zip"
-              className="hidden"
-              onChange={handleImportFile}
-            />
-            <button
-              onClick={() => importInputRef.current?.click()}
-              disabled={isImporting}
-              className="flex items-center gap-1.5 rounded-lg border border-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:border-zinc-400 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <svg
-                width="13"
-                height="13"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
-              {importLabel}
-            </button>
-          </div>
+
           <button
             onClick={() => setIsCreateOpen(true)}
             className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500"
