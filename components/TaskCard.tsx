@@ -8,6 +8,7 @@ interface TaskCardProps {
   tags: Tag[]
   isSelected: boolean
   onClick: () => void
+  onContextMenu?: (e: React.MouseEvent) => void
 }
 
 function formatDate(dateStr: string): string {
@@ -18,7 +19,13 @@ function formatDate(dateStr: string): string {
   })
 }
 
-export default function TaskCard({ task, tags, isSelected, onClick }: TaskCardProps) {
+export default function TaskCard({
+  task,
+  tags,
+  isSelected,
+  onClick,
+  onContextMenu,
+}: TaskCardProps) {
   const today = new Date().toISOString().split('T')[0]
   const isOverdue = task.dueDate && task.dueDate < today && !task.completed
 
@@ -31,6 +38,7 @@ export default function TaskCard({ task, tags, isSelected, onClick }: TaskCardPr
   return (
     <button
       onClick={onClick}
+      onContextMenu={onContextMenu}
       className={`w-full rounded-lg border p-3 text-left transition-colors ${
         isSelected
           ? 'border-zinc-400 bg-zinc-700'

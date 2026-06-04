@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { getTasks, getTags, reorderTasks, importTasks } from '@/app/actions'
+import { getTasks, getTags, reorderTasks, importTasks, updateTask, deleteTask } from '@/app/actions'
 import TaskCard from '@/components/TaskCard'
 import TaskDetail from '@/components/TaskDetail'
 import CreateTaskModal from '@/components/CreateTaskModal'
 import TagManagementModal from '@/components/TagManagementModal'
+import TaskContextMenu from '@/components/TaskContextMenu'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
 import { processImportZip } from '@/lib/import'
@@ -24,6 +25,9 @@ export default function Page() {
   const [isImporting, setIsImporting] = useState(false)
   const [menuFeedback, setMenuFeedback] = useState<string | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
+  const [contextMenu, setContextMenu] = useState<{ taskId: string; x: number; y: number } | null>(
+    null,
+  )
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
@@ -174,6 +178,34 @@ export default function Page() {
     dragOverIdxRef.current = null
     setDragSrcIdx(null)
     setDragOverIdx(null)
+  }
+
+  function handleContextMenu(e: React.MouseEvent, taskId: string) {
+    e.preventDefault()
+    setContextMenu({ taskId, x: e.clientX, y: e.clientY })
+  }
+
+  async function handleContextMenuAction(
+    action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete',
+  ) {
+    if (!contextMenu) return
+    const { taskId } = contextMenu
+    setContextMenu(null)
+    if (action === 'delete') {
+      await deleteTask(taskId)
+      handleTaskDeleted(taskId)
+    } else {
+      const data =
+        action === 'complete'
+          ? { completed: true }
+          : action === 'reopen'
+            ? { completed: false }
+            : action === 'archive'
+              ? { archived: true }
+              : { archived: false }
+      const updated = await updateTask(taskId, data)
+      handleTaskUpdated(updated)
+    }
   }
 
   const hasNoTasks = !isLoading && tasks.length === 0
@@ -399,6 +431,7 @@ export default function Page() {
                         onClick={() =>
                           setSelectedTaskId(task.id === selectedTaskId ? null : task.id)
                         }
+                        onContextMenu={(e) => handleContextMenu(e, task.id)}
                       />
                     </div>
                   </div>
@@ -424,6 +457,7 @@ export default function Page() {
                     tags={tags}
                     isSelected={task.id === selectedTaskId}
                     onClick={() => setSelectedTaskId(task.id === selectedTaskId ? null : task.id)}
+                    onContextMenu={(e) => handleContextMenu(e, task.id)}
                   />
                 ))}
               </div>
@@ -474,6 +508,20 @@ export default function Page() {
           onClose={() => setIsTagsOpen(false)}
           onTagUpdated={handleTagUpdated}
           onTagDeleted={handleTagDeleted}
+        />
+      )}
+
+      {contextMenu && (
+        <TaskContextMenu
+          x={contextMenu.x}
+          y={contextMenu.y}
+          tab={tab}
+          onComplete={() => handleContextMenuAction('complete')}
+          onReopen={() => handleContextMenuAction('reopen')}
+          onArchive={() => handleContextMenuAction('archive')}
+          onUnarchive={() => handleContextMenuAction('unarchive')}
+          onDelete={() => handleContextMenuAction('delete')}
+          onClose={() => setContextMenu(null)}
         />
       )}
     </div>
