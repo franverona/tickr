@@ -5,6 +5,7 @@ import type { Tag, Task } from '@/lib/types'
 import { updateTask, deleteTask, linkTask, unlinkTask } from '@/app/actions'
 import TagSelector from './TagSelector'
 import { MDEditor, MDPreview, makeImageHandlers } from './MdEditor'
+import { searchEmojis } from '@/lib/emojis'
 
 interface TaskDetailProps {
   task: Task
@@ -48,10 +49,79 @@ export default function TaskDetail({
   )
   const [linkSearch, setLinkSearch] = useState('')
   const [isLinkSearchFocused, setIsLinkSearchFocused] = useState(false)
+  const [emojiResults, setEmojiResults] = useState<ReadonlyArray<readonly [string, string]>>([])
+  const [emojiIndex, setEmojiIndex] = useState(0)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDescRef = useRef(task.description)
+  const editorWrapperRef = useRef<HTMLDivElement>(null)
   const imageHandlers = makeImageHandlers(setDescriptionDraft)
+
+  function detectEmojiQuery(textarea: HTMLTextAreaElement) {
+    const cursor = textarea.selectionStart
+    const before = textarea.value.slice(0, cursor)
+    const match = before.match(/:([a-z0-9_+\-]*)$/)
+    if (match) {
+      const results = searchEmojis(match[1])
+      setEmojiResults(results)
+      setEmojiIndex(0)
+    } else {
+      setEmojiResults([])
+    }
+  }
+
+  function insertEmoji(emoji: string) {
+    const textarea = editorWrapperRef.current?.querySelector('textarea')
+    if (!textarea) return
+    const cursor = textarea.selectionStart
+    const before = textarea.value.slice(0, cursor)
+    const match = before.match(/:([a-z0-9_+\-]*)$/)
+    if (!match) return
+    const start = cursor - match[0].length
+    const newValue = textarea.value.slice(0, start) + emoji + textarea.value.slice(cursor)
+    setDescriptionDraft(newValue)
+    setEmojiResults([])
+    setTimeout(() => {
+      textarea.focus()
+      const pos = start + [...emoji].length
+      textarea.setSelectionRange(pos, pos)
+    }, 0)
+  }
+
+  const emojiTextareaProps = {
+    ...imageHandlers,
+    onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (emojiResults.length > 0) {
+        if (e.key === 'ArrowDown') {
+          e.preventDefault()
+          setEmojiIndex((i) => Math.min(i + 1, emojiResults.length - 1))
+          return
+        }
+        if (e.key === 'ArrowUp') {
+          e.preventDefault()
+          setEmojiIndex((i) => Math.max(i - 1, 0))
+          return
+        }
+        if (e.key === 'Enter' || e.key === 'Tab') {
+          e.preventDefault()
+          insertEmoji(emojiResults[emojiIndex][1])
+          return
+        }
+        if (e.key === 'Escape') {
+          setEmojiResults([])
+          return
+        }
+      }
+    },
+    onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (!['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
+        detectEmojiQuery(e.currentTarget)
+      }
+    },
+    onClick: (e: React.MouseEvent<HTMLTextAreaElement>) => {
+      detectEmojiQuery(e.currentTarget)
+    },
+  }
 
   const linkedTasks = allTasks.filter((t) => task.linkedTaskIds.includes(t.id))
   const linkableTasks = allTasks
@@ -387,14 +457,37 @@ export default function TaskDetail({
 
           {isEditingDescription ? (
             <div>
-              <div data-color-mode="dark">
-                <MDEditor
-                  value={descriptionDraft}
-                  onChange={(val) => setDescriptionDraft(val || '')}
-                  height={320}
-                  preview="live"
-                  textareaProps={imageHandlers}
-                />
+              <div ref={editorWrapperRef} className="relative">
+                <div data-color-mode="dark">
+                  <MDEditor
+                    value={descriptionDraft}
+                    onChange={(val) => setDescriptionDraft(val || '')}
+                    height={320}
+                    preview="live"
+                    textareaProps={emojiTextareaProps}
+                  />
+                </div>
+                {emojiResults.length > 0 && (
+                  <div className="absolute bottom-full left-0 z-50 mb-1 w-56 overflow-hidden rounded-md border border-zinc-600 bg-zinc-800 py-1 shadow-xl">
+                    {emojiResults.map(([name, emoji], i) => (
+                      <button
+                        key={name}
+                        onMouseDown={(e) => {
+                          e.preventDefault()
+                          insertEmoji(emoji)
+                        }}
+                        className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors ${
+                          i === emojiIndex
+                            ? 'bg-zinc-700 text-zinc-100'
+                            : 'text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100'
+                        }`}
+                      >
+                        <span className="text-base">{emoji}</span>
+                        <span className="text-zinc-400">:{name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="mt-2 flex items-center gap-3">
                 <button
