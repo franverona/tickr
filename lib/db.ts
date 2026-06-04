@@ -24,6 +24,14 @@ function ensureMigrations(db: Database.Database) {
     // column already exists
   }
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS task_links (
+      task_id TEXT NOT NULL,
+      linked_task_id TEXT NOT NULL,
+      PRIMARY KEY (task_id, linked_task_id)
+    )
+  `)
+
   // Initialize sort_order for any tasks that don't have one yet,
   // preserving the current newest-first display order (created_at DESC).
   const uninit = db

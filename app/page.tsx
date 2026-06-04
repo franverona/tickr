@@ -137,6 +137,12 @@ export default function Page() {
     setIsCreateOpen(false)
   }
 
+  function handleLinksChanged(task: Task, linkedTask: Task) {
+    setTasks((prev) =>
+      prev.map((t) => (t.id === task.id ? task : t.id === linkedTask.id ? linkedTask : t)),
+    )
+  }
+
   function handleDragStart(i: number) {
     dragSrcIdxRef.current = i
     dragOverIdxRef.current = null
@@ -213,7 +219,7 @@ export default function Page() {
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-zinc-900">
       {/* Top bar */}
-      <header className="flex flex-shrink-0 items-center gap-3 border-b border-zinc-700 bg-zinc-900 px-4 py-2.5">
+      <header className="flex shrink-0 items-center gap-3 border-b border-zinc-700 bg-zinc-900 px-4 py-2.5">
         <div className="mr-1 flex items-center gap-2">
           <Logo size={22} />
           <h1 className="text-base font-bold tracking-tight text-zinc-100">Tickr</h1>
@@ -352,8 +358,8 @@ export default function Page() {
       <div className="flex min-h-0 flex-1">
         {/* Task list */}
         <div
-          className={`flex flex-shrink-0 flex-col border-r border-zinc-700 ${
-            selectedTask ? 'w-[360px]' : 'w-full'
+          className={`flex shrink-0 flex-col border-r border-zinc-700 ${
+            selectedTask ? 'w-90' : 'w-full'
           }`}
         >
           <div className="flex h-10 items-center border-b border-zinc-700 px-4">
@@ -472,10 +478,13 @@ export default function Page() {
               key={selectedTask.id}
               task={selectedTask}
               tags={tags}
+              allTasks={tasks}
               onUpdate={handleTaskUpdated}
               onDelete={handleTaskDeleted}
               onClose={() => setSelectedTaskId(null)}
               onTagCreated={handleTagCreated}
+              onLinksChanged={handleLinksChanged}
+              onSelectTask={setSelectedTaskId}
             />
           </div>
         ) : (

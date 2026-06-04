@@ -8,6 +8,7 @@ export interface Task {
   archived: boolean
   createdAt: string
   updatedAt: string
+  linkedTaskIds: string[]
 }
 
 export interface Tag {

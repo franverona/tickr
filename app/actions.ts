@@ -93,7 +93,7 @@ interface DbRow {
   sort_order: number
 }
 
-function rowToTask(row: DbRow): Task {
+function rowToTask(row: DbRow, linkedTaskIds: string[] = []): Task {
   return {
     id: row.id,
     title: row.title,
@@ -104,13 +104,36 @@ function rowToTask(row: DbRow): Task {
     archived: row.archived === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    linkedTaskIds,
   }
+}
+
+function getLinkedIds(db: ReturnType<typeof getDb>, taskId: string): string[] {
+  const rows = db
+    .prepare('SELECT linked_task_id FROM task_links WHERE task_id = ?')
+    .all(taskId) as { linked_task_id: string }[]
+  return rows.map((r) => r.linked_task_id)
+}
+
+function buildLinkMap(db: ReturnType<typeof getDb>): Map<string, string[]> {
+  const links = db.prepare('SELECT task_id, linked_task_id FROM task_links').all() as {
+    task_id: string
+    linked_task_id: string
+  }[]
+  const map = new Map<string, string[]>()
+  for (const link of links) {
+    const arr = map.get(link.task_id) ?? []
+    arr.push(link.linked_task_id)
+    map.set(link.task_id, arr)
+  }
+  return map
 }
 
 export async function getTasks(): Promise<Task[]> {
   const db = getDb()
   const rows = db.prepare('SELECT * FROM tasks ORDER BY sort_order ASC').all() as DbRow[]
-  return rows.map(rowToTask)
+  const linkMap = buildLinkMap(db)
+  return rows.map((row) => rowToTask(row, linkMap.get(row.id) ?? []))
 }
 
 export async function createTask(data: {
@@ -144,7 +167,7 @@ export async function createTask(data: {
     sortOrder,
   )
 
-  return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow)
+  return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow, [])
 }
 
 export async function updateTask(
@@ -187,7 +210,8 @@ export async function updateTask(
     id,
   )
 
-  return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow)
+  const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow
+  return rowToTask(updated, getLinkedIds(db, id))
 }
 
 export async function reorderTasks(orderedIds: string[]): Promise<void> {
@@ -201,7 +225,48 @@ export async function reorderTasks(orderedIds: string[]): Promise<void> {
 
 export async function deleteTask(id: string): Promise<void> {
   const db = getDb()
-  db.prepare('DELETE FROM tasks WHERE id = ?').run(id)
+  db.transaction(() => {
+    db.prepare('DELETE FROM task_links WHERE task_id = ? OR linked_task_id = ?').run(id, id)
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(id)
+  })()
+}
+
+export async function linkTask(
+  taskId: string,
+  linkedTaskId: string,
+): Promise<{ task: Task; linkedTask: Task }> {
+  const db = getDb()
+  const insert = db.prepare(
+    'INSERT OR IGNORE INTO task_links (task_id, linked_task_id) VALUES (?, ?)',
+  )
+  db.transaction(() => {
+    insert.run(taskId, linkedTaskId)
+    insert.run(linkedTaskId, taskId)
+  })()
+
+  const taskRow = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as DbRow
+  const linkedRow = db.prepare('SELECT * FROM tasks WHERE id = ?').get(linkedTaskId) as DbRow
+  return {
+    task: rowToTask(taskRow, getLinkedIds(db, taskId)),
+    linkedTask: rowToTask(linkedRow, getLinkedIds(db, linkedTaskId)),
+  }
+}
+
+export async function unlinkTask(
+  taskId: string,
+  linkedTaskId: string,
+): Promise<{ task: Task; linkedTask: Task }> {
+  const db = getDb()
+  db.prepare(
+    'DELETE FROM task_links WHERE (task_id = ? AND linked_task_id = ?) OR (task_id = ? AND linked_task_id = ?)',
+  ).run(taskId, linkedTaskId, linkedTaskId, taskId)
+
+  const taskRow = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as DbRow
+  const linkedRow = db.prepare('SELECT * FROM tasks WHERE id = ?').get(linkedTaskId) as DbRow
+  return {
+    task: rowToTask(taskRow, getLinkedIds(db, taskId)),
+    linkedTask: rowToTask(linkedRow, getLinkedIds(db, linkedTaskId)),
+  }
 }
 
 export async function importTasks(
@@ -281,9 +346,14 @@ export async function importTasks(
     }
   })()
 
-  const allTasks = db.prepare('SELECT * FROM tasks ORDER BY sort_order ASC').all() as DbRow[]
+  const allRows = db.prepare('SELECT * FROM tasks ORDER BY sort_order ASC').all() as DbRow[]
+  const linkMap = buildLinkMap(db)
   const allTags = db
     .prepare('SELECT id, label, color FROM tags ORDER BY created_at ASC')
     .all() as Tag[]
-  return { imported, tasks: allTasks.map(rowToTask), tags: allTags }
+  return {
+    imported,
+    tasks: allRows.map((r) => rowToTask(r, linkMap.get(r.id) ?? [])),
+    tags: allTags,
+  }
 }

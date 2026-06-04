@@ -2,17 +2,20 @@
 
 import { useState, useRef, useEffect } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { updateTask, deleteTask } from '@/app/actions'
+import { updateTask, deleteTask, linkTask, unlinkTask } from '@/app/actions'
 import TagSelector from './TagSelector'
 import { MDEditor, MDPreview, makeImageHandlers } from './MdEditor'
 
 interface TaskDetailProps {
   task: Task
   tags: Tag[]
+  allTasks: Task[]
   onUpdate: (task: Task) => void
   onDelete: (id: string) => void
   onClose: () => void
   onTagCreated: (tag: Tag) => void
+  onLinksChanged: (task: Task, linkedTask: Task) => void
+  onSelectTask: (id: string) => void
 }
 
 function formatDate(dateStr: string): string {
@@ -27,10 +30,13 @@ function formatDate(dateStr: string): string {
 export default function TaskDetail({
   task,
   tags,
+  allTasks,
   onUpdate,
   onDelete,
   onClose,
   onTagCreated,
+  onLinksChanged,
+  onSelectTask,
 }: TaskDetailProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(task.title)
@@ -40,10 +46,34 @@ export default function TaskDetail({
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>(
     'idle',
   )
+  const [linkSearch, setLinkSearch] = useState('')
+  const [isLinkSearchFocused, setIsLinkSearchFocused] = useState(false)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDescRef = useRef(task.description)
   const imageHandlers = makeImageHandlers(setDescriptionDraft)
+
+  const linkedTasks = allTasks.filter((t) => task.linkedTaskIds.includes(t.id))
+  const linkableTasks = allTasks
+    .filter(
+      (t) =>
+        t.id !== task.id &&
+        !task.linkedTaskIds.includes(t.id) &&
+        (!linkSearch || t.title.toLowerCase().includes(linkSearch.toLowerCase())),
+    )
+    .slice(0, 8)
+
+  async function handleLink(linkedTaskId: string) {
+    const { task: updated, linkedTask } = await linkTask(task.id, linkedTaskId)
+    onLinksChanged(updated, linkedTask)
+    setLinkSearch('')
+    setIsLinkSearchFocused(false)
+  }
+
+  async function handleUnlink(linkedTaskId: string) {
+    const { task: updated, linkedTask } = await unlinkTask(task.id, linkedTaskId)
+    onLinksChanged(updated, linkedTask)
+  }
 
   // task.id changes are handled by key={task.id} in the parent, which remounts
   // this component entirely — no manual state reset needed here.
@@ -144,7 +174,7 @@ export default function TaskDetail({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-10 flex-shrink-0 items-center justify-between border-b border-zinc-700 px-4">
+      <div className="flex h-10 shrink-0 items-center justify-between border-b border-zinc-700 px-4">
         <span className="text-xs tracking-wide text-zinc-400 uppercase">Detail</span>
         <button
           onClick={onClose}
@@ -261,7 +291,7 @@ export default function TaskDetail({
               type="date"
               value={task.dueDate || ''}
               onChange={(e) => saveDueDate(e.target.value || null)}
-              className="rounded border border-zinc-600 bg-zinc-700 px-2 py-1.5 text-sm text-zinc-100 [color-scheme:dark] focus:border-zinc-400 focus:outline-none"
+              className="rounded border border-zinc-600 bg-zinc-700 px-2 py-1.5 text-sm text-zinc-100 scheme-dark focus:border-zinc-400 focus:outline-none"
             />
             {task.dueDate && (
               <button
@@ -275,6 +305,66 @@ export default function TaskDetail({
               <span className="text-xs font-medium text-red-400">
                 Overdue — {formatDate(task.dueDate!)}
               </span>
+            )}
+          </div>
+        </div>
+
+        {/* Linked Tasks */}
+        <div>
+          <label className="mb-2 block text-xs tracking-wide text-zinc-400 uppercase">
+            Linked Tasks
+          </label>
+
+          {linkedTasks.length > 0 && (
+            <div className="mb-2 space-y-1">
+              {linkedTasks.map((linked) => (
+                <div
+                  key={linked.id}
+                  className="flex items-center gap-2 rounded-md bg-zinc-700/50 px-2.5 py-1.5"
+                >
+                  <button
+                    onClick={() => onSelectTask(linked.id)}
+                    className={`min-w-0 flex-1 truncate text-left text-sm transition-colors hover:text-zinc-100 ${
+                      linked.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
+                    }`}
+                  >
+                    {linked.title}
+                  </button>
+                  <button
+                    onClick={() => handleUnlink(linked.id)}
+                    className="shrink-0 text-lg leading-none text-zinc-500 transition-colors hover:text-zinc-300"
+                    title="Unlink"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="relative">
+            <input
+              value={linkSearch}
+              onChange={(e) => setLinkSearch(e.target.value)}
+              onFocus={() => setIsLinkSearchFocused(true)}
+              onBlur={() => setTimeout(() => setIsLinkSearchFocused(false), 150)}
+              placeholder="Link a task…"
+              className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+            />
+            {isLinkSearchFocused && linkableTasks.length > 0 && (
+              <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-zinc-600 bg-zinc-800 py-1 shadow-xl">
+                {linkableTasks.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => handleLink(t.id)}
+                    className={`w-full px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-zinc-700 hover:text-zinc-100 ${
+                      t.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
+                    }`}
+                  >
+                    {t.title}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
         </div>
@@ -336,7 +426,7 @@ export default function TaskDetail({
                 }
                 setIsEditingDescription(true)
               }}
-              className="-mx-1 min-h-[60px] cursor-text rounded-md px-1"
+              className="-mx-1 min-h-15 cursor-text rounded-md px-1"
             >
               {task.description ? (
                 <div data-color-mode="dark">
