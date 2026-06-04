@@ -37,8 +37,12 @@ export default function TaskDetail({
   const [isEditingDescription, setIsEditingDescription] = useState(false)
   const [descriptionDraft, setDescriptionDraft] = useState(task.description)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>(
+    'idle',
+  )
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastSavedDescRef = useRef(task.description)
   const imageHandlers = makeImageHandlers(setDescriptionDraft)
 
   // task.id changes are handled by key={task.id} in the parent, which remounts
@@ -77,17 +81,46 @@ export default function TaskDetail({
     onUpdate(updated)
   }
 
-  async function saveDescription() {
-    setIsSaving(true)
-    try {
-      const updated = await updateTask(task.id, {
-        description: descriptionDraft,
-      })
-      onUpdate(updated)
-      setIsEditingDescription(false)
-    } finally {
-      setIsSaving(false)
+  useEffect(() => {
+    if (!isEditingDescription) return
+    if (descriptionDraft === lastSavedDescRef.current) return
+
+    setAutoSaveStatus('pending')
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
+
+    autoSaveTimerRef.current = setTimeout(async () => {
+      setAutoSaveStatus('saving')
+      try {
+        const updated = await updateTask(task.id, { description: descriptionDraft })
+        lastSavedDescRef.current = descriptionDraft
+        onUpdate(updated)
+        setAutoSaveStatus('saved')
+        setTimeout(() => setAutoSaveStatus((s) => (s === 'saved' ? 'idle' : s)), 2000)
+      } catch {
+        setAutoSaveStatus('idle')
+      }
+    }, 1500)
+
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [descriptionDraft, isEditingDescription])
+
+  async function handleDone() {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current)
+      autoSaveTimerRef.current = null
+    }
+    if (descriptionDraft !== lastSavedDescRef.current) {
+      try {
+        const updated = await updateTask(task.id, { description: descriptionDraft })
+        lastSavedDescRef.current = descriptionDraft
+        onUpdate(updated)
+      } catch {}
+    }
+    setIsEditingDescription(false)
+    setAutoSaveStatus('idle')
   }
 
   async function toggleComplete() {
@@ -254,10 +287,7 @@ export default function TaskDetail({
             <label className="text-xs tracking-wide text-zinc-400 uppercase">Description</label>
             {!isEditingDescription && (
               <button
-                onClick={() => {
-                  setDescriptionDraft(task.description)
-                  setIsEditingDescription(true)
-                }}
+                onClick={() => setIsEditingDescription(true)}
                 className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
               >
                 Edit
@@ -276,23 +306,23 @@ export default function TaskDetail({
                   textareaProps={imageHandlers}
                 />
               </div>
-              <div className="mt-2 flex gap-2">
+              <div className="mt-2 flex items-center gap-3">
                 <button
-                  onClick={saveDescription}
-                  disabled={isSaving}
-                  className="rounded-md bg-blue-600 px-3 py-1 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+                  onClick={handleDone}
+                  disabled={autoSaveStatus === 'saving'}
+                  className="rounded-md bg-zinc-700 px-3 py-1 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-600 disabled:opacity-50"
                 >
-                  {isSaving ? 'Saving…' : 'Save'}
+                  Done
                 </button>
-                <button
-                  onClick={() => {
-                    setDescriptionDraft(task.description)
-                    setIsEditingDescription(false)
-                  }}
-                  className="rounded-md bg-zinc-700 px-3 py-1 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-600"
-                >
-                  Cancel
-                </button>
+                {autoSaveStatus === 'pending' && (
+                  <span className="text-xs text-zinc-500">Unsaved changes…</span>
+                )}
+                {autoSaveStatus === 'saving' && (
+                  <span className="text-xs text-zinc-400">Saving…</span>
+                )}
+                {autoSaveStatus === 'saved' && (
+                  <span className="text-xs text-emerald-400">Saved</span>
+                )}
               </div>
             </div>
           ) : (
@@ -304,7 +334,6 @@ export default function TaskDetail({
                   window.open(anchor.getAttribute('href') ?? '', '_blank', 'noopener,noreferrer')
                   return
                 }
-                setDescriptionDraft(task.description)
                 setIsEditingDescription(true)
               }}
               className="-mx-1 min-h-[60px] cursor-text rounded-md px-1"
