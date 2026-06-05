@@ -21,7 +21,8 @@ app/
   layout.tsx
   globals.css
   api/
-    upload/route.ts    # image upload endpoint (POST /api/upload → public/uploads/)
+    upload/route.ts         # image upload endpoint (POST /api/upload → public/uploads/)
+    uploads/[...path]/      # dynamic image server (GET /uploads/* → public/uploads/)
 components/
   TaskCard.tsx         # task list item
   TaskDetail.tsx       # right-panel detail view
@@ -45,7 +46,8 @@ public/
 
 ## Key conventions
 
-- **Server Actions** for all DB reads and writes — no API routes, except `/api/upload` (image upload, Next.js route handler)
+- **Server Actions** for all DB reads and writes — no API routes, except `/api/upload` (image upload) and `/api/uploads/[...path]` (image serving, see below)
+- **Uploaded image serving**: In production, Next.js indexes `public/` once at startup, so newly uploaded files 404 if served as static assets. A `beforeFiles` rewrite in `next.config.ts` redirects all `GET /uploads/*` requests to `/api/uploads/*`, which reads files from `public/uploads/` dynamically on every request
 - **Tag colors** are stored as full Tailwind class strings (e.g. `"bg-blue-600 text-blue-100 border-blue-500"`). All color options must appear as literals in `COLOR_PALETTE` in `lib/constants.ts` so Tailwind v4 bundles them
 - `better-sqlite3` is excluded from webpack bundling via `serverExternalPackages` in `next.config.ts`
 - **Migrations** run idempotently in `ensureMigrations()` inside `lib/db.ts` — add `ALTER TABLE … ADD COLUMN` wrapped in try/catch to extend the schema without breaking existing databases
