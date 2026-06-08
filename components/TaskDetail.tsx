@@ -465,6 +465,7 @@ export default function TaskDetail({
                     height={320}
                     preview="live"
                     textareaProps={emojiTextareaProps}
+                    previewOptions={{ skipHtml: false }}
                   />
                 </div>
                 {emojiResults.length > 0 && (
@@ -520,13 +521,20 @@ export default function TaskDetail({
                 if ((e.target as HTMLElement).closest('.copied')) {
                   return
                 }
+                if ((e.target as HTMLElement).closest('summary')) {
+                  return
+                }
                 setIsEditingDescription(true)
               }}
               className="-mx-1 min-h-15 cursor-text rounded-md px-1"
             >
               {task.description ? (
                 <div data-color-mode="dark">
-                  <MDPreview source={task.description} style={{ background: 'transparent' }} />
+                  <MDPreview
+                    source={task.description}
+                    style={{ background: 'transparent' }}
+                    skipHtml={false}
+                  />
                 </div>
               ) : (
                 <p className="py-1 text-sm text-zinc-500 italic">Click to add a description…</p>
