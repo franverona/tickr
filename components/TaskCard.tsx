@@ -11,14 +11,6 @@ interface TaskCardProps {
   onContextMenu?: (e: React.MouseEvent) => void
 }
 
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
-}
-
 export default function TaskCard({
   task,
   tags,
@@ -26,9 +18,6 @@ export default function TaskCard({
   onClick,
   onContextMenu,
 }: TaskCardProps) {
-  const today = new Date().toISOString().split('T')[0]
-  const isOverdue = task.dueDate && task.dueDate < today && !task.completed
-
   const preview = task.description
     .replace(/```[\s\S]*?```/g, '')
     .replace(/[#*`_~[\]>]/g, '')
@@ -53,16 +42,6 @@ export default function TaskCard({
         >
           {task.title}
         </span>
-        {task.dueDate && (
-          <span
-            className={`shrink-0 text-xs tabular-nums ${
-              isOverdue ? 'font-semibold text-red-400' : 'text-zinc-400'
-            }`}
-          >
-            {isOverdue && '⚠ '}
-            {formatDate(task.dueDate)}
-          </span>
-        )}
       </div>
 
       {task.tags.length > 0 && (

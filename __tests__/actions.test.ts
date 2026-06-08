@@ -11,7 +11,6 @@ const { getTestDb } = vi.hoisted(() => {
       title TEXT NOT NULL,
       description TEXT NOT NULL DEFAULT '',
       tags TEXT NOT NULL DEFAULT '[]',
-      due_date TEXT,
       completed INTEGER NOT NULL DEFAULT 0,
       archived INTEGER NOT NULL DEFAULT 0,
       created_at TEXT NOT NULL,
@@ -51,7 +50,7 @@ function seedTag() {
 
 describe('createTask', () => {
   it('returns correct JS types (not raw SQLite integers)', async () => {
-    const task = await createTask({ title: 'Test task', description: '', tags: [], dueDate: null })
+    const task = await createTask({ title: 'Test task', description: '', tags: [] })
     expect(typeof task.id).toBe('string')
     expect(task.completed).toBe(false)
     expect(task.archived).toBe(false)
@@ -63,14 +62,13 @@ describe('createTask', () => {
       title: 'Tagged',
       description: '',
       tags: ['wip', 'blocked'],
-      dueDate: null,
     })
     expect(task.tags).toEqual(['wip', 'blocked'])
   })
 
   it('places the newest task at the top (lower sort_order)', async () => {
-    await createTask({ title: 'First', description: '', tags: [], dueDate: null })
-    await createTask({ title: 'Second', description: '', tags: [], dueDate: null })
+    await createTask({ title: 'First', description: '', tags: [] })
+    await createTask({ title: 'Second', description: '', tags: [] })
     const tasks = await getTasks()
     expect(tasks[0].title).toBe('Second')
     expect(tasks[1].title).toBe('First')
@@ -83,7 +81,6 @@ describe('updateTask', () => {
       title: 'Original',
       description: 'Keep this',
       tags: [],
-      dueDate: null,
     })
     const updated = await updateTask(task.id, { title: 'Changed' })
     expect(updated.title).toBe('Changed')
@@ -91,7 +88,7 @@ describe('updateTask', () => {
   })
 
   it('round-trips the completed boolean through SQLite integers', async () => {
-    const task = await createTask({ title: 'T', description: '', tags: [], dueDate: null })
+    const task = await createTask({ title: 'T', description: '', tags: [] })
     const updated = await updateTask(task.id, { completed: true })
     expect(updated.completed).toBe(true)
     const [fromDb] = await getTasks()
@@ -105,7 +102,7 @@ describe('updateTask', () => {
 
 describe('deleteTask', () => {
   it('removes the task from the database', async () => {
-    const task = await createTask({ title: 'Doomed', description: '', tags: [], dueDate: null })
+    const task = await createTask({ title: 'Doomed', description: '', tags: [] })
     await deleteTask(task.id)
     expect(await getTasks()).toHaveLength(0)
   })
@@ -121,7 +118,7 @@ describe('deleteTag', () => {
 
   it('strips the deleted tag from every task that references it', async () => {
     seedTag()
-    await createTask({ title: 'T', description: '', tags: [SEED_TAG.id], dueDate: null })
+    await createTask({ title: 'T', description: '', tags: [SEED_TAG.id] })
     await deleteTag(SEED_TAG.id)
     const [task] = await getTasks()
     expect(task.tags).toEqual([])

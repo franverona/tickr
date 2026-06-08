@@ -56,41 +56,40 @@ describe('parseJSONContent', () => {
 })
 
 describe('parseCSVContent', () => {
-  const HEADER = 'Title,Tags,Due Date,Status,Description,Created At,Updated At'
+  const HEADER = 'Title,Tags,Status,Description,Created At,Updated At'
 
   it('parses basic rows correctly', () => {
-    const csv = [HEADER, 'Task one,WIP,2024-06-01,Active,desc,2024-01-01,2024-01-01'].join('\n')
+    const csv = [HEADER, 'Task one,WIP,Active,desc,2024-01-01,2024-01-01'].join('\n')
     const result = parseCSVContent(csv)
     expect(result).toHaveLength(1)
     expect(result[0].title).toBe('Task one')
     expect(result[0].tagLabels).toEqual(['WIP'])
-    expect(result[0].dueDate).toBe('2024-06-01')
     expect(result[0].completed).toBe(false)
     expect(result[0].archived).toBe(false)
   })
 
   it('maps "Completed" status to completed=true', () => {
-    const csv = [HEADER, 'T,,,Completed,,,'].join('\n')
+    const csv = [HEADER, 'T,,Completed,,,'].join('\n')
     const result = parseCSVContent(csv)
     expect(result[0].completed).toBe(true)
     expect(result[0].archived).toBe(false)
   })
 
   it('maps "Archived" status to archived=true', () => {
-    const csv = [HEADER, 'T,,,Archived,,,'].join('\n')
+    const csv = [HEADER, 'T,,Archived,,,'].join('\n')
     const result = parseCSVContent(csv)
     expect(result[0].archived).toBe(true)
     expect(result[0].completed).toBe(false)
   })
 
   it('splits semicolon-separated tags', () => {
-    const csv = [HEADER, 'T,WIP; Blocked,,Active,,,'].join('\n')
+    const csv = [HEADER, 'T,WIP; Blocked,Active,,,'].join('\n')
     const result = parseCSVContent(csv)
     expect(result[0].tagLabels).toEqual(['WIP', 'Blocked'])
   })
 
   it('skips rows with an empty title', () => {
-    const csv = [HEADER, ',tag,,Active,,', 'Real task,,,,Active,,'].join('\n')
+    const csv = [HEADER, ',tag,Active,,', 'Real task,,,Active,,'].join('\n')
     const result = parseCSVContent(csv)
     expect(result).toHaveLength(1)
     expect(result[0].title).toBe('Real task')

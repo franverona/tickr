@@ -85,7 +85,6 @@ interface DbRow {
   title: string
   description: string
   tags: string
-  due_date: string | null
   completed: number
   archived: number
   created_at: string
@@ -99,7 +98,6 @@ function rowToTask(row: DbRow, linkedTaskIds: string[] = []): Task {
     title: row.title,
     description: row.description,
     tags: JSON.parse(row.tags),
-    dueDate: row.due_date,
     completed: row.completed === 1,
     archived: row.archived === 1,
     createdAt: row.created_at,
@@ -140,7 +138,6 @@ export async function createTask(data: {
   title: string
   description: string
   tags: string[]
-  dueDate: string | null
 }): Promise<Task> {
   const db = getDb()
   const id = randomUUID()
@@ -154,18 +151,9 @@ export async function createTask(data: {
   const sortOrder = minRow.min !== null ? minRow.min - 1000 : 0
 
   db.prepare(
-    `INSERT INTO tasks (id, title, description, tags, due_date, completed, created_at, updated_at, sort_order)
-     VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
-  ).run(
-    id,
-    data.title,
-    data.description,
-    JSON.stringify(data.tags),
-    data.dueDate,
-    now,
-    now,
-    sortOrder,
-  )
+    `INSERT INTO tasks (id, title, description, tags, completed, created_at, updated_at, sort_order)
+     VALUES (?, ?, ?, ?, 0, ?, ?, ?)`,
+  ).run(id, data.title, data.description, JSON.stringify(data.tags), now, now, sortOrder)
 
   return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow, [])
 }
@@ -176,7 +164,6 @@ export async function updateTask(
     title: string
     description: string
     tags: string[]
-    dueDate: string | null
     completed: boolean
     archived: boolean
   }>,
@@ -190,25 +177,15 @@ export async function updateTask(
     title: data.title ?? current.title,
     description: data.description ?? current.description,
     tags: data.tags !== undefined ? JSON.stringify(data.tags) : current.tags,
-    due_date: data.dueDate !== undefined ? data.dueDate : current.due_date,
     completed: data.completed !== undefined ? (data.completed ? 1 : 0) : current.completed,
     archived: data.archived !== undefined ? (data.archived ? 1 : 0) : current.archived,
   }
 
   db.prepare(
     `UPDATE tasks
-     SET title = ?, description = ?, tags = ?, due_date = ?, completed = ?, archived = ?, updated_at = ?
+     SET title = ?, description = ?, tags = ?, completed = ?, archived = ?, updated_at = ?
      WHERE id = ?`,
-  ).run(
-    next.title,
-    next.description,
-    next.tags,
-    next.due_date,
-    next.completed,
-    next.archived,
-    now,
-    id,
-  )
+  ).run(next.title, next.description, next.tags, next.completed, next.archived, now, id)
 
   const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow
   return rowToTask(updated, getLinkedIds(db, id))
@@ -315,8 +292,8 @@ export async function importTasks(
     'INSERT OR IGNORE INTO tags (id, label, color, created_at) VALUES (?, ?, ?, ?)',
   )
   const insertTask = db.prepare(
-    `INSERT INTO tasks (id, title, description, tags, due_date, completed, archived, created_at, updated_at, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, title, description, tags, completed, archived, created_at, updated_at, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
 
   db.transaction(() => {
@@ -334,7 +311,6 @@ export async function importTasks(
         item.title.trim(),
         item.description,
         JSON.stringify(tagIds),
-        item.dueDate,
         item.completed ? 1 : 0,
         item.archived ? 1 : 0,
         now,

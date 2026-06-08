@@ -2,7 +2,6 @@ export interface ImportedTask {
   title: string
   description: string
   tagLabels: string[]
-  dueDate: string | null
   completed: boolean
   archived: boolean
 }
@@ -98,7 +97,6 @@ export function parseJSONContent(content: string): ImportedTask[] {
         tagLabels: Array.isArray(t.tags)
           ? t.tags.filter((x): x is string => typeof x === 'string')
           : [],
-        dueDate: typeof t.dueDate === 'string' && t.dueDate ? t.dueDate : null,
         completed: t.completed === true,
         archived: t.archived === true,
       }
@@ -117,7 +115,6 @@ export function parseCSVContent(content: string): ImportedTask[] {
   if (titleIdx === -1) throw new Error('CSV is missing a "Title" column')
 
   const tagsIdx = col('tags')
-  const dueDateIdx = col('due date')
   const statusIdx = col('status')
   const descIdx = col('description')
 
@@ -138,7 +135,6 @@ export function parseCSVContent(content: string): ImportedTask[] {
                 .map((t) => t.trim())
                 .filter(Boolean)
             : [],
-        dueDate: dueDateIdx !== -1 && row[dueDateIdx] ? row[dueDateIdx] : null,
         completed: status === 'completed',
         archived: status === 'archived',
       }

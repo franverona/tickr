@@ -62,7 +62,6 @@ export function getDb(): Database.Database {
         title TEXT NOT NULL,
         description TEXT NOT NULL DEFAULT '',
         tags TEXT NOT NULL DEFAULT '[]',
-        due_date TEXT,
         completed INTEGER NOT NULL DEFAULT 0,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL

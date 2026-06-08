@@ -41,15 +41,6 @@ type Suggestion =
   | { kind: 'mention'; items: Task[] }
   | { kind: 'snippet'; items: ReadonlyArray<Snippet> }
 
-function formatDate(dateStr: string): string {
-  const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
 export default function TaskDetail({
   task,
   tags,
@@ -69,6 +60,7 @@ export default function TaskDetail({
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>(
     'idle',
   )
+  const [showLinks, setShowLinks] = useState(false)
   const [linkSearch, setLinkSearch] = useState('')
   const [isLinkSearchFocused, setIsLinkSearchFocused] = useState(false)
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
@@ -257,11 +249,6 @@ export default function TaskDetail({
     onUpdate(updated)
   }
 
-  async function saveDueDate(dueDate: string | null) {
-    const updated = await updateTask(task.id, { dueDate })
-    onUpdate(updated)
-  }
-
   useEffect(() => {
     if (!isEditingDescription) return
     if (descriptionDraft === lastSavedDescRef.current) return
@@ -326,24 +313,10 @@ export default function TaskDetail({
     onDelete(task.id)
   }
 
-  const today = new Date().toISOString().split('T')[0]
-  const isOverdue = task.dueDate && task.dueDate < today && !task.completed
-
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-10 shrink-0 items-center justify-between border-b border-zinc-700 px-4">
-        <span className="text-xs tracking-wide text-zinc-400 uppercase">Detail</span>
-        <button
-          onClick={onClose}
-          className="text-xl leading-none text-zinc-400 transition-colors hover:text-zinc-100"
-        >
-          ×
-        </button>
-      </div>
-
-      <div className="flex-1 space-y-5 overflow-y-auto p-5">
-        {/* Title */}
+      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-zinc-700 px-4">
         {isEditingTitle ? (
           <input
             ref={titleInputRef}
@@ -357,25 +330,32 @@ export default function TaskDetail({
                 setIsEditingTitle(false)
               }
             }}
-            className="w-full rounded-md border border-zinc-500 bg-zinc-700 px-2 py-1 text-lg font-semibold text-zinc-100 focus:border-zinc-300 focus:outline-none"
+            className="min-w-0 flex-1 rounded border border-zinc-500 bg-zinc-700 px-2 py-0.5 text-sm font-medium text-zinc-100 focus:border-zinc-300 focus:outline-none"
           />
         ) : (
           <h2
             onClick={() => setIsEditingTitle(true)}
-            className={`-mx-2 cursor-text rounded-md px-2 py-1 text-lg font-semibold transition-colors hover:bg-zinc-700/50 ${
+            title={task.title}
+            className={`group flex min-w-0 flex-1 cursor-text items-center gap-1.5 transition-colors hover:text-zinc-300 ${
               task.completed ? 'text-zinc-400 line-through' : 'text-zinc-100'
             }`}
           >
-            {task.title}
+            <span className="min-w-0 truncate text-sm font-medium">{task.title}</span>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="h-3.5 w-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-50"
+            >
+              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+            </svg>
           </h2>
         )}
-
-        {/* Action buttons */}
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-1.5">
           {task.archived ? (
             <button
               onClick={toggleArchived}
-              className="flex-1 rounded-md bg-zinc-600 px-3 py-1.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-500"
+              className="rounded-md bg-zinc-600 px-2.5 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-500"
             >
               Unarchive
             </button>
@@ -383,7 +363,7 @@ export default function TaskDetail({
             <>
               <button
                 onClick={toggleComplete}
-                className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                   task.completed
                     ? 'bg-zinc-600 text-zinc-200 hover:bg-zinc-500'
                     : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
@@ -393,135 +373,129 @@ export default function TaskDetail({
               </button>
               <button
                 onClick={toggleArchived}
-                className="rounded-md bg-zinc-700 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-600 hover:text-zinc-100"
+                className="rounded-md bg-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-600 hover:text-zinc-100"
                 title="Archive task"
               >
                 Archive
               </button>
             </>
           )}
-
           {showDeleteConfirm ? (
-            <div className="flex gap-1.5">
+            <>
               <button
                 onClick={handleDelete}
-                className="rounded-md bg-red-700 px-3 py-1.5 text-sm font-medium text-red-100 transition-colors hover:bg-red-600"
+                className="rounded-md bg-red-700 px-2.5 py-1 text-xs font-medium text-red-100 transition-colors hover:bg-red-600"
               >
                 Confirm Delete
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="rounded-md bg-zinc-700 px-3 py-1.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-600"
+                className="rounded-md bg-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-600"
               >
                 Cancel
               </button>
-            </div>
+            </>
           ) : (
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="rounded-md bg-zinc-700 px-3 py-1.5 text-sm font-medium text-zinc-300 transition-colors hover:bg-zinc-600 hover:text-red-400"
+              className="rounded-md bg-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-600 hover:text-red-400"
             >
               Delete
             </button>
           )}
         </div>
+        <button
+          onClick={onClose}
+          className="shrink-0 text-xl leading-none text-zinc-400 transition-colors hover:text-zinc-100"
+        >
+          ×
+        </button>
+      </div>
 
-        <div className="border-t border-zinc-700/70" />
-
-        {/* Tags */}
-        <div>
-          <label className="mb-2 block text-xs tracking-wide text-zinc-400 uppercase">Tags</label>
-          <TagSelector
-            tags={tags}
-            selected={task.tags}
-            onChange={saveTags}
-            onTagCreated={onTagCreated}
-          />
-        </div>
-
-        {/* Due date */}
-        <div>
-          <label className="mb-2 block text-xs tracking-wide text-zinc-400 uppercase">
-            Due Date
-          </label>
+      <div className="flex-1 space-y-4 overflow-y-auto p-5">
+        {/* Compact metadata rows: Tags, Linked Tasks */}
+        <div className="space-y-2.5">
+          {/* Tags */}
           <div className="flex items-center gap-3">
-            <input
-              type="date"
-              value={task.dueDate || ''}
-              onChange={(e) => saveDueDate(e.target.value || null)}
-              className="rounded border border-zinc-600 bg-zinc-700 px-2 py-1.5 text-sm text-zinc-100 scheme-dark focus:border-zinc-400 focus:outline-none"
-            />
-            {task.dueDate && (
-              <button
-                onClick={() => saveDueDate(null)}
-                className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
-              >
-                Clear
-              </button>
-            )}
-            {isOverdue && (
-              <span className="text-xs font-medium text-red-400">
-                Overdue — {formatDate(task.dueDate!)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Linked Tasks */}
-        <div>
-          <label className="mb-2 block text-xs tracking-wide text-zinc-400 uppercase">
-            Linked Tasks
-          </label>
-
-          {linkedTasks.length > 0 && (
-            <div className="mb-2 space-y-1">
-              {linkedTasks.map((linked) => (
-                <div
-                  key={linked.id}
-                  className="flex items-center gap-2 rounded-md bg-zinc-700/50 px-2.5 py-1.5"
-                >
-                  <button
-                    onClick={() => onSelectTask(linked.id)}
-                    className={`min-w-0 flex-1 truncate text-left text-sm transition-colors hover:text-zinc-100 ${
-                      linked.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
-                    }`}
-                  >
-                    {linked.title}
-                  </button>
-                  <button
-                    onClick={() => handleUnlink(linked.id)}
-                    className="shrink-0 text-lg leading-none text-zinc-500 transition-colors hover:text-zinc-300"
-                    title="Unlink"
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
+            <span className="w-16 shrink-0 text-xs tracking-wide text-zinc-500 uppercase">
+              Tags
+            </span>
+            <div className="min-w-0 flex-1">
+              <TagSelector
+                tags={tags}
+                selected={task.tags}
+                onChange={saveTags}
+                onTagCreated={onTagCreated}
+              />
             </div>
-          )}
+          </div>
 
-          <div className="relative">
-            <input
-              value={linkSearch}
-              onChange={(e) => setLinkSearch(e.target.value)}
-              onFocus={() => setIsLinkSearchFocused(true)}
-              onBlur={() => setTimeout(() => setIsLinkSearchFocused(false), 150)}
-              placeholder="Link a task…"
-              className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1.5 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
-            />
-            {isLinkSearchFocused && linkableTasks.length > 0 && (
-              <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-zinc-600 bg-zinc-800 py-1 shadow-xl">
-                {linkableTasks.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => handleLink(t.id)}
-                    className={`w-full px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-zinc-700 hover:text-zinc-100 ${
-                      t.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
-                    }`}
-                  >
-                    {t.title}
-                  </button>
-                ))}
+          {/* Linked Tasks */}
+          <div>
+            <button
+              onClick={() => setShowLinks((v) => !v)}
+              className="flex items-center gap-1.5 text-xs tracking-wide text-zinc-500 uppercase transition-colors hover:text-zinc-300"
+            >
+              <span className={`text-[10px] transition-transform ${showLinks ? 'rotate-90' : ''}`}>
+                ▸
+              </span>
+              <span>Linked tasks{linkedTasks.length > 0 ? ` (${linkedTasks.length})` : ''}</span>
+            </button>
+
+            {showLinks && (
+              <div className="mt-2 pl-5.5">
+                {linkedTasks.length > 0 && (
+                  <div className="mb-1.5 flex flex-wrap gap-1.5">
+                    {linkedTasks.map((linked) => (
+                      <div
+                        key={linked.id}
+                        className="flex items-center gap-1.5 rounded-md bg-zinc-700/50 py-1 pr-1.5 pl-2.5"
+                      >
+                        <button
+                          onClick={() => onSelectTask(linked.id)}
+                          className={`max-w-48 truncate text-left text-sm transition-colors hover:text-zinc-100 ${
+                            linked.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
+                          }`}
+                        >
+                          {linked.title}
+                        </button>
+                        <button
+                          onClick={() => handleUnlink(linked.id)}
+                          className="shrink-0 text-lg leading-none text-zinc-500 transition-colors hover:text-zinc-300"
+                          title="Unlink"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="relative max-w-xs">
+                  <input
+                    value={linkSearch}
+                    onChange={(e) => setLinkSearch(e.target.value)}
+                    onFocus={() => setIsLinkSearchFocused(true)}
+                    onBlur={() => setTimeout(() => setIsLinkSearchFocused(false), 150)}
+                    placeholder="Link a task…"
+                    className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                  />
+                  {isLinkSearchFocused && linkableTasks.length > 0 && (
+                    <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-zinc-600 bg-zinc-800 py-1 shadow-xl">
+                      {linkableTasks.map((t) => (
+                        <button
+                          key={t.id}
+                          onClick={() => handleLink(t.id)}
+                          className={`w-full px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-zinc-700 hover:text-zinc-100 ${
+                            t.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
+                          }`}
+                        >
+                          {t.title}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -529,7 +503,6 @@ export default function TaskDetail({
 
         <div className="border-t border-zinc-700/70" />
 
-        {/* Description */}
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-xs tracking-wide text-zinc-400 uppercase">Description</label>
@@ -550,7 +523,7 @@ export default function TaskDetail({
                   <MDEditor
                     value={descriptionDraft}
                     onChange={(val) => setDescriptionDraft(val || '')}
-                    height={320}
+                    height={560}
                     preview="live"
                     textareaProps={suggestionTextareaProps}
                     previewOptions={{ skipHtml: false }}

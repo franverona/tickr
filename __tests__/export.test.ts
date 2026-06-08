@@ -13,7 +13,6 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     title: 'Task one',
     description: '',
     tags: [],
-    dueDate: null,
     completed: false,
     archived: false,
     createdAt: '2024-01-01T00:00:00.000Z',
@@ -37,7 +36,7 @@ describe('exportToJSON', () => {
   })
 
   it('includes all expected fields', () => {
-    const task = makeTask({ dueDate: '2024-06-01' })
+    const task = makeTask()
     const result = JSON.parse(exportToJSON([task], TAGS))
     const keys = Object.keys(result[0])
     expect(keys).toEqual(
@@ -46,7 +45,6 @@ describe('exportToJSON', () => {
         'title',
         'description',
         'tags',
-        'dueDate',
         'completed',
         'archived',
         'createdAt',
@@ -59,7 +57,7 @@ describe('exportToJSON', () => {
 describe('exportToCSV', () => {
   it('produces a header row followed by data rows', () => {
     const lines = exportToCSV([makeTask()], TAGS).split('\n')
-    expect(lines[0]).toBe('Title,Tags,Due Date,Status,Description,Created At,Updated At')
+    expect(lines[0]).toBe('Title,Tags,Status,Description,Created At,Updated At')
     expect(lines).toHaveLength(2)
   })
 

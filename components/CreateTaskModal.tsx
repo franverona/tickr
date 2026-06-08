@@ -22,7 +22,6 @@ export default function CreateTaskModal({
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [dueDate, setDueDate] = useState('')
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState('')
   const titleRef = useRef<HTMLInputElement>(null)
@@ -51,7 +50,6 @@ export default function CreateTaskModal({
         title: title.trim(),
         description,
         tags: selectedTags,
-        dueDate: dueDate || null,
       })
       onCreated(task)
     } finally {
@@ -103,18 +101,6 @@ export default function CreateTaskModal({
                 selected={selectedTags}
                 onChange={setSelectedTags}
                 onTagCreated={onTagCreated}
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-xs tracking-wide text-zinc-400 uppercase">
-                Due Date
-              </label>
-              <input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                className="rounded border border-zinc-600 bg-zinc-700 px-2 py-1.5 text-sm text-zinc-100 [color-scheme:dark] focus:border-zinc-400 focus:outline-none"
               />
             </div>
 
