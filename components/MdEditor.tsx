@@ -10,7 +10,7 @@ export const MDPreview = dynamic(() => import('@uiw/react-markdown-preview'), {
   ssr: false,
 })
 
-async function uploadImage(file: File): Promise<string> {
+async function uploadFile(file: File): Promise<string> {
   const body = new FormData()
   body.append('file', file)
   const res = await fetch('/api/upload', { method: 'POST', body })
@@ -22,9 +22,9 @@ async function uploadImage(file: File): Promise<string> {
   return url as string
 }
 
-function pickImageFiles(list: FileList | null): File[] {
+function pickFiles(list: FileList | null): File[] {
   if (!list) return []
-  return Array.from(list).filter((f) => f.type.startsWith('image/'))
+  return Array.from(list)
 }
 
 function insertAtCursor(textarea: HTMLTextAreaElement, text: string): string {
@@ -38,24 +38,26 @@ export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<
       const placeholder = `\`Uploading ${file.name}…\``
       setValue(insertAtCursor(textarea, placeholder))
       try {
-        const url = await uploadImage(file)
-        setValue((v) => v.replace(placeholder, `![image](${url})`))
+        const url = await uploadFile(file)
+        const isImage = file.type.startsWith('image/')
+        const markdown = isImage ? `![${file.name}](${url})` : `[${file.name}](${url})`
+        setValue((v) => v.replace(placeholder, markdown))
       } catch (err) {
         setValue((v) => v.replace(placeholder, ''))
-        console.error('Image upload failed:', err)
+        console.error('File upload failed:', err)
       }
     }
   }
 
   function onDrop(e: React.DragEvent<HTMLTextAreaElement>) {
-    const files = pickImageFiles(e.dataTransfer.files)
+    const files = pickFiles(e.dataTransfer.files)
     if (!files.length) return
     e.preventDefault()
     handleFiles(files, e.currentTarget)
   }
 
   function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const files = pickImageFiles(e.clipboardData.files)
+    const files = pickFiles(e.clipboardData.files)
     if (!files.length) return
     e.preventDefault()
     handleFiles(files, e.currentTarget)

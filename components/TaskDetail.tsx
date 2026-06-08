@@ -6,6 +6,7 @@ import { updateTask, deleteTask, linkTask, unlinkTask } from '@/app/actions'
 import TagSelector from './TagSelector'
 import { MDEditor, MDPreview, makeImageHandlers } from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
+import { searchSnippets, type Snippet } from '@/lib/snippets'
 
 interface TaskDetailProps {
   task: Task
@@ -18,6 +19,27 @@ interface TaskDetailProps {
   onLinksChanged: (task: Task, linkedTask: Task) => void
   onSelectTask: (id: string) => void
 }
+
+const CHECKLIST_ITEM_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/gm
+
+function toggleChecklistItem(source: string, index: number): string {
+  let count = 0
+  return source.replace(CHECKLIST_ITEM_RE, (match, prefix, mark) => {
+    if (count++ !== index) return match
+    return `${prefix}[${mark === ' ' ? 'x' : ' '}]`
+  })
+}
+
+function suggestionItemClass(active: boolean): string {
+  return `flex w-full items-center justify-between gap-2.5 px-3 py-1.5 text-left text-sm transition-colors ${
+    active ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100'
+  }`
+}
+
+type Suggestion =
+  | { kind: 'emoji'; items: ReadonlyArray<readonly [string, string]> }
+  | { kind: 'mention'; items: Task[] }
+  | { kind: 'snippet'; items: ReadonlyArray<Snippet> }
 
 function formatDate(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
@@ -49,77 +71,136 @@ export default function TaskDetail({
   )
   const [linkSearch, setLinkSearch] = useState('')
   const [isLinkSearchFocused, setIsLinkSearchFocused] = useState(false)
-  const [emojiResults, setEmojiResults] = useState<ReadonlyArray<readonly [string, string]>>([])
-  const [emojiIndex, setEmojiIndex] = useState(0)
+  const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
+  const [suggestionIndex, setSuggestionIndex] = useState(0)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDescRef = useRef(task.description)
   const editorWrapperRef = useRef<HTMLDivElement>(null)
   const imageHandlers = makeImageHandlers(setDescriptionDraft)
 
-  function detectEmojiQuery(textarea: HTMLTextAreaElement) {
+  const EMOJI_RE = /:([a-z0-9_+\-]*)$/
+  const MENTION_RE = /(?:^|\s)@([^\n]{0,60})$/
+  const SNIPPET_RE = /(?:^|\s)\/([a-z-]{0,20})$/
+
+  function detectSuggestion(textarea: HTMLTextAreaElement) {
     const cursor = textarea.selectionStart
     const before = textarea.value.slice(0, cursor)
-    const match = before.match(/:([a-z0-9_+\-]*)$/)
-    if (match) {
-      const results = searchEmojis(match[1])
-      setEmojiResults(results)
-      setEmojiIndex(0)
-    } else {
-      setEmojiResults([])
+
+    const emojiMatch = before.match(EMOJI_RE)
+    if (emojiMatch) {
+      setSuggestion({ kind: 'emoji', items: searchEmojis(emojiMatch[1]) })
+      setSuggestionIndex(0)
+      return
     }
+
+    const mentionMatch = before.match(MENTION_RE)
+    if (mentionMatch) {
+      const query = mentionMatch[1].toLowerCase()
+      const items = allTasks
+        .filter((t) => t.id !== task.id && t.title.toLowerCase().includes(query))
+        .slice(0, 8)
+      setSuggestion(items.length > 0 ? { kind: 'mention', items } : null)
+      setSuggestionIndex(0)
+      return
+    }
+
+    const snippetMatch = before.match(SNIPPET_RE)
+    if (snippetMatch) {
+      const items = searchSnippets(snippetMatch[1])
+      setSuggestion(items.length > 0 ? { kind: 'snippet', items } : null)
+      setSuggestionIndex(0)
+      return
+    }
+
+    setSuggestion(null)
   }
 
-  function insertEmoji(emoji: string) {
-    const textarea = editorWrapperRef.current?.querySelector('textarea')
-    if (!textarea) return
-    const cursor = textarea.selectionStart
-    const before = textarea.value.slice(0, cursor)
-    const match = before.match(/:([a-z0-9_+\-]*)$/)
-    if (!match) return
-    const start = cursor - match[0].length
-    const newValue = textarea.value.slice(0, start) + emoji + textarea.value.slice(cursor)
+  function applySuggestionInsertion(
+    textarea: HTMLTextAreaElement,
+    start: number,
+    end: number,
+    text: string,
+  ) {
+    const newValue = textarea.value.slice(0, start) + text + textarea.value.slice(end)
     setDescriptionDraft(newValue)
-    setEmojiResults([])
+    setSuggestion(null)
     setTimeout(() => {
       textarea.focus()
-      const pos = start + [...emoji].length
+      const pos = start + [...text].length
       textarea.setSelectionRange(pos, pos)
     }, 0)
   }
 
-  const emojiTextareaProps = {
+  function selectSuggestion(index: number) {
+    if (!suggestion) return
+    const textarea = editorWrapperRef.current?.querySelector('textarea')
+    if (!textarea) return
+    const cursor = textarea.selectionStart
+    const before = textarea.value.slice(0, cursor)
+
+    if (suggestion.kind === 'emoji') {
+      const match = before.match(EMOJI_RE)
+      if (!match) return
+      applySuggestionInsertion(
+        textarea,
+        cursor - match[0].length,
+        cursor,
+        suggestion.items[index][1],
+      )
+      return
+    }
+
+    if (suggestion.kind === 'mention') {
+      const match = before.match(MENTION_RE)
+      if (!match) return
+      const start = cursor - match[1].length - 1
+      const target = suggestion.items[index]
+      applySuggestionInsertion(textarea, start, cursor, `[${target.title}](#${target.id})`)
+      linkTask(task.id, target.id).then(({ task: updated, linkedTask }) =>
+        onLinksChanged(updated, linkedTask),
+      )
+      return
+    }
+
+    const match = before.match(SNIPPET_RE)
+    if (!match) return
+    const start = cursor - match[1].length - 1
+    applySuggestionInsertion(textarea, start, cursor, suggestion.items[index].insert)
+  }
+
+  const suggestionTextareaProps = {
     ...imageHandlers,
     onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (emojiResults.length > 0) {
+      if (suggestion && suggestion.items.length > 0) {
         if (e.key === 'ArrowDown') {
           e.preventDefault()
-          setEmojiIndex((i) => Math.min(i + 1, emojiResults.length - 1))
+          setSuggestionIndex((i) => Math.min(i + 1, suggestion.items.length - 1))
           return
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          setEmojiIndex((i) => Math.max(i - 1, 0))
+          setSuggestionIndex((i) => Math.max(i - 1, 0))
           return
         }
         if (e.key === 'Enter' || e.key === 'Tab') {
           e.preventDefault()
-          insertEmoji(emojiResults[emojiIndex][1])
+          selectSuggestion(suggestionIndex)
           return
         }
         if (e.key === 'Escape') {
-          setEmojiResults([])
+          setSuggestion(null)
           return
         }
       }
     },
     onKeyUp: (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (!['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
-        detectEmojiQuery(e.currentTarget)
+        detectSuggestion(e.currentTarget)
       }
     },
     onClick: (e: React.MouseEvent<HTMLTextAreaElement>) => {
-      detectEmojiQuery(e.currentTarget)
+      detectSuggestion(e.currentTarget)
     },
   }
 
@@ -221,6 +302,13 @@ export default function TaskDetail({
     }
     setIsEditingDescription(false)
     setAutoSaveStatus('idle')
+  }
+
+  async function handleToggleChecklist(index: number) {
+    const updated = await updateTask(task.id, {
+      description: toggleChecklistItem(task.description, index),
+    })
+    onUpdate(updated)
   }
 
   async function toggleComplete() {
@@ -464,29 +552,53 @@ export default function TaskDetail({
                     onChange={(val) => setDescriptionDraft(val || '')}
                     height={320}
                     preview="live"
-                    textareaProps={emojiTextareaProps}
+                    textareaProps={suggestionTextareaProps}
                     previewOptions={{ skipHtml: false }}
                   />
                 </div>
-                {emojiResults.length > 0 && (
-                  <div className="absolute bottom-full left-0 z-50 mb-1 w-56 overflow-hidden rounded-md border border-zinc-600 bg-zinc-800 py-1 shadow-xl">
-                    {emojiResults.map(([name, emoji], i) => (
-                      <button
-                        key={name}
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          insertEmoji(emoji)
-                        }}
-                        className={`flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors ${
-                          i === emojiIndex
-                            ? 'bg-zinc-700 text-zinc-100'
-                            : 'text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100'
-                        }`}
-                      >
-                        <span className="text-base">{emoji}</span>
-                        <span className="text-zinc-400">:{name}</span>
-                      </button>
-                    ))}
+                {suggestion && suggestion.items.length > 0 && (
+                  <div className="absolute bottom-full left-0 z-50 mb-1 w-64 overflow-hidden rounded-md border border-zinc-600 bg-zinc-800 py-1 shadow-xl">
+                    {suggestion.kind === 'emoji' &&
+                      suggestion.items.map(([name, emoji], i) => (
+                        <button
+                          key={name}
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            selectSuggestion(i)
+                          }}
+                          className={suggestionItemClass(i === suggestionIndex)}
+                        >
+                          <span className="text-base">{emoji}</span>
+                          <span className="text-zinc-400">:{name}</span>
+                        </button>
+                      ))}
+                    {suggestion.kind === 'mention' &&
+                      suggestion.items.map((t, i) => (
+                        <button
+                          key={t.id}
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            selectSuggestion(i)
+                          }}
+                          className={suggestionItemClass(i === suggestionIndex)}
+                        >
+                          <span className="truncate">{t.title}</span>
+                        </button>
+                      ))}
+                    {suggestion.kind === 'snippet' &&
+                      suggestion.items.map((s, i) => (
+                        <button
+                          key={s.key}
+                          onMouseDown={(e) => {
+                            e.preventDefault()
+                            selectSuggestion(i)
+                          }}
+                          className={suggestionItemClass(i === suggestionIndex)}
+                        >
+                          <span>{s.label}</span>
+                          <span className="text-zinc-500">/{s.key}</span>
+                        </button>
+                      ))}
                   </div>
                 )}
               </div>
@@ -515,7 +627,12 @@ export default function TaskDetail({
                 const anchor = (e.target as HTMLElement).closest('a')
                 if (anchor) {
                   e.preventDefault()
-                  window.open(anchor.getAttribute('href') ?? '', '_blank', 'noopener,noreferrer')
+                  const href = anchor.getAttribute('href') ?? ''
+                  if (href.startsWith('#')) {
+                    onSelectTask(href.slice(1))
+                  } else {
+                    window.open(href, '_blank', 'noopener,noreferrer')
+                  }
                   return
                 }
                 if ((e.target as HTMLElement).closest('.copied')) {
@@ -524,18 +641,49 @@ export default function TaskDetail({
                 if ((e.target as HTMLElement).closest('summary')) {
                   return
                 }
+                if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
+                  return
+                }
                 setIsEditingDescription(true)
               }}
               className="-mx-1 min-h-15 cursor-text rounded-md px-1"
             >
               {task.description ? (
-                <div data-color-mode="dark">
-                  <MDPreview
-                    source={task.description}
-                    style={{ background: 'transparent' }}
-                    skipHtml={false}
-                  />
-                </div>
+                (() => {
+                  // react-markdown-preview invokes component renderers more than once per
+                  // node (e.g. React Strict Mode double-render), so a plain incrementing
+                  // counter assigns inconsistent indices to the same checkbox across calls.
+                  // Cache the index per AST node (stable identity within one render pass).
+                  let nextChecklistIndex = 0
+                  const checklistIndices = new WeakMap<object, number>()
+                  return (
+                    <div data-color-mode="dark">
+                      <MDPreview
+                        source={task.description}
+                        style={{ background: 'transparent' }}
+                        skipHtml={false}
+                        components={{
+                          input: ({ node, ...props }) => {
+                            if (props.type !== 'checkbox') return <input {...props} />
+                            let index = node ? checklistIndices.get(node) : undefined
+                            if (index === undefined) {
+                              index = nextChecklistIndex++
+                              if (node) checklistIndices.set(node, index)
+                            }
+                            return (
+                              <input
+                                type="checkbox"
+                                checked={Boolean(props.checked)}
+                                onChange={() => handleToggleChecklist(index)}
+                                className="mr-1.5 -ml-5 align-middle accent-emerald-600"
+                              />
+                            )
+                          },
+                        }}
+                      />
+                    </div>
+                  )
+                })()
               ) : (
                 <p className="py-1 text-sm text-zinc-500 italic">Click to add a description…</p>
               )}

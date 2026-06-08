@@ -10,6 +10,12 @@ const MIME_TYPES: Record<string, string> = {
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   webp: 'image/webp',
+  pdf: 'application/pdf',
+  txt: 'text/plain',
+  md: 'text/markdown',
+  csv: 'text/csv',
+  json: 'application/json',
+  zip: 'application/zip',
 }
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {

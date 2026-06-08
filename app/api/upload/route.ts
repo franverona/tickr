@@ -5,13 +5,18 @@ import path from 'path'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
-const ALLOWED_TYPES = new Set(['image/png', 'image/jpeg', 'image/gif', 'image/webp'])
 
 const EXT_MAP: Record<string, string> = {
   'image/png': 'png',
   'image/jpeg': 'jpg',
   'image/gif': 'gif',
   'image/webp': 'webp',
+  'application/pdf': 'pdf',
+  'text/plain': 'txt',
+  'text/markdown': 'md',
+  'text/csv': 'csv',
+  'application/json': 'json',
+  'application/zip': 'zip',
 }
 
 export async function POST(req: NextRequest) {
@@ -21,7 +26,7 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   }
-  if (!ALLOWED_TYPES.has(file.type)) {
+  if (!(file.type in EXT_MAP)) {
     return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
   }
   if (file.size > MAX_SIZE_BYTES) {
