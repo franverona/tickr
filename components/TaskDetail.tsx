@@ -517,6 +517,9 @@ export default function TaskDetail({
                   window.open(anchor.getAttribute('href') ?? '', '_blank', 'noopener,noreferrer')
                   return
                 }
+                if ((e.target as HTMLElement).closest('.copied')) {
+                  return
+                }
                 setIsEditingDescription(true)
               }}
               className="-mx-1 min-h-15 cursor-text rounded-md px-1"
