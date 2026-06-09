@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } from '@/app/actions'
 import TagSelector from './TagSelector'
-import { MDEditor, MDPreview, makeImageHandlers } from './MdEditor'
+import { MDEditor, MDPreview, makeImageHandlers, replaceImageWidth } from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
 
@@ -20,6 +20,82 @@ interface TaskDetailProps {
 }
 
 const CHECKLIST_ITEM_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/gm
+
+function createResizableImg(onResize: (src: string, w: number) => void) {
+  return function ResizableImg({ src, alt, width }: React.ComponentPropsWithoutRef<'img'>) {
+    const [displayWidth, setDisplayWidth] = useState<number | undefined>(
+      typeof width === 'number'
+        ? width
+        : typeof width === 'string'
+          ? parseInt(width) || undefined
+          : undefined,
+    )
+    const imgRef = useRef<HTMLImageElement>(null)
+    const dragState = useRef<{ startX: number; startWidth: number } | null>(null)
+
+    function onHandleMouseDown(e: React.MouseEvent) {
+      e.preventDefault()
+      e.stopPropagation()
+      dragState.current = {
+        startX: e.clientX,
+        startWidth: imgRef.current?.offsetWidth ?? displayWidth ?? 300,
+      }
+
+      function onMouseMove(ev: MouseEvent) {
+        if (!dragState.current) return
+        const w = Math.max(50, dragState.current.startWidth + ev.clientX - dragState.current.startX)
+        setDisplayWidth(w)
+      }
+
+      function onMouseUp(ev: MouseEvent) {
+        if (!dragState.current) return
+        const w = Math.max(50, dragState.current.startWidth + ev.clientX - dragState.current.startX)
+        dragState.current = null
+        setDisplayWidth(w)
+        if (typeof src === 'string') onResize(src, w)
+        document.removeEventListener('mousemove', onMouseMove)
+        document.removeEventListener('mouseup', onMouseUp)
+      }
+
+      document.addEventListener('mousemove', onMouseMove)
+      document.addEventListener('mouseup', onMouseUp)
+    }
+
+    return (
+      <span className="group/img relative inline-block max-w-full">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          ref={imgRef}
+          src={src}
+          alt={alt ?? ''}
+          style={{
+            width: displayWidth ? `${displayWidth}px` : undefined,
+            maxWidth: '100%',
+          }}
+        />
+        <span
+          data-resize-handle="true"
+          className="absolute right-0 bottom-0 flex h-6 w-6 cursor-se-resize items-center justify-center rounded-tl-md bg-zinc-900/80 opacity-0 ring-1 ring-white/20 transition-opacity group-hover/img:opacity-100"
+          onMouseDown={onHandleMouseDown}
+          title="Drag to resize"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 12 12"
+            fill="none"
+            stroke="white"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <path d="M11 1L1 11M11 5L5 11M11 9L9 11" />
+          </svg>
+        </span>
+      </span>
+    )
+  }
+}
 
 function ProviderIcon({ url }: { url: string }) {
   let hostname = ''
@@ -147,6 +223,15 @@ export default function TaskDetail({
   const lastSavedDescRef = useRef(task.description)
   const editorWrapperRef = useRef<HTMLDivElement>(null)
   const imageHandlers = makeImageHandlers(setDescriptionDraft)
+
+  // setDescriptionDraft is stable (from useState) — safe to capture with empty deps
+  const EditModeImg = useMemo(
+    () =>
+      createResizableImg((src, w) =>
+        setDescriptionDraft((prev) => replaceImageWidth(prev, src, w)),
+      ),
+    [],
+  )
 
   const EMOJI_RE = /:([a-z0-9_+\-]*)$/
   const MENTION_RE = /(?:^|\s)@([^\n]{0,60})$/
@@ -765,7 +850,7 @@ export default function TaskDetail({
                     height={560}
                     preview="live"
                     textareaProps={suggestionTextareaProps}
-                    previewOptions={{ skipHtml: false }}
+                    previewOptions={{ skipHtml: false, components: { img: EditModeImg } }}
                   />
                 </div>
                 {suggestion && suggestion.items.length > 0 && (

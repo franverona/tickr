@@ -2,6 +2,27 @@
 
 import dynamic from 'next/dynamic'
 
+export function replaceImageWidth(markdown: string, src: string, newWidth: number): string {
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+  // Replace markdown image syntax: ![alt](url) or ![alt](url "title")
+  let result = markdown.replace(
+    new RegExp(`!\\[([^\\]]*)\\]\\(${esc(src)}(\\s+"[^"]*")?\\)`, 'g'),
+    (_, alt) => `<img src="${src}" alt="${alt}" width="${newWidth}">`,
+  )
+
+  // Update or add width on existing HTML img tags referencing this src
+  result = result.replace(/<img\b([^>]*)>/gi, (match, attrs: string) => {
+    if (!attrs.includes(src)) return match
+    if (/\bwidth\s*=/i.test(attrs)) {
+      return `<img${attrs.replace(/\bwidth\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/i, `width="${newWidth}"`)}>`
+    }
+    return `<img${attrs} width="${newWidth}">`
+  })
+
+  return result
+}
+
 export const MDEditor = dynamic(() => import('@uiw/react-md-editor'), {
   ssr: false,
 })
