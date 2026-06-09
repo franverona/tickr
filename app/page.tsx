@@ -137,12 +137,6 @@ export default function Page() {
     setIsCreateOpen(false)
   }
 
-  function handleLinksChanged(task: Task, linkedTask: Task) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === task.id ? task : t.id === linkedTask.id ? linkedTask : t)),
-    )
-  }
-
   function handleDragStart(i: number) {
     dragSrcIdxRef.current = i
     dragOverIdxRef.current = null
@@ -483,7 +477,6 @@ export default function Page() {
               onDelete={handleTaskDeleted}
               onClose={() => setSelectedTaskId(null)}
               onTagCreated={handleTagCreated}
-              onLinksChanged={handleLinksChanged}
               onSelectTask={setSelectedTaskId}
             />
           </div>

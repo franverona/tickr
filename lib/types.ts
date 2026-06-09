@@ -13,7 +13,6 @@ export interface Task {
   archived: boolean
   createdAt: string
   updatedAt: string
-  linkedTaskIds: string[]
   urls: TaskUrl[]
 }
 

@@ -23,11 +23,6 @@ const { getTestDb } = vi.hoisted(() => {
       color TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
-    CREATE TABLE task_links (
-      task_id TEXT NOT NULL,
-      linked_task_id TEXT NOT NULL,
-      PRIMARY KEY (task_id, linked_task_id)
-    );
     CREATE TABLE task_urls (
       id TEXT PRIMARY KEY,
       task_id TEXT NOT NULL,
@@ -46,7 +41,7 @@ import { createTask, deleteTag, deleteTask, getTasks, updateTask } from '../app/
 const SEED_TAG = { id: 'wip', label: 'WIP', color: 'bg-blue-600 text-blue-100 border-blue-500' }
 
 beforeEach(() => {
-  getTestDb().exec('DELETE FROM task_links; DELETE FROM tasks; DELETE FROM tags;')
+  getTestDb().exec('DELETE FROM tasks; DELETE FROM tags;')
 })
 
 function seedTag() {

@@ -25,14 +25,6 @@ function ensureMigrations(db: Database.Database) {
   }
 
   db.exec(`
-    CREATE TABLE IF NOT EXISTS task_links (
-      task_id TEXT NOT NULL,
-      linked_task_id TEXT NOT NULL,
-      PRIMARY KEY (task_id, linked_task_id)
-    )
-  `)
-
-  db.exec(`
     CREATE TABLE IF NOT EXISTS task_urls (
       id TEXT PRIMARY KEY,
       task_id TEXT NOT NULL,

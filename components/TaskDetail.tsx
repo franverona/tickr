@@ -2,14 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import {
-  updateTask,
-  deleteTask,
-  linkTask,
-  unlinkTask,
-  addTaskUrl,
-  deleteTaskUrl,
-} from '@/app/actions'
+import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl } from '@/app/actions'
 import TagSelector from './TagSelector'
 import { MDEditor, MDPreview, makeImageHandlers } from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
@@ -23,7 +16,6 @@ interface TaskDetailProps {
   onDelete: (id: string) => void
   onClose: () => void
   onTagCreated: (tag: Tag) => void
-  onLinksChanged: (task: Task, linkedTask: Task) => void
   onSelectTask: (id: string) => void
 }
 
@@ -131,7 +123,6 @@ export default function TaskDetail({
   onDelete,
   onClose,
   onTagCreated,
-  onLinksChanged,
   onSelectTask,
 }: TaskDetailProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -142,9 +133,6 @@ export default function TaskDetail({
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>(
     'idle',
   )
-  const [showLinks, setShowLinks] = useState(false)
-  const [linkSearch, setLinkSearch] = useState('')
-  const [isLinkSearchFocused, setIsLinkSearchFocused] = useState(false)
   const [showUrlLinks, setShowUrlLinks] = useState(true)
   const [showAddUrl, setShowAddUrl] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
@@ -235,9 +223,6 @@ export default function TaskDetail({
       const start = cursor - match[1].length - 1
       const target = suggestion.items[index]
       applySuggestionInsertion(textarea, start, cursor, `[${target.title}](#${target.id})`)
-      linkTask(task.id, target.id).then(({ task: updated, linkedTask }) =>
-        onLinksChanged(updated, linkedTask),
-      )
       return
     }
 
@@ -280,28 +265,6 @@ export default function TaskDetail({
     onClick: (e: React.MouseEvent<HTMLTextAreaElement>) => {
       detectSuggestion(e.currentTarget)
     },
-  }
-
-  const linkedTasks = allTasks.filter((t) => task.linkedTaskIds.includes(t.id))
-  const linkableTasks = allTasks
-    .filter(
-      (t) =>
-        t.id !== task.id &&
-        !task.linkedTaskIds.includes(t.id) &&
-        (!linkSearch || t.title.toLowerCase().includes(linkSearch.toLowerCase())),
-    )
-    .slice(0, 8)
-
-  async function handleLink(linkedTaskId: string) {
-    const { task: updated, linkedTask } = await linkTask(task.id, linkedTaskId)
-    onLinksChanged(updated, linkedTask)
-    setLinkSearch('')
-    setIsLinkSearchFocused(false)
-  }
-
-  async function handleUnlink(linkedTaskId: string) {
-    const { task: updated, linkedTask } = await unlinkTask(task.id, linkedTaskId)
-    onLinksChanged(updated, linkedTask)
   }
 
   // task.id changes are handled by key={task.id} in the parent, which remounts
@@ -515,7 +478,7 @@ export default function TaskDetail({
       </div>
 
       <div className="flex-1 space-y-4 overflow-y-auto p-5">
-        {/* Compact metadata rows: Tags, Linked Tasks */}
+        {/* Compact metadata rows: Tags, Links */}
         <div className="space-y-2.5">
           {/* Tags */}
           <div className="flex items-center gap-3">
@@ -532,75 +495,6 @@ export default function TaskDetail({
             </div>
           </div>
 
-          {/* Linked Tasks */}
-          <div>
-            <button
-              onClick={() => setShowLinks((v) => !v)}
-              className="flex items-center gap-1.5 text-xs tracking-wide text-zinc-500 uppercase transition-colors hover:text-zinc-300"
-            >
-              <span className={`text-[10px] transition-transform ${showLinks ? 'rotate-90' : ''}`}>
-                ▸
-              </span>
-              <span>Linked tasks{linkedTasks.length > 0 ? ` (${linkedTasks.length})` : ''}</span>
-            </button>
-
-            {showLinks && (
-              <div className="mt-2 pl-5.5">
-                {linkedTasks.length > 0 && (
-                  <div className="mb-1.5 flex flex-wrap gap-1.5">
-                    {linkedTasks.map((linked) => (
-                      <div
-                        key={linked.id}
-                        className="flex items-center gap-1.5 rounded-md bg-zinc-700/50 py-1 pr-1.5 pl-2.5"
-                      >
-                        <button
-                          onClick={() => onSelectTask(linked.id)}
-                          className={`max-w-48 truncate text-left text-sm transition-colors hover:text-zinc-100 ${
-                            linked.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
-                          }`}
-                        >
-                          {linked.title}
-                        </button>
-                        <button
-                          onClick={() => handleUnlink(linked.id)}
-                          className="shrink-0 text-lg leading-none text-zinc-500 transition-colors hover:text-zinc-300"
-                          title="Unlink"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="relative max-w-xs">
-                  <input
-                    value={linkSearch}
-                    onChange={(e) => setLinkSearch(e.target.value)}
-                    onFocus={() => setIsLinkSearchFocused(true)}
-                    onBlur={() => setTimeout(() => setIsLinkSearchFocused(false), 150)}
-                    placeholder="Link a task…"
-                    className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
-                  />
-                  {isLinkSearchFocused && linkableTasks.length > 0 && (
-                    <div className="absolute top-full left-0 z-10 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-zinc-600 bg-zinc-800 py-1 shadow-xl">
-                      {linkableTasks.map((t) => (
-                        <button
-                          key={t.id}
-                          onClick={() => handleLink(t.id)}
-                          className={`w-full px-2.5 py-1.5 text-left text-sm transition-colors hover:bg-zinc-700 hover:text-zinc-100 ${
-                            t.completed ? 'text-zinc-400 line-through' : 'text-zinc-200'
-                          }`}
-                        >
-                          {t.title}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
           {/* Links */}
           <div>
             <div className="flex items-center gap-1.5">
