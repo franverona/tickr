@@ -300,6 +300,68 @@ export default function TaskDetail({
 
   useEffect(() => {
     if (!isEditingDescription) return
+    const wrapper = editorWrapperRef.current
+    if (!wrapper) return
+
+    function handleShiftTab(e: KeyboardEvent) {
+      if (e.key !== 'Tab' || !e.shiftKey) return
+      const ta = wrapper!.querySelector<HTMLTextAreaElement>('textarea')
+      if (!ta || document.activeElement !== ta) return
+
+      e.preventDefault()
+      // Stop capture from reaching textarea so the library's bubble-phase
+      // listener never fires (it has a bug: inserts spaces for Shift+Tab
+      // when there is no multi-line selection).
+      e.stopPropagation()
+
+      const { value, selectionStart, selectionEnd } = ta
+      if (selectionStart === null || selectionEnd === null) return
+
+      const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1
+      const lineEndRaw = value.indexOf('\n', selectionEnd)
+      const lineEnd = lineEndRaw === -1 ? value.length : lineEndRaw
+
+      const lines = value.slice(lineStart, lineEnd).split('\n')
+      let removedOnFirstLine = 0
+      let totalRemoved = 0
+
+      const dedentedLines = lines.map((line, i) => {
+        let removed = 0
+        let result = line
+        if (line.startsWith('\t')) {
+          result = line.slice(1)
+          removed = 1
+        } else if (line.startsWith('    ')) {
+          result = line.slice(4)
+          removed = 4
+        } else if (line.startsWith('  ')) {
+          result = line.slice(2)
+          removed = 2
+        } else if (line.startsWith(' ')) {
+          result = line.slice(1)
+          removed = 1
+        }
+        if (i === 0) removedOnFirstLine = removed
+        totalRemoved += removed
+        return result
+      })
+
+      if (totalRemoved === 0) return
+
+      const newValue = value.slice(0, lineStart) + dedentedLines.join('\n') + value.slice(lineEnd)
+      const newStart = Math.max(selectionStart - removedOnFirstLine, lineStart)
+      const newEnd = Math.max(selectionEnd - totalRemoved, lineStart)
+
+      setDescriptionDraft(newValue)
+      setTimeout(() => ta.setSelectionRange(newStart, newEnd), 0)
+    }
+
+    wrapper.addEventListener('keydown', handleShiftTab, { capture: true })
+    return () => wrapper.removeEventListener('keydown', handleShiftTab, { capture: true })
+  }, [isEditingDescription])
+
+  useEffect(() => {
+    if (!isEditingDescription) return
     if (descriptionDraft === lastSavedDescRef.current) return
 
     setAutoSaveStatus('pending')
