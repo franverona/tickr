@@ -224,6 +224,22 @@ export async function deleteTaskUrl(taskId: string, urlId: string): Promise<Task
   return rowToTask(row, getTaskUrls(db, taskId))
 }
 
+export async function updateTaskUrl(
+  taskId: string,
+  urlId: string,
+  data: { url: string; label: string },
+): Promise<Task> {
+  const db = getDb()
+  db.prepare('UPDATE task_urls SET url = ?, label = ? WHERE id = ? AND task_id = ?').run(
+    data.url.trim(),
+    data.label.trim(),
+    urlId,
+    taskId,
+  )
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as DbRow
+  return rowToTask(row, getTaskUrls(db, taskId))
+}
+
 export async function importTasks(
   items: ImportedTask[],
 ): Promise<{ imported: number; tasks: Task[]; tags: Tag[] }> {

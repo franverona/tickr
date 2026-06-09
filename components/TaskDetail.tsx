@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl } from '@/app/actions'
+import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } from '@/app/actions'
 import TagSelector from './TagSelector'
 import { MDEditor, MDPreview, makeImageHandlers } from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
@@ -137,6 +137,9 @@ export default function TaskDetail({
   const [showAddUrl, setShowAddUrl] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
   const [urlLabelDraft, setUrlLabelDraft] = useState('')
+  const [editingUrlId, setEditingUrlId] = useState<string | null>(null)
+  const [editUrlDraft, setEditUrlDraft] = useState('')
+  const [editLabelDraft, setEditLabelDraft] = useState('')
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -425,6 +428,30 @@ export default function TaskDetail({
     onUpdate(updated)
   }
 
+  async function handleSaveEditUrl() {
+    const url = editUrlDraft.trim()
+    if (!url || !editingUrlId) return
+    const label = editLabelDraft.trim() || suggestLabel(url) || url
+    const updated = await updateTaskUrl(task.id, editingUrlId, { url, label })
+    onUpdate(updated)
+    setEditingUrlId(null)
+    setEditUrlDraft('')
+    setEditLabelDraft('')
+  }
+
+  function startEditUrl(urlId: string, currentUrl: string, currentLabel: string) {
+    setEditingUrlId(urlId)
+    setEditUrlDraft(currentUrl)
+    setEditLabelDraft(currentLabel)
+    setShowAddUrl(false)
+  }
+
+  function cancelEditUrl() {
+    setEditingUrlId(null)
+    setEditUrlDraft('')
+    setEditLabelDraft('')
+  }
+
   async function toggleComplete() {
     const updated = await updateTask(task.id, { completed: !task.completed })
     onUpdate(updated)
@@ -584,27 +611,77 @@ export default function TaskDetail({
 
             {showUrlLinks && (
               <div className="mt-2 space-y-1.5 pl-5.5">
-                {task.urls.map((u) => (
-                  <div key={u.id} className="group flex items-center gap-2">
-                    <ProviderIcon url={u.url} />
-                    <a
-                      href={u.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="min-w-0 flex-1 truncate text-sm text-zinc-300 transition-colors hover:text-zinc-100 hover:underline"
-                      title={u.url}
-                    >
-                      {u.label}
-                    </a>
-                    <button
-                      onClick={() => handleDeleteUrl(u.id)}
-                      className="shrink-0 text-lg leading-none text-zinc-600 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-300"
-                      title="Remove link"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
+                {task.urls.map((u) =>
+                  editingUrlId === u.id ? (
+                    <div key={u.id} className="flex flex-col gap-1.5">
+                      <input
+                        autoFocus
+                        value={editUrlDraft}
+                        onChange={(e) => setEditUrlDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEditUrl()
+                          if (e.key === 'Escape') cancelEditUrl()
+                        }}
+                        placeholder="URL"
+                        className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                      />
+                      <input
+                        value={editLabelDraft}
+                        onChange={(e) => setEditLabelDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveEditUrl()
+                          if (e.key === 'Escape') cancelEditUrl()
+                        }}
+                        placeholder={suggestLabel(editUrlDraft) || 'Label (optional)'}
+                        className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                      />
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={handleSaveEditUrl}
+                          disabled={!editUrlDraft.trim()}
+                          className="rounded-md bg-zinc-700 px-3 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-600 disabled:opacity-40"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={cancelEditUrl}
+                          className="rounded-md px-3 py-1 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={u.id} className="group flex items-center gap-2">
+                      <ProviderIcon url={u.url} />
+                      <a
+                        href={u.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="min-w-0 truncate text-sm text-zinc-300 transition-colors hover:text-zinc-100 hover:underline"
+                        title={u.url}
+                      >
+                        {u.label}
+                      </a>
+                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          onClick={() => startEditUrl(u.id, u.url, u.label)}
+                          className="rounded px-1 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                          title="Edit link"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUrl(u.id)}
+                          className="text-lg leading-none text-zinc-600 transition-colors hover:text-zinc-300"
+                          title="Remove link"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                  ),
+                )}
 
                 {showAddUrl && (
                   <div className="flex flex-col gap-1.5 pt-0.5">
