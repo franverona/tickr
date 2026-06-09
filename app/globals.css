@@ -30,6 +30,11 @@ body {
   padding-left: 1.5em;
 }
 
+/* Space below images in description */
+.wmde-markdown img {
+  margin-bottom: 0.75rem;
+}
+
 /* Tame the md editor toolbar in dark mode */
 .w-md-editor-toolbar {
   border-bottom-color: #27272a !important;
