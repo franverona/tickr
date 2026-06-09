@@ -830,14 +830,35 @@ export default function TaskDetail({
         <div>
           <div className="mb-2 flex items-center justify-between">
             <label className="text-xs tracking-wide text-zinc-400 uppercase">Description</label>
-            {!isEditingDescription && (
-              <button
-                onClick={() => setIsEditingDescription(true)}
-                className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
-              >
-                Edit
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {isEditingDescription ? (
+                <>
+                  {autoSaveStatus === 'pending' && (
+                    <span className="text-xs text-zinc-500">Unsaved…</span>
+                  )}
+                  {autoSaveStatus === 'saving' && (
+                    <span className="text-xs text-zinc-400">Saving…</span>
+                  )}
+                  {autoSaveStatus === 'saved' && (
+                    <span className="text-xs text-emerald-400">Saved</span>
+                  )}
+                  <button
+                    onClick={handleDone}
+                    disabled={autoSaveStatus === 'saving'}
+                    className="rounded-md bg-zinc-600 px-2.5 py-1 text-xs font-medium text-zinc-100 transition-colors hover:bg-zinc-500 disabled:opacity-50"
+                  >
+                    Done
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setIsEditingDescription(true)}
+                  className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
           </div>
 
           {isEditingDescription ? (
@@ -899,24 +920,6 @@ export default function TaskDetail({
                   </div>
                 )}
               </div>
-              <div className="mt-2 flex items-center gap-3">
-                <button
-                  onClick={handleDone}
-                  disabled={autoSaveStatus === 'saving'}
-                  className="rounded-md bg-zinc-700 px-3 py-1 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-600 disabled:opacity-50"
-                >
-                  Done
-                </button>
-                {autoSaveStatus === 'pending' && (
-                  <span className="text-xs text-zinc-500">Unsaved changes…</span>
-                )}
-                {autoSaveStatus === 'saving' && (
-                  <span className="text-xs text-zinc-400">Saving…</span>
-                )}
-                {autoSaveStatus === 'saved' && (
-                  <span className="text-xs text-emerald-400">Saved</span>
-                )}
-              </div>
             </div>
           ) : (
             <div
@@ -932,18 +935,8 @@ export default function TaskDetail({
                   }
                   return
                 }
-                if ((e.target as HTMLElement).closest('.copied')) {
-                  return
-                }
-                if ((e.target as HTMLElement).closest('summary')) {
-                  return
-                }
-                if ((e.target as HTMLElement).closest('input[type="checkbox"]')) {
-                  return
-                }
-                setIsEditingDescription(true)
               }}
-              className="-mx-1 min-h-15 cursor-text rounded-md px-1"
+              className="-mx-1 min-h-15 rounded-md px-1"
             >
               {task.description ? (
                 (() => {
@@ -982,7 +975,7 @@ export default function TaskDetail({
                   )
                 })()
               ) : (
-                <p className="py-1 text-sm text-zinc-500 italic">Click to add a description…</p>
+                <p className="py-1 text-sm text-zinc-500 italic">No description.</p>
               )}
             </div>
           )}
