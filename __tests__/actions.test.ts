@@ -28,6 +28,13 @@ const { getTestDb } = vi.hoisted(() => {
       linked_task_id TEXT NOT NULL,
       PRIMARY KEY (task_id, linked_task_id)
     );
+    CREATE TABLE task_urls (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      url TEXT NOT NULL,
+      label TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `)
   return { getTestDb: () => db }
 })

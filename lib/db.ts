@@ -32,6 +32,16 @@ function ensureMigrations(db: Database.Database) {
     )
   `)
 
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS task_urls (
+      id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL,
+      url TEXT NOT NULL,
+      label TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `)
+
   // Initialize sort_order for any tasks that don't have one yet,
   // preserving the current newest-first display order (created_at DESC).
   const uninit = db

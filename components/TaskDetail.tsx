@@ -2,7 +2,14 @@
 
 import { useState, useRef, useEffect } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { updateTask, deleteTask, linkTask, unlinkTask } from '@/app/actions'
+import {
+  updateTask,
+  deleteTask,
+  linkTask,
+  unlinkTask,
+  addTaskUrl,
+  deleteTaskUrl,
+} from '@/app/actions'
 import TagSelector from './TagSelector'
 import { MDEditor, MDPreview, makeImageHandlers } from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
@@ -21,6 +28,81 @@ interface TaskDetailProps {
 }
 
 const CHECKLIST_ITEM_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/gm
+
+function ProviderIcon({ url }: { url: string }) {
+  let hostname = ''
+  try {
+    hostname = new URL(url).hostname.toLowerCase()
+  } catch {}
+
+  if (hostname.includes('gitlab'))
+    return (
+      <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="#FC6D26" aria-label="GitLab">
+        <path d="M23.955 13.587l-1.342-4.135-2.664-8.189c-.135-.403-.701-.403-.837 0l-2.664 8.189H7.552L4.888 1.263c-.135-.403-.701-.403-.836 0L1.387 9.452.044 13.587c-.121.371.014.782.331 1.023L12 23.053l11.625-8.443c.318-.241.452-.652.33-1.023" />
+      </svg>
+    )
+  if (hostname.includes('atlassian') || hostname.includes('jira'))
+    return (
+      <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="#0052CC" aria-label="Jira">
+        <path d="M11.571 11.513H0a5.218 5.218 0 005.232 5.215h2.13v2.057A5.215 5.215 0 0012.575 24V12.518a1.005 1.005 0 00-1.004-1.005zm5.723-5.756H5.736a5.215 5.215 0 005.215 5.214h2.129v2.058a5.215 5.215 0 005.215 5.214V6.758a1.004 1.004 0 00-1.001-1.001zM23.016 0H11.445a5.215 5.215 0 005.215 5.215h2.129v2.057A5.215 5.215 0 0024 12.486V1.005A1.005 1.005 0 0023.016 0z" />
+      </svg>
+    )
+  if (hostname.includes('github'))
+    return (
+      <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0" fill="#e6edf3" aria-label="GitHub">
+        <path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" />
+      </svg>
+    )
+  if (hostname.includes('figma'))
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 200 300"
+        className="h-4 w-auto shrink-0"
+        aria-label="Figma"
+      >
+        <path
+          fill="#0acf83"
+          d="M50 300c27.6 0 50-22.4 50-50v-50H50c-27.6 0-50 22.4-50 50s22.4 50 50 50z"
+        />
+        <path fill="#a259ff" d="M0 150c0-27.6 22.4-50 50-50h50v100H50c-27.6 0-50-22.4-50-50z" />
+        <path fill="#f24e1e" d="M0 50C0 22.4 22.4 0 50 0h50v100H50C22.4 100 0 77.6 0 50z" />
+        <path fill="#ff7262" d="M100 0h50c27.6 0 50 22.4 50 50s-22.4 50-50 50h-50V0z" />
+        <path
+          fill="#1abcfe"
+          d="M200 150c0 27.6-22.4 50-50 50s-50-22.4-50-50 22.4-50 50-50 50 22.4 50 50z"
+        />
+      </svg>
+    )
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="h-3.5 w-3.5 shrink-0 text-zinc-500"
+      aria-hidden="true"
+    >
+      <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
+      <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
+    </svg>
+  )
+}
+
+function suggestLabel(url: string): string {
+  try {
+    const u = new URL(url)
+    const jiraMatch = u.pathname.match(/\/browse\/([A-Z]+-\d+)/)
+    if (jiraMatch) return jiraMatch[1]
+    const mrMatch = u.pathname.match(/\/merge_requests\/(\d+)/)
+    if (mrMatch) return `MR !${mrMatch[1]}`
+    const issueMatch = u.pathname.match(/\/issues\/(\d+)/)
+    if (issueMatch) return `Issue #${issueMatch[1]}`
+    const parts = u.pathname.split('/').filter(Boolean)
+    if (parts.length > 0) return parts[parts.length - 1]
+    return u.hostname
+  } catch {
+    return ''
+  }
+}
 
 function toggleChecklistItem(source: string, index: number): string {
   let count = 0
@@ -63,6 +145,10 @@ export default function TaskDetail({
   const [showLinks, setShowLinks] = useState(false)
   const [linkSearch, setLinkSearch] = useState('')
   const [isLinkSearchFocused, setIsLinkSearchFocused] = useState(false)
+  const [showUrlLinks, setShowUrlLinks] = useState(true)
+  const [showAddUrl, setShowAddUrl] = useState(false)
+  const [urlDraft, setUrlDraft] = useState('')
+  const [urlLabelDraft, setUrlLabelDraft] = useState('')
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const titleInputRef = useRef<HTMLInputElement>(null)
@@ -298,6 +384,22 @@ export default function TaskDetail({
     onUpdate(updated)
   }
 
+  async function handleAddUrl() {
+    const url = urlDraft.trim()
+    if (!url) return
+    const label = urlLabelDraft.trim() || suggestLabel(url) || url
+    const updated = await addTaskUrl(task.id, { url, label })
+    onUpdate(updated)
+    setUrlDraft('')
+    setUrlLabelDraft('')
+    setShowAddUrl(false)
+  }
+
+  async function handleDeleteUrl(urlId: string) {
+    const updated = await deleteTaskUrl(task.id, urlId)
+    onUpdate(updated)
+  }
+
   async function toggleComplete() {
     const updated = await updateTask(task.id, { completed: !task.completed })
     onUpdate(updated)
@@ -496,6 +598,110 @@ export default function TaskDetail({
                     </div>
                   )}
                 </div>
+              </div>
+            )}
+          </div>
+          {/* Links */}
+          <div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setShowUrlLinks((v) => !v)}
+                className="flex items-center gap-1.5 text-xs tracking-wide text-zinc-500 uppercase transition-colors hover:text-zinc-300"
+              >
+                <span
+                  className={`text-[10px] transition-transform ${showUrlLinks ? 'rotate-90' : ''}`}
+                >
+                  ▸
+                </span>
+                <span>Links{task.urls.length > 0 ? ` (${task.urls.length})` : ''}</span>
+              </button>
+              {showUrlLinks && !showAddUrl && (
+                <button
+                  onClick={() => setShowAddUrl(true)}
+                  className="ml-1 rounded px-1.5 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                  title="Add link"
+                >
+                  + Add
+                </button>
+              )}
+            </div>
+
+            {showUrlLinks && (
+              <div className="mt-2 space-y-1.5 pl-5.5">
+                {task.urls.map((u) => (
+                  <div key={u.id} className="group flex items-center gap-2">
+                    <ProviderIcon url={u.url} />
+                    <a
+                      href={u.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="min-w-0 flex-1 truncate text-sm text-zinc-300 transition-colors hover:text-zinc-100 hover:underline"
+                      title={u.url}
+                    >
+                      {u.label}
+                    </a>
+                    <button
+                      onClick={() => handleDeleteUrl(u.id)}
+                      className="shrink-0 text-lg leading-none text-zinc-600 opacity-0 transition-all group-hover:opacity-100 hover:text-zinc-300"
+                      title="Remove link"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+
+                {showAddUrl && (
+                  <div className="flex flex-col gap-1.5 pt-0.5">
+                    <input
+                      autoFocus
+                      value={urlDraft}
+                      onChange={(e) => setUrlDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddUrl()
+                        if (e.key === 'Escape') {
+                          setShowAddUrl(false)
+                          setUrlDraft('')
+                          setUrlLabelDraft('')
+                        }
+                      }}
+                      placeholder="URL"
+                      className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                    />
+                    <input
+                      value={urlLabelDraft}
+                      onChange={(e) => setUrlLabelDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleAddUrl()
+                        if (e.key === 'Escape') {
+                          setShowAddUrl(false)
+                          setUrlDraft('')
+                          setUrlLabelDraft('')
+                        }
+                      }}
+                      placeholder={suggestLabel(urlDraft) || 'Label (optional)'}
+                      className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                    />
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={handleAddUrl}
+                        disabled={!urlDraft.trim()}
+                        className="rounded-md bg-zinc-700 px-3 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-600 disabled:opacity-40"
+                      >
+                        Add
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowAddUrl(false)
+                          setUrlDraft('')
+                          setUrlLabelDraft('')
+                        }}
+                        className="rounded-md px-3 py-1 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

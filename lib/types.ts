@@ -1,3 +1,9 @@
+export interface TaskUrl {
+  id: string
+  url: string
+  label: string
+}
+
 export interface Task {
   id: string
   title: string
@@ -8,6 +14,7 @@ export interface Task {
   createdAt: string
   updatedAt: string
   linkedTaskIds: string[]
+  urls: TaskUrl[]
 }
 
 export interface Tag {

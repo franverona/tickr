@@ -2,7 +2,7 @@
 
 import { randomUUID } from 'crypto'
 import { getDb } from '@/lib/db'
-import type { Tag, Task } from '@/lib/types'
+import type { Tag, Task, TaskUrl } from '@/lib/types'
 import { COLOR_PALETTE } from '@/lib/constants'
 import type { ImportedTask } from '@/lib/import'
 
@@ -92,7 +92,7 @@ interface DbRow {
   sort_order: number
 }
 
-function rowToTask(row: DbRow, linkedTaskIds: string[] = []): Task {
+function rowToTask(row: DbRow, linkedTaskIds: string[] = [], urls: TaskUrl[] = []): Task {
   return {
     id: row.id,
     title: row.title,
@@ -103,6 +103,7 @@ function rowToTask(row: DbRow, linkedTaskIds: string[] = []): Task {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     linkedTaskIds,
+    urls,
   }
 }
 
@@ -127,11 +128,31 @@ function buildLinkMap(db: ReturnType<typeof getDb>): Map<string, string[]> {
   return map
 }
 
+function buildUrlMap(db: ReturnType<typeof getDb>): Map<string, TaskUrl[]> {
+  const rows = db
+    .prepare('SELECT id, task_id, url, label FROM task_urls ORDER BY created_at ASC')
+    .all() as { id: string; task_id: string; url: string; label: string }[]
+  const map = new Map<string, TaskUrl[]>()
+  for (const row of rows) {
+    const arr = map.get(row.task_id) ?? []
+    arr.push({ id: row.id, url: row.url, label: row.label })
+    map.set(row.task_id, arr)
+  }
+  return map
+}
+
+function getTaskUrls(db: ReturnType<typeof getDb>, taskId: string): TaskUrl[] {
+  return db
+    .prepare('SELECT id, url, label FROM task_urls WHERE task_id = ? ORDER BY created_at ASC')
+    .all(taskId) as TaskUrl[]
+}
+
 export async function getTasks(): Promise<Task[]> {
   const db = getDb()
   const rows = db.prepare('SELECT * FROM tasks ORDER BY sort_order ASC').all() as DbRow[]
   const linkMap = buildLinkMap(db)
-  return rows.map((row) => rowToTask(row, linkMap.get(row.id) ?? []))
+  const urlMap = buildUrlMap(db)
+  return rows.map((row) => rowToTask(row, linkMap.get(row.id) ?? [], urlMap.get(row.id) ?? []))
 }
 
 export async function createTask(data: {
@@ -155,7 +176,7 @@ export async function createTask(data: {
      VALUES (?, ?, ?, ?, 0, ?, ?, ?)`,
   ).run(id, data.title, data.description, JSON.stringify(data.tags), now, now, sortOrder)
 
-  return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow, [])
+  return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow, [], [])
 }
 
 export async function updateTask(
@@ -188,7 +209,7 @@ export async function updateTask(
   ).run(next.title, next.description, next.tags, next.completed, next.archived, now, id)
 
   const updated = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow
-  return rowToTask(updated, getLinkedIds(db, id))
+  return rowToTask(updated, getLinkedIds(db, id), getTaskUrls(db, id))
 }
 
 export async function reorderTasks(orderedIds: string[]): Promise<void> {
@@ -224,8 +245,8 @@ export async function linkTask(
   const taskRow = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as DbRow
   const linkedRow = db.prepare('SELECT * FROM tasks WHERE id = ?').get(linkedTaskId) as DbRow
   return {
-    task: rowToTask(taskRow, getLinkedIds(db, taskId)),
-    linkedTask: rowToTask(linkedRow, getLinkedIds(db, linkedTaskId)),
+    task: rowToTask(taskRow, getLinkedIds(db, taskId), getTaskUrls(db, taskId)),
+    linkedTask: rowToTask(linkedRow, getLinkedIds(db, linkedTaskId), getTaskUrls(db, linkedTaskId)),
   }
 }
 
@@ -241,9 +262,30 @@ export async function unlinkTask(
   const taskRow = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as DbRow
   const linkedRow = db.prepare('SELECT * FROM tasks WHERE id = ?').get(linkedTaskId) as DbRow
   return {
-    task: rowToTask(taskRow, getLinkedIds(db, taskId)),
-    linkedTask: rowToTask(linkedRow, getLinkedIds(db, linkedTaskId)),
+    task: rowToTask(taskRow, getLinkedIds(db, taskId), getTaskUrls(db, taskId)),
+    linkedTask: rowToTask(linkedRow, getLinkedIds(db, linkedTaskId), getTaskUrls(db, linkedTaskId)),
   }
+}
+
+export async function addTaskUrl(
+  taskId: string,
+  data: { url: string; label: string },
+): Promise<Task> {
+  const db = getDb()
+  const id = randomUUID()
+  const now = new Date().toISOString()
+  db.prepare(
+    'INSERT INTO task_urls (id, task_id, url, label, created_at) VALUES (?, ?, ?, ?, ?)',
+  ).run(id, taskId, data.url.trim(), data.label.trim(), now)
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as DbRow
+  return rowToTask(row, getLinkedIds(db, taskId), getTaskUrls(db, taskId))
+}
+
+export async function deleteTaskUrl(taskId: string, urlId: string): Promise<Task> {
+  const db = getDb()
+  db.prepare('DELETE FROM task_urls WHERE id = ? AND task_id = ?').run(urlId, taskId)
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as DbRow
+  return rowToTask(row, getLinkedIds(db, taskId), getTaskUrls(db, taskId))
 }
 
 export async function importTasks(
@@ -324,12 +366,13 @@ export async function importTasks(
 
   const allRows = db.prepare('SELECT * FROM tasks ORDER BY sort_order ASC').all() as DbRow[]
   const linkMap = buildLinkMap(db)
+  const urlMap = buildUrlMap(db)
   const allTags = db
     .prepare('SELECT id, label, color FROM tags ORDER BY created_at ASC')
     .all() as Tag[]
   return {
     imported,
-    tasks: allRows.map((r) => rowToTask(r, linkMap.get(r.id) ?? [])),
+    tasks: allRows.map((r) => rowToTask(r, linkMap.get(r.id) ?? [], urlMap.get(r.id) ?? [])),
     tags: allTags,
   }
 }
