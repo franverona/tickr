@@ -155,6 +155,15 @@ function ProviderIcon({ url }: { url: string }) {
   )
 }
 
+function isReviewLink(url: string): boolean {
+  try {
+    const pathname = new URL(url).pathname
+    return /\/merge_requests\/\d+/.test(pathname) || /\/pull\/\d+/.test(pathname)
+  } catch {
+    return false
+  }
+}
+
 function suggestLabel(url: string): string {
   try {
     const u = new URL(url)
@@ -214,6 +223,7 @@ export default function TaskDetail({
   const [urlDraft, setUrlDraft] = useState('')
   const [urlLabelDraft, setUrlLabelDraft] = useState('')
   const [editingUrlId, setEditingUrlId] = useState<string | null>(null)
+  const [copiedUrlId, setCopiedUrlId] = useState<string | null>(null)
   const [editUrlDraft, setEditUrlDraft] = useState('')
   const [editLabelDraft, setEditLabelDraft] = useState('')
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
@@ -513,6 +523,13 @@ export default function TaskDetail({
     onUpdate(updated)
   }
 
+  async function handleCopyForSlack(u: Task['urls'][number]) {
+    const message = `For review:\n${task.title} → ${u.url}`
+    await navigator.clipboard.writeText(message)
+    setCopiedUrlId(u.id)
+    setTimeout(() => setCopiedUrlId((id) => (id === u.id ? null : id)), 2000)
+  }
+
   async function handleSaveEditUrl() {
     const url = editUrlDraft.trim()
     if (!url || !editingUrlId) return
@@ -749,6 +766,15 @@ export default function TaskDetail({
                         {u.label}
                       </a>
                       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        {isReviewLink(u.url) && (
+                          <button
+                            onClick={() => handleCopyForSlack(u)}
+                            className="rounded px-1 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                            title="Copy Slack review message"
+                          >
+                            {copiedUrlId === u.id ? 'Copied!' : 'Copy for Slack'}
+                          </button>
+                        )}
                         <button
                           onClick={() => startEditUrl(u.id, u.url, u.label)}
                           className="rounded px-1 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
