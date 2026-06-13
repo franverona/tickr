@@ -18,6 +18,9 @@ export default function Page() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [tab, setTab] = useState<'active' | 'done' | 'archived'>('active')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isSearchOpen, setIsSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [isTagsOpen, setIsTagsOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -104,13 +107,21 @@ export default function Page() {
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
 
-  const filteredTasks = tasks.filter((task) =>
-    tab === 'active'
-      ? !task.completed && !task.archived
-      : tab === 'done'
-        ? task.completed && !task.archived
-        : task.archived,
-  )
+  const query = searchQuery.trim().toLowerCase()
+
+  const filteredTasks = tasks.filter((task) => {
+    const inTab =
+      tab === 'active'
+        ? !task.completed && !task.archived
+        : tab === 'done'
+          ? task.completed && !task.archived
+          : task.archived
+    if (!inTab) return false
+    if (!query) return true
+    return (
+      task.title.toLowerCase().includes(query) || task.description.toLowerCase().includes(query)
+    )
+  })
 
   function handleTaskUpdated(updated: Task) {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
@@ -229,6 +240,74 @@ export default function Page() {
             className="hidden"
             onChange={handleImportFile}
           />
+
+          {/* Search */}
+          {isSearchOpen ? (
+            <div className="relative">
+              <input
+                ref={searchInputRef}
+                type="text"
+                autoFocus
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onBlur={() => {
+                  if (!searchQuery) setIsSearchOpen(false)
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setSearchQuery('')
+                    setIsSearchOpen(false)
+                  }
+                }}
+                placeholder="Search tasks…"
+                className="h-8 w-44 rounded-lg border border-zinc-600 bg-zinc-800 px-2.5 pr-7 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-400 focus:outline-none"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => {
+                    setSearchQuery('')
+                    searchInputRef.current?.focus()
+                  }}
+                  className="absolute top-1/2 right-1.5 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-zinc-500 transition-colors hover:text-zinc-200"
+                  title="Clear search"
+                >
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsSearchOpen(true)}
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-600 text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-100"
+              title="Search tasks"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
+          )}
 
           {/* ··· menu */}
           <div ref={menuRef} className="relative">
@@ -396,11 +475,13 @@ export default function Page() {
             ) : filteredTasks.length === 0 ? (
               <div className="flex h-32 items-center justify-center text-zinc-500">
                 <p className="text-sm">
-                  {tab === 'done'
-                    ? 'No completed tasks yet'
-                    : tab === 'archived'
-                      ? 'No archived tasks'
-                      : 'No active tasks'}
+                  {query
+                    ? 'No tasks match your search'
+                    : tab === 'done'
+                      ? 'No completed tasks yet'
+                      : tab === 'archived'
+                        ? 'No archived tasks'
+                        : 'No active tasks'}
                 </p>
               </div>
             ) : tab === 'active' ? (

@@ -57,9 +57,10 @@ public/
 ## Database
 
 - SQLite at `./data/tasks.db`, created automatically on first run
-- Schema: `tasks` and `tags` tables
+- Schema: `tasks`, `tags`, and `task_urls` tables
 - `tasks` columns: `id`, `title`, `description`, `tags` (JSON array of tag IDs), `completed`, `archived`, `created_at`, `updated_at`, `sort_order`
-- `archived` and `sort_order` columns were added via `ensureMigrations()` — existing DBs upgrade automatically on restart
+- `task_urls` columns: `id`, `task_id`, `url`, `label`, `created_at` — backs the Links section in the task detail panel
+- `archived`, `sort_order`, and the `task_urls` table were added via `ensureMigrations()` — existing DBs upgrade automatically on restart
 - Predefined tags seeded with `INSERT OR IGNORE` on every startup
 - To reset: delete `./data/tasks.db` and restart
 
@@ -69,6 +70,16 @@ public/
 - Tests live in `__tests__/`: `export.test.ts`, `import.test.ts`, `actions.test.ts`
 - `actions.test.ts` mocks `lib/db` with an in-memory SQLite DB via `vi.hoisted` + `vi.mock`; `beforeEach` wipes all rows for isolation
 - `parseCSVRows`, `parseJSONContent`, `parseCSVContent` in `lib/import.ts` are exported so they can be unit-tested directly
+
+## Before considering a feature or fix done
+
+Run all three of the following and fix any failures:
+
+```bash
+npx tsc --noEmit
+npm run lint
+npm run test
+```
 
 ## Running
 
