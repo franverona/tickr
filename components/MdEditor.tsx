@@ -53,6 +53,14 @@ function insertAtCursor(textarea: HTMLTextAreaElement, text: string): string {
   return value.slice(0, selectionStart) + text + value.slice(selectionEnd)
 }
 
+const URL_RE = /^https?:\/\/\S+$/
+
+function wrapSelectionAsLink(textarea: HTMLTextAreaElement, url: string): string {
+  const { value, selectionStart, selectionEnd } = textarea
+  const selected = value.slice(selectionStart, selectionEnd)
+  return value.slice(0, selectionStart) + `[${selected}](${url})` + value.slice(selectionEnd)
+}
+
 export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<string>>) {
   async function handleFiles(files: File[], textarea: HTMLTextAreaElement) {
     for (const file of files) {
@@ -79,9 +87,18 @@ export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<
 
   function onPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
     const files = pickFiles(e.clipboardData.files)
-    if (!files.length) return
-    e.preventDefault()
-    handleFiles(files, e.currentTarget)
+    if (files.length) {
+      e.preventDefault()
+      handleFiles(files, e.currentTarget)
+      return
+    }
+
+    const textarea = e.currentTarget
+    const text = e.clipboardData.getData('text').trim()
+    if (URL_RE.test(text) && textarea.selectionStart !== textarea.selectionEnd) {
+      e.preventDefault()
+      setValue(wrapSelectionAsLink(textarea, text))
+    }
   }
 
   return { onDrop, onPaste }
