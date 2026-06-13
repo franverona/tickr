@@ -224,6 +224,7 @@ export default function TaskDetail({
   const [urlLabelDraft, setUrlLabelDraft] = useState('')
   const [editingUrlId, setEditingUrlId] = useState<string | null>(null)
   const [copiedUrlId, setCopiedUrlId] = useState<string | null>(null)
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null)
   const [editUrlDraft, setEditUrlDraft] = useState('')
   const [editLabelDraft, setEditLabelDraft] = useState('')
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
@@ -530,6 +531,12 @@ export default function TaskDetail({
     setTimeout(() => setCopiedUrlId((id) => (id === u.id ? null : id)), 2000)
   }
 
+  async function handleCopyLink(u: Task['urls'][number]) {
+    await navigator.clipboard.writeText(u.url)
+    setCopiedLinkId(u.id)
+    setTimeout(() => setCopiedLinkId((id) => (id === u.id ? null : id)), 2000)
+  }
+
   async function handleSaveEditUrl() {
     const url = editUrlDraft.trim()
     if (!url || !editingUrlId) return
@@ -766,6 +773,13 @@ export default function TaskDetail({
                         {u.label}
                       </a>
                       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          onClick={() => handleCopyLink(u)}
+                          className="rounded px-1 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                          title="Copy link"
+                        >
+                          {copiedLinkId === u.id ? 'Copied!' : 'Copy link'}
+                        </button>
                         {isReviewLink(u.url) && (
                           <button
                             onClick={() => handleCopyForSlack(u)}
