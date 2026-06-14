@@ -75,7 +75,7 @@ function createResizableImg(onResize: (src: string, w: number) => void) {
         />
         <span
           data-resize-handle="true"
-          className="absolute right-0 bottom-0 flex h-6 w-6 cursor-se-resize items-center justify-center rounded-tl-md bg-zinc-900/80 opacity-0 ring-1 ring-white/20 transition-opacity group-hover/img:opacity-100"
+          className="bg-surface-900/80 absolute right-0 bottom-0 flex h-6 w-6 cursor-se-resize items-center justify-center rounded-tl-md opacity-0 ring-1 ring-white/20 transition-opacity group-hover/img:opacity-100"
           onMouseDown={onHandleMouseDown}
           title="Drag to resize"
         >
@@ -146,7 +146,7 @@ function ProviderIcon({ url }: { url: string }) {
     <svg
       viewBox="0 0 20 20"
       fill="currentColor"
-      className="h-3.5 w-3.5 shrink-0 text-zinc-500"
+      className="text-surface-500 h-3.5 w-3.5 shrink-0"
       aria-hidden="true"
     >
       <path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z" />
@@ -191,7 +191,9 @@ function toggleChecklistItem(source: string, index: number): string {
 
 function suggestionItemClass(active: boolean): string {
   return `flex w-full items-center justify-between gap-2.5 px-3 py-1.5 text-left text-sm transition-colors ${
-    active ? 'bg-zinc-700 text-zinc-100' : 'text-zinc-300 hover:bg-zinc-700 hover:text-zinc-100'
+    active
+      ? 'bg-surface-700 text-surface-100'
+      : 'text-surface-300 hover:bg-surface-700 hover:text-surface-100'
   }`
 }
 
@@ -579,7 +581,7 @@ export default function TaskDetail({
   return (
     <div className="flex h-full flex-col">
       {/* Header */}
-      <div className="flex h-10 shrink-0 items-center gap-3 border-b border-zinc-700 px-4">
+      <div className="border-surface-700 flex h-10 shrink-0 items-center gap-3 border-b px-4">
         {isEditingTitle ? (
           <input
             ref={titleInputRef}
@@ -593,14 +595,14 @@ export default function TaskDetail({
                 setIsEditingTitle(false)
               }
             }}
-            className="min-w-0 flex-1 rounded border border-zinc-500 bg-zinc-700 px-2 py-0.5 text-sm font-medium text-zinc-100 focus:border-zinc-300 focus:outline-none"
+            className="border-surface-500 bg-surface-700 text-surface-100 focus:border-surface-300 min-w-0 flex-1 rounded border px-2 py-0.5 text-sm font-medium focus:outline-none"
           />
         ) : (
           <h2
             onClick={() => setIsEditingTitle(true)}
             title={task.title}
-            className={`group flex min-w-0 flex-1 cursor-text items-center gap-1.5 transition-colors hover:text-zinc-300 ${
-              task.completed ? 'text-zinc-400 line-through' : 'text-zinc-100'
+            className={`group hover:text-surface-300 flex min-w-0 flex-1 cursor-text items-center gap-1.5 transition-colors ${
+              task.completed ? 'text-surface-400 line-through' : 'text-surface-100'
             }`}
           >
             <span className="min-w-0 truncate text-sm font-medium">{task.title}</span>
@@ -618,7 +620,7 @@ export default function TaskDetail({
           {task.archived ? (
             <button
               onClick={toggleArchived}
-              className="rounded-md bg-zinc-600 px-2.5 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-500"
+              className="bg-surface-600 text-surface-200 hover:bg-surface-500 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
             >
               Unarchive
             </button>
@@ -628,7 +630,7 @@ export default function TaskDetail({
                 onClick={toggleComplete}
                 className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                   task.completed
-                    ? 'bg-zinc-600 text-zinc-200 hover:bg-zinc-500'
+                    ? 'bg-surface-600 text-surface-200 hover:bg-surface-500'
                     : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
                 }`}
               >
@@ -636,7 +638,7 @@ export default function TaskDetail({
               </button>
               <button
                 onClick={toggleArchived}
-                className="rounded-md bg-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-600 hover:text-zinc-100"
+                className="bg-surface-700 text-surface-300 hover:bg-surface-600 hover:text-surface-100 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
                 title="Archive task"
               >
                 Archive
@@ -653,7 +655,7 @@ export default function TaskDetail({
               </button>
               <button
                 onClick={() => setShowDeleteConfirm(false)}
-                className="rounded-md bg-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-600"
+                className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
               >
                 Cancel
               </button>
@@ -661,7 +663,7 @@ export default function TaskDetail({
           ) : (
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="rounded-md bg-zinc-700 px-2.5 py-1 text-xs font-medium text-zinc-300 transition-colors hover:bg-zinc-600 hover:text-red-400"
+              className="bg-surface-700 text-surface-300 hover:bg-surface-600 rounded-md px-2.5 py-1 text-xs font-medium transition-colors hover:text-red-400"
             >
               Delete
             </button>
@@ -669,7 +671,7 @@ export default function TaskDetail({
         </div>
         <button
           onClick={onClose}
-          className="shrink-0 text-xl leading-none text-zinc-400 transition-colors hover:text-zinc-100"
+          className="text-surface-400 hover:text-surface-100 shrink-0 text-xl leading-none transition-colors"
         >
           ×
         </button>
@@ -680,7 +682,7 @@ export default function TaskDetail({
         <div className="space-y-2.5">
           {/* Tags */}
           <div className="flex items-center gap-3">
-            <span className="w-16 shrink-0 text-xs tracking-wide text-zinc-500 uppercase">
+            <span className="text-surface-500 w-16 shrink-0 text-xs tracking-wide uppercase">
               Tags
             </span>
             <div className="min-w-0 flex-1">
@@ -698,7 +700,7 @@ export default function TaskDetail({
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setShowUrlLinks((v) => !v)}
-                className="flex items-center gap-1.5 text-xs tracking-wide text-zinc-500 uppercase transition-colors hover:text-zinc-300"
+                className="text-surface-500 hover:text-surface-300 flex items-center gap-1.5 text-xs tracking-wide uppercase transition-colors"
               >
                 <span
                   className={`text-[10px] transition-transform ${showUrlLinks ? 'rotate-90' : ''}`}
@@ -710,7 +712,7 @@ export default function TaskDetail({
               {showUrlLinks && !showAddUrl && (
                 <button
                   onClick={() => setShowAddUrl(true)}
-                  className="ml-1 rounded px-1.5 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                  className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 ml-1 rounded px-1.5 py-0.5 text-xs transition-colors"
                   title="Add link"
                 >
                   + Add
@@ -732,7 +734,7 @@ export default function TaskDetail({
                           if (e.key === 'Escape') cancelEditUrl()
                         }}
                         placeholder="URL"
-                        className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                        className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 w-full rounded-md border px-2.5 py-1 text-sm focus:outline-none"
                       />
                       <input
                         value={editLabelDraft}
@@ -742,19 +744,19 @@ export default function TaskDetail({
                           if (e.key === 'Escape') cancelEditUrl()
                         }}
                         placeholder={suggestLabel(editUrlDraft) || 'Label (optional)'}
-                        className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                        className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 w-full rounded-md border px-2.5 py-1 text-sm focus:outline-none"
                       />
                       <div className="flex gap-1.5">
                         <button
                           onClick={handleSaveEditUrl}
                           disabled={!editUrlDraft.trim()}
-                          className="rounded-md bg-zinc-700 px-3 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-600 disabled:opacity-40"
+                          className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-md px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40"
                         >
                           Save
                         </button>
                         <button
                           onClick={cancelEditUrl}
-                          className="rounded-md px-3 py-1 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                          className="text-surface-400 hover:text-surface-200 rounded-md px-3 py-1 text-xs transition-colors"
                         >
                           Cancel
                         </button>
@@ -767,7 +769,7 @@ export default function TaskDetail({
                         href={u.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="min-w-0 truncate text-sm text-zinc-300 transition-colors hover:text-zinc-100 hover:underline"
+                        className="text-surface-300 hover:text-surface-100 min-w-0 truncate text-sm transition-colors hover:underline"
                         title={u.url}
                       >
                         {u.label}
@@ -775,7 +777,7 @@ export default function TaskDetail({
                       <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
                         <button
                           onClick={() => handleCopyLink(u)}
-                          className="rounded px-1 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                          className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
                           title="Copy link"
                         >
                           {copiedLinkId === u.id ? 'Copied!' : 'Copy link'}
@@ -783,7 +785,7 @@ export default function TaskDetail({
                         {isReviewLink(u.url) && (
                           <button
                             onClick={() => handleCopyForSlack(u)}
-                            className="rounded px-1 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                            className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
                             title="Copy Slack review message"
                           >
                             {copiedUrlId === u.id ? 'Copied!' : 'Copy for Slack'}
@@ -791,14 +793,14 @@ export default function TaskDetail({
                         )}
                         <button
                           onClick={() => startEditUrl(u.id, u.url, u.label)}
-                          className="rounded px-1 py-0.5 text-xs text-zinc-500 transition-colors hover:bg-zinc-700 hover:text-zinc-300"
+                          className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
                           title="Edit link"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDeleteUrl(u.id)}
-                          className="text-lg leading-none text-zinc-600 transition-colors hover:text-zinc-300"
+                          className="text-surface-600 hover:text-surface-300 text-lg leading-none transition-colors"
                           title="Remove link"
                         >
                           ×
@@ -823,7 +825,7 @@ export default function TaskDetail({
                         }
                       }}
                       placeholder="URL"
-                      className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                      className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 w-full rounded-md border px-2.5 py-1 text-sm focus:outline-none"
                     />
                     <input
                       value={urlLabelDraft}
@@ -837,13 +839,13 @@ export default function TaskDetail({
                         }
                       }}
                       placeholder={suggestLabel(urlDraft) || 'Label (optional)'}
-                      className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-2.5 py-1 text-sm text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                      className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 w-full rounded-md border px-2.5 py-1 text-sm focus:outline-none"
                     />
                     <div className="flex gap-1.5">
                       <button
                         onClick={handleAddUrl}
                         disabled={!urlDraft.trim()}
-                        className="rounded-md bg-zinc-700 px-3 py-1 text-xs font-medium text-zinc-200 transition-colors hover:bg-zinc-600 disabled:opacity-40"
+                        className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-md px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40"
                       >
                         Add
                       </button>
@@ -853,7 +855,7 @@ export default function TaskDetail({
                           setUrlDraft('')
                           setUrlLabelDraft('')
                         }}
-                        className="rounded-md px-3 py-1 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                        className="text-surface-400 hover:text-surface-200 rounded-md px-3 py-1 text-xs transition-colors"
                       >
                         Cancel
                       </button>
@@ -865,19 +867,19 @@ export default function TaskDetail({
           </div>
         </div>
 
-        <div className="border-t border-zinc-700/70" />
+        <div className="border-surface-700/70 border-t" />
 
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <label className="text-xs tracking-wide text-zinc-400 uppercase">Description</label>
+            <label className="text-surface-400 text-xs tracking-wide uppercase">Description</label>
             <div className="flex items-center gap-2">
               {isEditingDescription ? (
                 <>
                   {autoSaveStatus === 'pending' && (
-                    <span className="text-xs text-zinc-500">Unsaved…</span>
+                    <span className="text-surface-500 text-xs">Unsaved…</span>
                   )}
                   {autoSaveStatus === 'saving' && (
-                    <span className="text-xs text-zinc-400">Saving…</span>
+                    <span className="text-surface-400 text-xs">Saving…</span>
                   )}
                   {autoSaveStatus === 'saved' && (
                     <span className="text-xs text-emerald-400">Saved</span>
@@ -885,7 +887,7 @@ export default function TaskDetail({
                   <button
                     onClick={handleDone}
                     disabled={autoSaveStatus === 'saving'}
-                    className="rounded-md bg-zinc-600 px-2.5 py-1 text-xs font-medium text-zinc-100 transition-colors hover:bg-zinc-500 disabled:opacity-50"
+                    className="bg-surface-600 text-surface-100 hover:bg-surface-500 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
                   >
                     Done
                   </button>
@@ -893,7 +895,7 @@ export default function TaskDetail({
               ) : (
                 <button
                   onClick={() => setIsEditingDescription(true)}
-                  className="text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                  className="text-surface-400 hover:text-surface-200 text-xs transition-colors"
                 >
                   Edit
                 </button>
@@ -915,7 +917,7 @@ export default function TaskDetail({
                   />
                 </div>
                 {suggestion && suggestion.items.length > 0 && (
-                  <div className="absolute bottom-full left-0 z-50 mb-1 w-64 overflow-hidden rounded-md border border-zinc-600 bg-zinc-800 py-1 shadow-xl">
+                  <div className="border-surface-600 bg-surface-800 absolute bottom-full left-0 z-50 mb-1 w-64 overflow-hidden rounded-md border py-1 shadow-xl">
                     {suggestion.kind === 'emoji' &&
                       suggestion.items.map(([name, emoji], i) => (
                         <button
@@ -927,7 +929,7 @@ export default function TaskDetail({
                           className={suggestionItemClass(i === suggestionIndex)}
                         >
                           <span className="text-base">{emoji}</span>
-                          <span className="text-zinc-400">:{name}</span>
+                          <span className="text-surface-400">:{name}</span>
                         </button>
                       ))}
                     {suggestion.kind === 'mention' &&
@@ -954,7 +956,7 @@ export default function TaskDetail({
                           className={suggestionItemClass(i === suggestionIndex)}
                         >
                           <span>{s.label}</span>
-                          <span className="text-zinc-500">/{s.key}</span>
+                          <span className="text-surface-500">/{s.key}</span>
                         </button>
                       ))}
                   </div>
@@ -1015,7 +1017,7 @@ export default function TaskDetail({
                   )
                 })()
               ) : (
-                <p className="py-1 text-sm text-zinc-500 italic">No description.</p>
+                <p className="text-surface-500 py-1 text-sm italic">No description.</p>
               )}
             </div>
           )}

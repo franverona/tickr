@@ -30,14 +30,14 @@ export default function TaskCard({
       onContextMenu={onContextMenu}
       className={`w-full rounded-lg border p-3 text-left transition-colors ${
         isSelected
-          ? 'border-zinc-400 bg-zinc-700'
-          : 'border-zinc-700 bg-zinc-800 hover:border-zinc-600 hover:bg-zinc-700/50'
+          ? 'border-surface-400 bg-surface-700'
+          : 'border-surface-700 bg-surface-800 hover:border-surface-600 hover:bg-surface-700/50'
       } ${task.completed ? 'opacity-55' : ''}`}
     >
       <div className="flex items-start justify-between gap-2">
         <span
           className={`text-sm leading-snug font-medium ${
-            task.completed ? 'text-zinc-400 line-through' : 'text-zinc-100'
+            task.completed ? 'text-surface-400 line-through' : 'text-surface-100'
           }`}
         >
           {task.title}
@@ -54,7 +54,7 @@ export default function TaskCard({
       )}
 
       {preview && (
-        <p className="mt-1.5 line-clamp-2 text-xs leading-relaxed text-zinc-400">{preview}</p>
+        <p className="text-surface-400 mt-1.5 line-clamp-2 text-xs leading-relaxed">{preview}</p>
       )}
     </button>
   )

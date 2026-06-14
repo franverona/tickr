@@ -222,16 +222,16 @@ export default function Page() {
   const hasNoTasks = !isLoading && tasks.length === 0
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-zinc-900">
+    <div className="bg-surface-900 flex h-screen flex-col overflow-hidden">
       {/* Top bar */}
-      <header className="flex shrink-0 items-center gap-3 border-b border-zinc-700 bg-zinc-900 px-4 py-2.5">
+      <header className="border-surface-700 bg-surface-900 flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
         <div className="mr-1 flex items-center gap-2">
           <Logo size={22} />
-          <h1 className="text-base font-bold tracking-tight text-zinc-100">Tickr</h1>
+          <h1 className="text-surface-100 text-base font-bold tracking-tight">Tickr</h1>
         </div>
 
         <div className="ml-auto flex items-center gap-3">
-          {menuFeedback && <span className="text-xs text-zinc-500">{menuFeedback}</span>}
+          {menuFeedback && <span className="text-surface-500 text-xs">{menuFeedback}</span>}
 
           <input
             ref={importInputRef}
@@ -260,7 +260,7 @@ export default function Page() {
                   }
                 }}
                 placeholder="Search tasks…"
-                className="h-8 w-44 rounded-lg border border-zinc-600 bg-zinc-800 px-2.5 pr-7 text-sm text-zinc-100 placeholder-zinc-500 focus:border-zinc-400 focus:outline-none"
+                className="border-surface-600 bg-surface-800 text-surface-100 placeholder-surface-500 focus:border-surface-400 h-8 w-44 rounded-lg border px-2.5 pr-7 text-sm focus:outline-none"
               />
               {searchQuery && (
                 <button
@@ -268,7 +268,7 @@ export default function Page() {
                     setSearchQuery('')
                     searchInputRef.current?.focus()
                   }}
-                  className="absolute top-1/2 right-1.5 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded text-zinc-500 transition-colors hover:text-zinc-200"
+                  className="text-surface-500 hover:text-surface-200 absolute top-1/2 right-1.5 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded transition-colors"
                   title="Clear search"
                 >
                   <svg
@@ -290,7 +290,7 @@ export default function Page() {
           ) : (
             <button
               onClick={() => setIsSearchOpen(true)}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-600 text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-100"
+              className="border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100 flex h-8 w-8 items-center justify-center rounded-lg border transition-colors"
               title="Search tasks"
             >
               <svg
@@ -314,20 +314,20 @@ export default function Page() {
             <button
               onClick={() => setIsMenuOpen((o) => !o)}
               disabled={isExporting || isImporting}
-              className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-600 text-base font-bold tracking-widest text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+              className="border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100 flex h-8 w-8 items-center justify-center rounded-lg border text-base font-bold tracking-widest transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               title="More options"
             >
               ···
             </button>
 
             {isMenuOpen && (
-              <div className="absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl">
+              <div className="border-surface-700 bg-surface-800 absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border py-1 shadow-xl">
                 <button
                   onClick={() => {
                     setIsMenuOpen(false)
                     setIsTagsOpen(true)
                   }}
-                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                  className="text-surface-300 hover:bg-surface-700 hover:text-surface-100 flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors"
                 >
                   <svg
                     width="13"
@@ -345,11 +345,11 @@ export default function Page() {
                   Tags
                 </button>
 
-                <div className="my-1 border-t border-zinc-700" />
+                <div className="border-surface-700 my-1 border-t" />
 
                 <button
                   onClick={() => handleExport('json')}
-                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                  className="text-surface-300 hover:bg-surface-700 hover:text-surface-100 flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors"
                 >
                   <svg
                     width="13"
@@ -369,7 +369,7 @@ export default function Page() {
                 </button>
                 <button
                   onClick={() => handleExport('csv')}
-                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                  className="text-surface-300 hover:bg-surface-700 hover:text-surface-100 flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors"
                 >
                   <svg
                     width="13"
@@ -388,14 +388,14 @@ export default function Page() {
                   Export as CSV
                 </button>
 
-                <div className="my-1 border-t border-zinc-700" />
+                <div className="border-surface-700 my-1 border-t" />
 
                 <button
                   onClick={() => {
                     setIsMenuOpen(false)
                     importInputRef.current?.click()
                   }}
-                  className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100"
+                  className="text-surface-300 hover:bg-surface-700 hover:text-surface-100 flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors"
                 >
                   <svg
                     width="13"
@@ -419,7 +419,7 @@ export default function Page() {
 
           <button
             onClick={() => setIsCreateOpen(true)}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500"
+            className="bg-primary-600 text-surface-900 hover:bg-primary-500 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
           >
             <span className="text-base leading-none">+</span>
             New Task
@@ -431,11 +431,11 @@ export default function Page() {
       <div className="flex min-h-0 flex-1">
         {/* Task list */}
         <div
-          className={`flex shrink-0 flex-col border-r border-zinc-700 ${
+          className={`border-surface-700 flex shrink-0 flex-col border-r ${
             selectedTask ? 'w-90' : 'w-full'
           }`}
         >
-          <div className="flex h-10 items-center border-b border-zinc-700 px-4">
+          <div className="border-surface-700 flex h-10 items-center border-b px-4">
             <div className="flex h-full gap-5">
               {(['active', 'done', 'archived'] as const).map((t) => (
                 <button
@@ -446,15 +446,15 @@ export default function Page() {
                   }}
                   className={`flex h-full items-center border-b-2 text-xs font-medium transition-colors ${
                     tab === t
-                      ? 'border-zinc-300 text-zinc-100'
-                      : 'border-transparent text-zinc-400 hover:text-zinc-200'
+                      ? 'border-surface-300 text-surface-100'
+                      : 'text-surface-400 hover:text-surface-200 border-transparent'
                   }`}
                 >
                   {t === 'active' ? 'Active' : t === 'done' ? 'Done' : 'Archived'}
                 </button>
               ))}
             </div>
-            <span className="ml-auto text-xs text-zinc-500">
+            <span className="text-surface-500 ml-auto text-xs">
               {isLoading
                 ? ''
                 : `${filteredTasks.length} ${filteredTasks.length === 1 ? 'task' : 'tasks'}`}
@@ -463,17 +463,17 @@ export default function Page() {
 
           <div className="flex-1 overflow-y-auto p-3">
             {hasNoTasks ? (
-              <div className="flex h-full flex-col items-center justify-center gap-3 text-zinc-500">
+              <div className="text-surface-500 flex h-full flex-col items-center justify-center gap-3">
                 <p className="text-sm">No tasks yet</p>
                 <button
                   onClick={() => setIsCreateOpen(true)}
-                  className="text-sm text-blue-500 transition-colors hover:text-blue-400"
+                  className="text-accent-500 hover:text-accent-400 text-sm transition-colors"
                 >
                   Create your first task →
                 </button>
               </div>
             ) : filteredTasks.length === 0 ? (
-              <div className="flex h-32 items-center justify-center text-zinc-500">
+              <div className="text-surface-500 flex h-32 items-center justify-center">
                 <p className="text-sm">
                   {query
                     ? 'No tasks match your search'
@@ -492,7 +492,7 @@ export default function Page() {
                       dragOverIdx === i &&
                       dragSrcIdx !== i &&
                       dragOverIdx !== dragSrcIdx + 1 && (
-                        <div className="mb-2 h-0.5 rounded-full bg-blue-500" />
+                        <div className="bg-accent-500 mb-2 h-0.5 rounded-full" />
                       )}
                     <div
                       draggable
@@ -525,7 +525,7 @@ export default function Page() {
                   {dragSrcIdx !== null &&
                     dragOverIdx === filteredTasks.length &&
                     dragOverIdx !== dragSrcIdx + 1 && (
-                      <div className="h-0.5 rounded-full bg-blue-500" />
+                      <div className="bg-accent-500 h-0.5 rounded-full" />
                     )}
                 </div>
               </div>
@@ -564,10 +564,10 @@ export default function Page() {
         ) : (
           !hasNoTasks && (
             <div className="hidden flex-1 flex-col items-center justify-center gap-1.5 select-none md:flex">
-              <p className="text-sm font-medium text-zinc-400">Select a task to view details</p>
+              <p className="text-surface-400 text-sm font-medium">Select a task to view details</p>
               <button
                 onClick={() => setIsCreateOpen(true)}
-                className="text-sm text-blue-500 transition-colors hover:text-blue-400"
+                className="text-accent-500 hover:text-accent-400 text-sm transition-colors"
               >
                 or create a new one →
               </button>

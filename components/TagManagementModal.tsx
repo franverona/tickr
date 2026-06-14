@@ -75,14 +75,14 @@ export default function TagManagementModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[80vh] w-[440px] flex-col rounded-xl border border-zinc-700 bg-zinc-800 shadow-xl"
+        className="border-surface-700 bg-surface-800 flex max-h-[80vh] w-[440px] flex-col rounded-xl border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex flex-shrink-0 items-center justify-between border-b border-zinc-700 px-4 py-3">
-          <h2 className="text-sm font-semibold text-zinc-100">Manage Tags</h2>
+        <div className="border-surface-700 flex flex-shrink-0 items-center justify-between border-b px-4 py-3">
+          <h2 className="text-surface-100 text-sm font-semibold">Manage Tags</h2>
           <button
             onClick={onClose}
-            className="text-xl leading-none text-zinc-400 transition-colors hover:text-zinc-100"
+            className="text-surface-400 hover:text-surface-100 text-xl leading-none transition-colors"
           >
             ×
           </button>
@@ -90,15 +90,18 @@ export default function TagManagementModal({
 
         <div className="flex-1 space-y-2 overflow-y-auto p-4">
           {tags.length === 0 && (
-            <p className="py-4 text-center text-sm text-zinc-500">No tags yet</p>
+            <p className="text-surface-500 py-4 text-center text-sm">No tags yet</p>
           )}
 
           {tags.map((tag) => (
-            <div key={tag.id} className="rounded-lg border border-zinc-700 bg-zinc-700/30 p-2.5">
+            <div
+              key={tag.id}
+              className="border-surface-700 bg-surface-700/30 rounded-lg border p-2.5"
+            >
               {editingId === tag.id ? (
                 <div className="space-y-2">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-10 shrink-0 text-[11px] text-zinc-400">Color</span>
+                    <span className="text-surface-400 w-10 shrink-0 text-[11px]">Color</span>
                     <div className="flex flex-wrap gap-1.5">
                       {COLOR_PALETTE.map((c) => (
                         <button
@@ -108,7 +111,7 @@ export default function TagManagementModal({
                           onClick={() => setEditColor(c.classes)}
                           className={`h-4 w-4 rounded-full ${c.dot} transition-transform ${
                             editColor === c.classes
-                              ? 'scale-125 ring-2 ring-white ring-offset-1 ring-offset-zinc-700'
+                              ? 'ring-offset-surface-700 scale-125 ring-2 ring-white ring-offset-1'
                               : 'opacity-70 hover:scale-110 hover:opacity-100'
                           }`}
                         />
@@ -117,7 +120,7 @@ export default function TagManagementModal({
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <span className="w-10 shrink-0 text-[11px] text-zinc-400">Name</span>
+                    <span className="text-surface-400 w-10 shrink-0 text-[11px]">Name</span>
                     <input
                       autoFocus
                       type="text"
@@ -134,18 +137,18 @@ export default function TagManagementModal({
                         if (e.key === 'Escape') cancelEdit()
                       }}
                       maxLength={40}
-                      className="min-w-0 flex-1 rounded border border-zinc-600 bg-zinc-700 px-2 py-1 text-xs text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                      className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 min-w-0 flex-1 rounded border px-2 py-1 text-xs focus:outline-none"
                     />
                     <button
                       onClick={() => handleSave(tag.id)}
                       disabled={isSaving}
-                      className="shrink-0 rounded bg-blue-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+                      className="bg-accent-600 hover:bg-accent-500 shrink-0 rounded px-2.5 py-1 text-xs font-medium text-white transition-colors disabled:opacity-50"
                     >
                       {isSaving ? '…' : 'Save'}
                     </button>
                     <button
                       onClick={cancelEdit}
-                      className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                      className="text-surface-400 hover:text-surface-200 shrink-0 text-xs transition-colors"
                     >
                       Cancel
                     </button>
@@ -153,7 +156,7 @@ export default function TagManagementModal({
 
                   {editLabel.trim() && (
                     <div className="flex items-center gap-1.5">
-                      <span className="w-10 shrink-0 text-[11px] text-zinc-400">Preview</span>
+                      <span className="text-surface-400 w-10 shrink-0 text-[11px]">Preview</span>
                       <span
                         className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${editColor}`}
                       >
@@ -167,7 +170,7 @@ export default function TagManagementModal({
               ) : deletingId === tag.id ? (
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
-                    <p className="flex-1 text-xs text-zinc-300">
+                    <p className="text-surface-300 flex-1 text-xs">
                       Delete <TagBadge tag={tag} size="sm" />? This will remove it from all tasks.
                     </p>
                     <button
@@ -182,7 +185,7 @@ export default function TagManagementModal({
                         setDeletingId(null)
                         setError('')
                       }}
-                      className="shrink-0 text-xs text-zinc-400 transition-colors hover:text-zinc-200"
+                      className="text-surface-400 hover:text-surface-200 shrink-0 text-xs transition-colors"
                     >
                       Cancel
                     </button>
@@ -196,7 +199,7 @@ export default function TagManagementModal({
                     <button
                       onClick={() => startEdit(tag)}
                       title="Edit tag"
-                      className="rounded p-1.5 text-zinc-400 transition-colors hover:bg-zinc-600 hover:text-zinc-100"
+                      className="text-surface-400 hover:bg-surface-600 hover:text-surface-100 rounded p-1.5 transition-colors"
                     >
                       <svg
                         width="12"
@@ -219,7 +222,7 @@ export default function TagManagementModal({
                         setError('')
                       }}
                       title="Delete tag"
-                      className="rounded p-1.5 text-zinc-400 transition-colors hover:bg-zinc-600 hover:text-red-400"
+                      className="text-surface-400 hover:bg-surface-600 rounded p-1.5 transition-colors hover:text-red-400"
                     >
                       <svg
                         width="12"

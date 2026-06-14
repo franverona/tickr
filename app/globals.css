@@ -2,9 +2,29 @@
 @import '@uiw/react-md-editor/markdown-editor.css';
 @import '@uiw/react-markdown-preview/markdown.css';
 
+/* Catppuccin Mocha */
+@theme {
+  --color-surface-900: #11111b; /* crust */
+  --color-surface-800: #181825; /* mantle */
+  --color-surface-700: #313244; /* surface0 */
+  --color-surface-600: #45475a; /* surface1 */
+  --color-surface-500: #585b70; /* surface2 */
+  --color-surface-400: #7f849c; /* overlay1 */
+  --color-surface-300: #a6adc8; /* subtext0 */
+  --color-surface-200: #bac2de; /* subtext1 */
+  --color-surface-100: #cdd6f4; /* text */
+
+  --color-accent-600: #74c7ec; /* sapphire */
+  --color-accent-500: #89b4fa; /* blue */
+  --color-accent-400: #b4befe; /* lavender */
+
+  --color-primary-600: #89b4fa; /* blue, matches logo */
+  --color-primary-500: #b4befe; /* lavender (hover) */
+}
+
 :root {
-  --background: #09090b;
-  --foreground: #fafafa;
+  --background: #11111b;
+  --foreground: #cdd6f4;
 }
 
 body {
@@ -17,6 +37,46 @@ body {
 .wmde-markdown {
   background-color: transparent !important;
   font-size: 0.875rem;
+}
+
+/* Catppuccin Mocha syntax highlighting for code blocks in the markdown preview */
+body [data-color-mode*='dark'] .wmde-markdown {
+  --color-fg-default: #cdd6f4;
+  --color-canvas-default: #1e1e2e;
+  --color-canvas-subtle: #181825;
+  --color-border-default: #313244;
+  --color-neutral-muted: rgba(88, 91, 112, 0.4);
+
+  --color-prettylights-syntax-comment: #9399b2;
+  --color-prettylights-syntax-constant: #fab387;
+  --color-prettylights-syntax-entity: #89b4fa;
+  --color-prettylights-syntax-storage-modifier-import: #cdd6f4;
+  --color-prettylights-syntax-entity-tag: #a6e3a1;
+  --color-prettylights-syntax-keyword: #cba6f7;
+  --color-prettylights-syntax-string: #a6e3a1;
+  --color-prettylights-syntax-variable: #fab387;
+  --color-prettylights-syntax-brackethighlighter-unmatched: #f38ba8;
+  --color-prettylights-syntax-invalid-illegal-text: #11111b;
+  --color-prettylights-syntax-invalid-illegal-bg: #f38ba8;
+  --color-prettylights-syntax-carriage-return-text: #11111b;
+  --color-prettylights-syntax-carriage-return-bg: #f38ba8;
+  --color-prettylights-syntax-string-regexp: #94e2d5;
+  --color-prettylights-syntax-markup-list: #eba0ac;
+  --color-prettylights-syntax-markup-heading: #89b4fa;
+  --color-prettylights-syntax-markup-italic: #cdd6f4;
+  --color-prettylights-syntax-markup-bold: #cdd6f4;
+  --color-prettylights-syntax-markup-deleted-text: #f38ba8;
+  --color-prettylights-syntax-markup-deleted-bg: rgba(243, 139, 168, 0.15);
+  --color-prettylights-syntax-markup-inserted-text: #a6e3a1;
+  --color-prettylights-syntax-markup-inserted-bg: rgba(166, 227, 161, 0.15);
+  --color-prettylights-syntax-markup-changed-text: #f9e2af;
+  --color-prettylights-syntax-markup-changed-bg: rgba(249, 226, 175, 0.15);
+  --color-prettylights-syntax-markup-ignored-text: #cdd6f4;
+  --color-prettylights-syntax-markup-ignored-bg: #313244;
+  --color-prettylights-syntax-meta-diff-range: #cba6f7;
+  --color-prettylights-syntax-brackethighlighter-angle: #9399b2;
+  --color-prettylights-syntax-sublimelinter-gutter-mark: #6c7086;
+  --color-prettylights-syntax-constant-other-reference-link: #a6e3a1;
 }
 
 /* Restore list markers overridden by Tailwind's preflight */
@@ -37,5 +97,5 @@ body {
 
 /* Tame the md editor toolbar in dark mode */
 .w-md-editor-toolbar {
-  border-bottom-color: #27272a !important;
+  border-bottom-color: #313244 !important;
 }

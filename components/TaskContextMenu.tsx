@@ -51,9 +51,9 @@ export default function TaskContextMenu({
   }, [onClose])
 
   const item =
-    'flex w-full items-center px-3 py-1.5 text-left text-sm text-zinc-300 transition-colors hover:bg-zinc-700 hover:text-zinc-100'
+    'flex w-full items-center px-3 py-1.5 text-left text-sm text-surface-300 transition-colors hover:bg-surface-700 hover:text-surface-100'
   const danger =
-    'flex w-full items-center px-3 py-1.5 text-left text-sm text-red-400 transition-colors hover:bg-zinc-700 hover:text-red-300'
+    'flex w-full items-center px-3 py-1.5 text-left text-sm text-red-400 transition-colors hover:bg-surface-700 hover:text-red-300'
 
   return (
     <>
@@ -68,7 +68,7 @@ export default function TaskContextMenu({
       <div
         ref={menuRef}
         style={{ left: pos.x, top: pos.y }}
-        className="fixed z-40 w-44 rounded-lg border border-zinc-700 bg-zinc-800 py-1 shadow-xl"
+        className="border-surface-700 bg-surface-800 fixed z-40 w-44 rounded-lg border py-1 shadow-xl"
       >
         {tab === 'active' && (
           <button onClick={onComplete} className={item}>
@@ -90,7 +90,7 @@ export default function TaskContextMenu({
             Unarchive
           </button>
         )}
-        <div className="my-1 border-t border-zinc-700" />
+        <div className="border-surface-700 my-1 border-t" />
         {confirmDelete ? (
           <button onClick={onDelete} className={danger}>
             Confirm Delete?

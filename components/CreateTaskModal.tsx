@@ -64,12 +64,14 @@ export default function CreateTaskModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border border-zinc-600 bg-zinc-800 shadow-2xl">
-        <div className="flex items-center justify-between border-b border-zinc-700 px-5 py-3">
-          <h2 className="text-sm font-semibold tracking-wide text-zinc-100 uppercase">New Task</h2>
+      <div className="border-surface-600 bg-surface-800 flex max-h-[90vh] w-full max-w-2xl flex-col rounded-xl border shadow-2xl">
+        <div className="border-surface-700 flex items-center justify-between border-b px-5 py-3">
+          <h2 className="text-surface-100 text-sm font-semibold tracking-wide uppercase">
+            New Task
+          </h2>
           <button
             onClick={onClose}
-            className="text-xl leading-none text-zinc-400 transition-colors hover:text-zinc-100"
+            className="text-surface-400 hover:text-surface-100 text-xl leading-none transition-colors"
           >
             ×
           </button>
@@ -87,13 +89,13 @@ export default function CreateTaskModal({
                   setError('')
                 }}
                 placeholder="Task title"
-                className="w-full rounded-lg border border-zinc-600 bg-zinc-700 px-3 py-2 text-base text-zinc-100 placeholder:text-zinc-500 focus:border-zinc-400 focus:outline-none"
+                className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 w-full rounded-lg border px-3 py-2 text-base focus:outline-none"
               />
               {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
             </div>
 
             <div>
-              <label className="mb-2 block text-xs tracking-wide text-zinc-400 uppercase">
+              <label className="text-surface-400 mb-2 block text-xs tracking-wide uppercase">
                 Tags
               </label>
               <TagSelector
@@ -105,7 +107,7 @@ export default function CreateTaskModal({
             </div>
 
             <div>
-              <label className="mb-2 block text-xs tracking-wide text-zinc-400 uppercase">
+              <label className="text-surface-400 mb-2 block text-xs tracking-wide uppercase">
                 Description
               </label>
               <div data-color-mode="dark">
@@ -119,18 +121,18 @@ export default function CreateTaskModal({
             </div>
           </div>
 
-          <div className="flex justify-end gap-2 border-t border-zinc-700 px-5 py-3">
+          <div className="border-surface-700 flex justify-end gap-2 border-t px-5 py-3">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-lg bg-zinc-700 px-4 py-1.5 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-600"
+              className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-500 disabled:opacity-50"
+              className="bg-primary-600 text-surface-900 hover:bg-primary-500 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
             >
               {isPending ? 'Creating…' : 'Create Task'}
             </button>
