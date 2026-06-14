@@ -71,11 +71,11 @@ export default function TagManagementModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
       onClick={onClose}
     >
       <div
-        className="border-surface-700 bg-surface-800 flex max-h-[80vh] w-[440px] flex-col rounded-xl border shadow-xl"
+        className="border-surface-700 bg-surface-800 flex max-h-[80vh] w-full max-w-110 flex-col rounded-xl border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-surface-700 flex flex-shrink-0 items-center justify-between border-b px-4 py-3">

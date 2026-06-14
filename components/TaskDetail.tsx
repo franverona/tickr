@@ -189,6 +189,14 @@ function toggleChecklistItem(source: string, index: number): string {
   })
 }
 
+function ScrollableTable({ children, ...props }: React.ComponentPropsWithoutRef<'table'>) {
+  return (
+    <div className="overflow-x-auto">
+      <table {...props}>{children}</table>
+    </div>
+  )
+}
+
 function suggestionItemClass(active: boolean): string {
   return `flex w-full items-center justify-between gap-2.5 px-3 py-1.5 text-left text-sm transition-colors ${
     active
@@ -913,7 +921,10 @@ export default function TaskDetail({
                     height={560}
                     preview="live"
                     textareaProps={suggestionTextareaProps}
-                    previewOptions={{ skipHtml: false, components: { img: EditModeImg } }}
+                    previewOptions={{
+                      skipHtml: false,
+                      components: { img: EditModeImg, table: ScrollableTable },
+                    }}
                   />
                 </div>
                 {suggestion && suggestion.items.length > 0 && (
@@ -995,6 +1006,7 @@ export default function TaskDetail({
                         style={{ background: 'transparent' }}
                         skipHtml={false}
                         components={{
+                          table: ScrollableTable,
                           input: ({ node, ...props }) => {
                             if (props.type !== 'checkbox') return <input {...props} />
                             let index = node ? checklistIndices.get(node) : undefined

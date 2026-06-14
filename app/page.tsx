@@ -224,14 +224,16 @@ export default function Page() {
   return (
     <div className="bg-surface-900 flex h-screen flex-col overflow-hidden">
       {/* Top bar */}
-      <header className="border-surface-700 bg-surface-900 flex shrink-0 items-center gap-3 border-b px-4 py-2.5">
+      <header className="border-surface-700 bg-surface-900 flex shrink-0 items-center gap-2 border-b px-3 py-2.5 sm:gap-3 sm:px-4">
         <div className="mr-1 flex items-center gap-2">
           <Logo size={22} />
           <h1 className="text-surface-100 text-base font-bold tracking-tight">Tickr</h1>
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
-          {menuFeedback && <span className="text-surface-500 text-xs">{menuFeedback}</span>}
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          {menuFeedback && (
+            <span className="text-surface-500 hidden text-xs sm:inline">{menuFeedback}</span>
+          )}
 
           <input
             ref={importInputRef}
@@ -260,7 +262,7 @@ export default function Page() {
                   }
                 }}
                 placeholder="Search tasks…"
-                className="border-surface-600 bg-surface-800 text-surface-100 placeholder-surface-500 focus:border-surface-400 h-8 w-44 rounded-lg border px-2.5 pr-7 text-sm focus:outline-none"
+                className="border-surface-600 bg-surface-800 text-surface-100 placeholder-surface-500 focus:border-surface-400 h-8 w-28 rounded-lg border px-2.5 pr-7 text-sm focus:outline-none sm:w-44"
               />
               {searchQuery && (
                 <button
@@ -422,7 +424,7 @@ export default function Page() {
             className="bg-primary-600 text-surface-900 hover:bg-primary-500 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors"
           >
             <span className="text-base leading-none">+</span>
-            New Task
+            <span className="hidden sm:inline">New Task</span>
           </button>
         </div>
       </header>
@@ -432,11 +434,11 @@ export default function Page() {
         {/* Task list */}
         <div
           className={`border-surface-700 flex shrink-0 flex-col border-r ${
-            selectedTask ? 'w-90' : 'w-full'
+            selectedTask ? 'hidden w-full md:flex md:w-90' : 'flex w-full'
           }`}
         >
-          <div className="border-surface-700 flex h-10 items-center border-b px-4">
-            <div className="flex h-full gap-5">
+          <div className="border-surface-700 flex h-10 items-center border-b px-3 sm:px-4">
+            <div className="flex h-full gap-4 sm:gap-5">
               {(['active', 'done', 'archived'] as const).map((t) => (
                 <button
                   key={t}
