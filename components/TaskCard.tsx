@@ -2,6 +2,7 @@
 
 import type { Tag, Task } from '@/lib/types'
 import TagBadge from './TagBadge'
+import { formatDueDate, getDueStatus } from '@/lib/dates'
 
 interface TaskCardProps {
   task: Task
@@ -24,6 +25,8 @@ export default function TaskCard({
     .replace(/\n+/g, ' ')
     .trim()
 
+  const dueStatus = getDueStatus(task.dueDate, task.completed)
+
   return (
     <button
       onClick={onClick}
@@ -44,12 +47,25 @@ export default function TaskCard({
         </span>
       </div>
 
-      {task.tags.length > 0 && (
-        <div className="mt-1.5 flex flex-wrap gap-1">
+      {(task.tags.length > 0 || task.dueDate) && (
+        <div className="mt-1.5 flex flex-wrap items-center gap-1">
           {task.tags.map((tagId) => {
             const tag = tags.find((t) => t.id === tagId)
             return tag ? <TagBadge key={tagId} tag={tag} size="sm" /> : null
           })}
+          {task.dueDate && (
+            <span
+              className={`inline-flex items-center rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${
+                dueStatus === 'overdue'
+                  ? 'border-red-500 bg-red-950 text-red-300'
+                  : dueStatus === 'today'
+                    ? 'border-amber-500 bg-amber-950 text-amber-300'
+                    : 'border-surface-600 bg-surface-700 text-surface-300'
+              }`}
+            >
+              {formatDueDate(task.dueDate)}
+            </span>
+          )}
         </div>
       )}
 

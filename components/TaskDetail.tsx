@@ -7,6 +7,7 @@ import TagSelector from './TagSelector'
 import { MDEditor, MDPreview, MarkdownLink, makeImageHandlers, replaceImageWidth } from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
+import { getDueStatus } from '@/lib/dates'
 
 interface TaskDetailProps {
   task: Task
@@ -243,6 +244,7 @@ export default function TaskDetail({
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDescRef = useRef(task.description)
   const editorWrapperRef = useRef<HTMLDivElement>(null)
+  const dueStatus = getDueStatus(task.dueDate, task.completed)
   const imageHandlers = makeImageHandlers(setDescriptionDraft)
 
   // setDescriptionDraft is stable (from useState) — safe to capture with empty deps
@@ -404,6 +406,11 @@ export default function TaskDetail({
 
   async function saveTags(tags: string[]) {
     const updated = await updateTask(task.id, { tags })
+    onUpdate(updated)
+  }
+
+  async function saveDueDate(dueDate: string) {
+    const updated = await updateTask(task.id, { dueDate: dueDate || null })
     onUpdate(updated)
   }
 
@@ -700,6 +707,35 @@ export default function TaskDetail({
                 onChange={saveTags}
                 onTagCreated={onTagCreated}
               />
+            </div>
+          </div>
+
+          {/* Due date */}
+          <div className="flex items-center gap-3">
+            <span className="text-surface-500 w-16 shrink-0 text-xs tracking-wide uppercase">
+              Due
+            </span>
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <input
+                type="date"
+                value={task.dueDate ?? ''}
+                onChange={(e) => saveDueDate(e.target.value)}
+                className={`border-surface-600 bg-surface-700 text-surface-100 focus:border-surface-400 rounded-md border px-2 py-1 text-sm focus:outline-none ${
+                  dueStatus === 'overdue'
+                    ? 'text-red-400'
+                    : dueStatus === 'today'
+                      ? 'text-amber-400'
+                      : ''
+                }`}
+              />
+              {task.dueDate && (
+                <button
+                  onClick={() => saveDueDate('')}
+                  className="text-surface-500 hover:text-surface-300 text-xs transition-colors"
+                >
+                  Clear
+                </button>
+              )}
             </div>
           </div>
 

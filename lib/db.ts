@@ -24,6 +24,12 @@ function ensureMigrations(db: Database.Database) {
     // column already exists
   }
 
+  try {
+    db.exec('ALTER TABLE tasks ADD COLUMN due_date TEXT')
+  } catch {
+    // column already exists
+  }
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS task_urls (
       id TEXT PRIMARY KEY,

@@ -58,9 +58,9 @@ public/
 
 - SQLite at `./data/tasks.db`, created automatically on first run
 - Schema: `tasks`, `tags`, and `task_urls` tables
-- `tasks` columns: `id`, `title`, `description`, `tags` (JSON array of tag IDs), `completed`, `archived`, `created_at`, `updated_at`, `sort_order`
+- `tasks` columns: `id`, `title`, `description`, `tags` (JSON array of tag IDs), `completed`, `archived`, `due_date`, `created_at`, `updated_at`, `sort_order`
 - `task_urls` columns: `id`, `task_id`, `url`, `label`, `created_at` — backs the Links section in the task detail panel
-- `archived`, `sort_order`, and the `task_urls` table were added via `ensureMigrations()` — existing DBs upgrade automatically on restart
+- `archived`, `sort_order`, `due_date`, and the `task_urls` table were added via `ensureMigrations()` — existing DBs upgrade automatically on restart
 - Predefined tags seeded with `INSERT OR IGNORE` on every startup
 - To reset: delete `./data/tasks.db` and restart
 

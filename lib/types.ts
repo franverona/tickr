@@ -11,6 +11,7 @@ export interface Task {
   tags: string[]
   completed: boolean
   archived: boolean
+  dueDate: string | null
   createdAt: string
   updatedAt: string
   urls: TaskUrl[]

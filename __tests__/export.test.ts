@@ -15,6 +15,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
     tags: [],
     completed: false,
     archived: false,
+    dueDate: null,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     urls: [],
@@ -47,6 +48,7 @@ describe('exportToJSON', () => {
         'tags',
         'completed',
         'archived',
+        'dueDate',
         'createdAt',
         'updatedAt',
       ]),
@@ -57,8 +59,14 @@ describe('exportToJSON', () => {
 describe('exportToCSV', () => {
   it('produces a header row followed by data rows', () => {
     const lines = exportToCSV([makeTask()], TAGS).split('\n')
-    expect(lines[0]).toBe('Title,Tags,Status,Description,Created At,Updated At')
+    expect(lines[0]).toBe('Title,Tags,Status,Due Date,Description,Created At,Updated At')
     expect(lines).toHaveLength(2)
+  })
+
+  it('includes the due date when set', () => {
+    const task = makeTask({ dueDate: '2024-02-15' })
+    const rows = exportToCSV([task], TAGS).split('\n')
+    expect(rows[1]).toContain('2024-02-15')
   })
 
   it('resolves tag IDs to labels joined with "; "', () => {

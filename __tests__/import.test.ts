@@ -48,6 +48,19 @@ describe('parseJSONContent', () => {
     const result = parseJSONContent(json)
     expect(result[0].completed).toBe(false)
     expect(result[0].archived).toBe(false)
+    expect(result[0].dueDate).toBeNull()
+  })
+
+  it('parses a valid ISO due date', () => {
+    const json = JSON.stringify([{ title: 'T', dueDate: '2024-02-15' }])
+    const result = parseJSONContent(json)
+    expect(result[0].dueDate).toBe('2024-02-15')
+  })
+
+  it('discards an invalid due date', () => {
+    const json = JSON.stringify([{ title: 'T', dueDate: 'not-a-date' }])
+    const result = parseJSONContent(json)
+    expect(result[0].dueDate).toBeNull()
   })
 
   it('throws when the input is not an array', () => {
@@ -101,5 +114,17 @@ describe('parseCSVContent', () => {
 
   it('returns empty array for CSV with only a header', () => {
     expect(parseCSVContent(HEADER)).toEqual([])
+  })
+
+  it('parses a due date column when present', () => {
+    const header = 'Title,Tags,Status,Due Date,Description,Created At,Updated At'
+    const csv = [header, 'Task one,,Active,2024-02-15,,,'].join('\n')
+    const result = parseCSVContent(csv)
+    expect(result[0].dueDate).toBe('2024-02-15')
+  })
+
+  it('treats a missing Due Date column as no due date', () => {
+    const result = parseCSVContent([HEADER, 'Task one,,Active,,,'].join('\n'))
+    expect(result[0].dueDate).toBeNull()
   })
 })

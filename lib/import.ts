@@ -4,7 +4,10 @@ export interface ImportedTask {
   tagLabels: string[]
   completed: boolean
   archived: boolean
+  dueDate: string | null
 }
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 const EXT_TO_MIME: Record<string, string> = {
   png: 'image/png',
@@ -99,6 +102,7 @@ export function parseJSONContent(content: string): ImportedTask[] {
           : [],
         completed: t.completed === true,
         archived: t.archived === true,
+        dueDate: typeof t.dueDate === 'string' && ISO_DATE_RE.test(t.dueDate) ? t.dueDate : null,
       }
     })
     .filter((t): t is ImportedTask => t !== null)
@@ -117,6 +121,7 @@ export function parseCSVContent(content: string): ImportedTask[] {
   const tagsIdx = col('tags')
   const statusIdx = col('status')
   const descIdx = col('description')
+  const dueDateIdx = col('due date')
 
   return rows
     .slice(1)
@@ -124,6 +129,7 @@ export function parseCSVContent(content: string): ImportedTask[] {
       const title = row[titleIdx]?.trim() ?? ''
       if (!title) return null
       const status = statusIdx !== -1 ? (row[statusIdx] ?? '').toLowerCase() : 'active'
+      const dueDate = dueDateIdx !== -1 ? (row[dueDateIdx] ?? '').trim() : ''
 
       return {
         title,
@@ -137,6 +143,7 @@ export function parseCSVContent(content: string): ImportedTask[] {
             : [],
         completed: status === 'completed',
         archived: status === 'archived',
+        dueDate: ISO_DATE_RE.test(dueDate) ? dueDate : null,
       }
     })
     .filter((t): t is ImportedTask => t !== null)

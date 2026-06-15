@@ -25,7 +25,7 @@ A local task management app for tracking work.
 - **Tag system** — create tags with a color picker; rename, recolor, or delete tags via the Tags modal
 - **Mark complete / reopen / archive / unarchive / delete**
 - **Drag-and-drop reordering** of active tasks
-- **Overdue date indicator**
+- **Due date indicators** — color-coded badges for overdue, due today, and due soon
 - **Image support** — drag-and-drop or paste images into descriptions (stored in `public/uploads/`)
 - **Task search** — filter tasks by title or description in real time
 - **Links section** — attach labeled URLs to any task; MR/PR links get a one-click "Copy for Slack" button

@@ -13,6 +13,7 @@ const { getTestDb } = vi.hoisted(() => {
       tags TEXT NOT NULL DEFAULT '[]',
       completed INTEGER NOT NULL DEFAULT 0,
       archived INTEGER NOT NULL DEFAULT 0,
+      due_date TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       sort_order INTEGER
