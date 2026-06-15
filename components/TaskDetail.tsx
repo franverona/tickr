@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } from '@/app/actions'
 import TagSelector from './TagSelector'
-import { MDEditor, MDPreview, makeImageHandlers, replaceImageWidth } from './MdEditor'
+import { MDEditor, MDPreview, MarkdownLink, makeImageHandlers, replaceImageWidth } from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
 
@@ -923,7 +923,7 @@ export default function TaskDetail({
                     textareaProps={suggestionTextareaProps}
                     previewOptions={{
                       skipHtml: false,
-                      components: { img: EditModeImg, table: ScrollableTable },
+                      components: { img: EditModeImg, table: ScrollableTable, a: MarkdownLink },
                     }}
                   />
                 </div>
@@ -1007,6 +1007,7 @@ export default function TaskDetail({
                         skipHtml={false}
                         components={{
                           table: ScrollableTable,
+                          a: MarkdownLink,
                           input: ({ node, ...props }) => {
                             if (props.type !== 'checkbox') return <input {...props} />
                             let index = node ? checklistIndices.get(node) : undefined

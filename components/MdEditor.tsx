@@ -27,6 +27,10 @@ export const MDEditor = dynamic(() => import('@uiw/react-md-editor'), {
   ssr: false,
 })
 
+export function MarkdownLink(props: React.AnchorHTMLAttributes<HTMLAnchorElement>) {
+  return <a {...props} target="_blank" rel="noopener noreferrer" />
+}
+
 export const MDPreview = dynamic(() => import('@uiw/react-markdown-preview'), {
   ssr: false,
 })
