@@ -108,8 +108,8 @@ export default function CreateTaskModal({
               />
             </div>
 
-            <div className="flex items-center gap-3">
-              <label className="text-surface-400 w-16 shrink-0 text-xs tracking-wide uppercase">
+            <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+              <label className="text-surface-400 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
                 Due date
               </label>
               <input

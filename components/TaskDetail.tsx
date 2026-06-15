@@ -696,8 +696,8 @@ export default function TaskDetail({
         {/* Compact metadata rows: Tags, Links */}
         <div className="space-y-2.5">
           {/* Tags */}
-          <div className="flex items-center gap-3">
-            <span className="text-surface-500 w-16 shrink-0 text-xs tracking-wide uppercase">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+            <span className="text-surface-500 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
               Tags
             </span>
             <div className="min-w-0 flex-1">
@@ -711,8 +711,8 @@ export default function TaskDetail({
           </div>
 
           {/* Due date */}
-          <div className="flex items-center gap-3">
-            <span className="text-surface-500 w-16 shrink-0 text-xs tracking-wide uppercase">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+            <span className="text-surface-500 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
               Due
             </span>
             <div className="flex min-w-0 flex-1 items-center gap-2">
