@@ -106,8 +106,15 @@ function parseDelimitedRows(text: string, delimiter: string): string[][] {
 
 function detectTableDelimiter(text: string): '\t' | ',' | null {
   if (text.includes('\t')) return '\t'
-  if (text.includes(',')) return ','
-  return null
+  if (!text.includes(',')) return null
+  // Only treat commas as delimiter when lines have a consistent column count —
+  // prevents prose/code with commas from being mangled into a table.
+  const lines = text.split(/\r?\n/).filter((l) => l.trim())
+  if (lines.length < 2) return null
+  const c0 = lines[0].split(',').length
+  if (c0 < 2) return null
+  if (lines.slice(0, 20).some((l) => l.split(',').length !== c0)) return null
+  return ','
 }
 
 function toMarkdownTable(text: string, delimiter: '\t' | ','): string | null {
