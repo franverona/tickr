@@ -113,7 +113,7 @@ function detectTableDelimiter(text: string): '\t' | ',' | null {
   if (lines.length < 2) return null
   const c0 = lines[0].split(',').length
   if (c0 < 2) return null
-  if (lines.slice(0, 20).some((l) => l.split(',').length !== c0)) return null
+  if (lines.some((l) => l.split(',').length !== c0)) return null
   return ','
 }
 
