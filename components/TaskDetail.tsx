@@ -240,6 +240,7 @@ export default function TaskDetail({
   const [editLabelDraft, setEditLabelDraft] = useState('')
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
   const [suggestionIndex, setSuggestionIndex] = useState(0)
+  const [caretPos, setCaretPos] = useState<{ top: number; left: number } | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDescRef = useRef(task.description)
@@ -260,6 +261,48 @@ export default function TaskDetail({
   const MENTION_RE = /(?:^|\s)@([^\n]{0,60})$/
   const SNIPPET_RE = /(?:^|\s)\/([a-z-]{0,20})$/
 
+  function computeCaretPos(textarea: HTMLTextAreaElement): { top: number; left: number } {
+    const wrapper = editorWrapperRef.current!
+    const mirror = document.createElement('div')
+    const cs = window.getComputedStyle(textarea)
+    for (const prop of [
+      'fontFamily',
+      'fontSize',
+      'fontWeight',
+      'letterSpacing',
+      'lineHeight',
+      'paddingTop',
+      'paddingRight',
+      'paddingBottom',
+      'paddingLeft',
+      'borderTopWidth',
+      'borderRightWidth',
+      'borderBottomWidth',
+      'borderLeftWidth',
+      'boxSizing',
+      'whiteSpace',
+      'wordBreak',
+      'overflowWrap',
+      'tabSize',
+    ])
+      (mirror.style as unknown as Record<string, string>)[prop] = (
+        cs as unknown as Record<string, string>
+      )[prop]
+    const taRect = textarea.getBoundingClientRect()
+    mirror.style.cssText += `;position:fixed;top:${taRect.top}px;left:${taRect.left}px;width:${taRect.width}px;height:${taRect.height}px;overflow:hidden;visibility:hidden;pointer-events:none`
+    mirror.textContent = textarea.value.slice(0, textarea.selectionStart)
+    const span = document.createElement('span')
+    span.textContent = '​'
+    mirror.appendChild(span)
+    document.body.appendChild(mirror)
+    mirror.scrollTop = textarea.scrollTop
+    const spanRect = span.getBoundingClientRect()
+    document.body.removeChild(mirror)
+    const wrapperRect = wrapper.getBoundingClientRect()
+    const lh = parseInt(cs.lineHeight) || 20
+    return { top: spanRect.top - wrapperRect.top + lh, left: spanRect.left - wrapperRect.left }
+  }
+
   function detectSuggestion(textarea: HTMLTextAreaElement) {
     const cursor = textarea.selectionStart
     const before = textarea.value.slice(0, cursor)
@@ -268,6 +311,7 @@ export default function TaskDetail({
     if (emojiMatch) {
       setSuggestion({ kind: 'emoji', items: searchEmojis(emojiMatch[1]) })
       setSuggestionIndex(0)
+      setCaretPos(computeCaretPos(textarea))
       return
     }
 
@@ -279,6 +323,7 @@ export default function TaskDetail({
         .slice(0, 8)
       setSuggestion(items.length > 0 ? { kind: 'mention', items } : null)
       setSuggestionIndex(0)
+      if (items.length > 0) setCaretPos(computeCaretPos(textarea))
       return
     }
 
@@ -287,6 +332,7 @@ export default function TaskDetail({
       const items = searchSnippets(snippetMatch[1])
       setSuggestion(items.length > 0 ? { kind: 'snippet', items } : null)
       setSuggestionIndex(0)
+      if (items.length > 0) setCaretPos(computeCaretPos(textarea))
       return
     }
 
@@ -963,8 +1009,11 @@ export default function TaskDetail({
                     }}
                   />
                 </div>
-                {suggestion && suggestion.items.length > 0 && (
-                  <div className="border-surface-600 bg-surface-800 absolute bottom-full left-0 z-50 mb-1 w-64 overflow-hidden rounded-md border py-1 shadow-xl">
+                {suggestion && suggestion.items.length > 0 && caretPos && (
+                  <div
+                    className="border-surface-600 bg-surface-800 absolute z-50 w-64 overflow-hidden rounded-md border py-1 shadow-xl"
+                    style={{ top: caretPos.top, left: caretPos.left }}
+                  >
                     {suggestion.kind === 'emoji' &&
                       suggestion.items.map(([name, emoji], i) => (
                         <button
