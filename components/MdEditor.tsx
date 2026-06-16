@@ -1,6 +1,12 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import {
+  detectTableDelimiter,
+  insertAtCursor,
+  toMarkdownTable,
+  wrapSelectionAsLink,
+} from '@/lib/paste-utils'
 
 export function replaceImageWidth(markdown: string, src: string, newWidth: number): string {
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -50,11 +56,6 @@ async function uploadFile(file: File): Promise<string> {
 function pickFiles(list: FileList | null): File[] {
   if (!list) return []
   return Array.from(list)
-}
-
-function insertAtCursor(textarea: HTMLTextAreaElement, text: string): string {
-  const { value, selectionStart, selectionEnd } = textarea
-  return value.slice(0, selectionStart) + text + value.slice(selectionEnd)
 }
 
 const URL_RE = /^https?:\/\/\S+$/
@@ -174,75 +175,6 @@ function htmlToMarkdown(html: string): string | null {
       .replace(/\n{3,}/g, '\n\n')
       .trim() || null
   )
-}
-
-function wrapSelectionAsLink(textarea: HTMLTextAreaElement, url: string): string {
-  const { value, selectionStart, selectionEnd } = textarea
-  const selected = value.slice(selectionStart, selectionEnd)
-  return value.slice(0, selectionStart) + `[${selected}](${url})` + value.slice(selectionEnd)
-}
-
-// Quote-aware delimited text parser (handles embedded delimiters/newlines in "quoted" fields).
-function parseDelimitedRows(text: string, delimiter: string): string[][] {
-  const rows: string[][] = []
-  let row: string[] = []
-  let field = ''
-  let inQuotes = false
-
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i]
-    if (inQuotes) {
-      if (char === '"' && text[i + 1] === '"') {
-        field += '"'
-        i++
-      } else if (char === '"') {
-        inQuotes = false
-      } else {
-        field += char
-      }
-    } else if (char === '"') {
-      inQuotes = true
-    } else if (char === delimiter) {
-      row.push(field)
-      field = ''
-    } else if (char === '\n' || char === '\r') {
-      if (char === '\r' && text[i + 1] === '\n') i++
-      row.push(field)
-      rows.push(row)
-      row = []
-      field = ''
-    } else {
-      field += char
-    }
-  }
-  row.push(field)
-  rows.push(row)
-
-  return rows.filter((r) => !(r.length === 1 && r[0].trim() === ''))
-}
-
-function detectTableDelimiter(text: string): '\t' | ',' | null {
-  if (text.includes('\t')) return '\t'
-  if (!text.includes(',')) return null
-  // Only treat commas as delimiter when lines have a consistent column count —
-  // prevents prose/code with commas from being mangled into a table.
-  const lines = text.split(/\r?\n/).filter((l) => l.trim())
-  if (lines.length < 2) return null
-  const c0 = lines[0].split(',').length
-  if (c0 < 2) return null
-  if (lines.some((l) => l.split(',').length !== c0)) return null
-  return ','
-}
-
-function toMarkdownTable(text: string, delimiter: '\t' | ','): string | null {
-  const rows = parseDelimitedRows(text, delimiter).map((cells) =>
-    cells.map((cell) => cell.trim().replace(/\|/g, '\\|')),
-  )
-  if (rows.length < 2 || rows[0].length < 2) return null
-
-  const formatRow = (cells: string[]) => `| ${cells.join(' | ')} |`
-  const separator = rows[0].map(() => '---')
-  return [formatRow(rows[0]), formatRow(separator), ...rows.slice(1).map(formatRow)].join('\n')
 }
 
 export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<string>>) {
