@@ -20,7 +20,9 @@ export default function TaskCard({
   onContextMenu,
 }: TaskCardProps) {
   const preview = task.description
+    .replace(/<[^>]*>/g, '')
     .replace(/```[\s\S]*?```/g, '')
+    .replace(/https?:\/\/\S+/g, '')
     .replace(/[#*`_~[\]>]/g, '')
     .replace(/\n+/g, ' ')
     .trim()

@@ -434,7 +434,7 @@ export default function Page() {
         {/* Task list */}
         <div
           className={`border-surface-700 flex shrink-0 flex-col border-r ${
-            selectedTask ? 'hidden w-full md:flex md:w-90' : 'flex w-full'
+            selectedTask ? 'hidden md:flex md:w-90' : 'flex w-full md:w-90'
           }`}
         >
           <div className="border-surface-700 flex h-10 items-center border-b px-3 sm:px-4">
