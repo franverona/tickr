@@ -29,7 +29,7 @@ A local task management app for tracking work.
 - **Image support** — drag-and-drop or paste images into descriptions (stored in `public/uploads/`)
 - **Task search** — filter tasks by title or description in real time
 - **Links section** — attach labeled URLs to any task; MR/PR links get a one-click "Copy for Slack" button
-- **Editor enhancements** — paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table
+- **Editor enhancements** — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete
 - **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv` plus any referenced images
 - **Import** — restore from an exported ZIP; images are re-uploaded and tag labels are matched or created automatically
 

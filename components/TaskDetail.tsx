@@ -391,6 +391,7 @@ export default function TaskDetail({
 
   const suggestionTextareaProps = {
     ...imageHandlers,
+    autoFocus: true,
     onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
       if (suggestion && suggestion.items.length > 0) {
         if (e.key === 'ArrowDown') {

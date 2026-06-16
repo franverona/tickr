@@ -59,6 +59,123 @@ function insertAtCursor(textarea: HTMLTextAreaElement, text: string): string {
 
 const URL_RE = /^https?:\/\/\S+$/
 
+function nodeToMd(node: Node, listDepth: number): string {
+  if (node.nodeType === Node.TEXT_NODE) return (node.textContent ?? '').replace(/[\t\r\n]+/g, ' ')
+  if (node.nodeType !== Node.ELEMENT_NODE) return ''
+  const el = node as Element
+  const tag = el.tagName.toLowerCase()
+  const kids = () =>
+    Array.from(el.childNodes)
+      .map((c) => nodeToMd(c, listDepth))
+      .join('')
+  switch (tag) {
+    case 'br':
+      return '\n'
+    case 'hr':
+      return '\n---\n'
+    case 'h1':
+      return `\n# ${kids().trim()}\n`
+    case 'h2':
+      return `\n## ${kids().trim()}\n`
+    case 'h3':
+      return `\n### ${kids().trim()}\n`
+    case 'h4':
+      return `\n#### ${kids().trim()}\n`
+    case 'h5':
+      return `\n##### ${kids().trim()}\n`
+    case 'h6':
+      return `\n###### ${kids().trim()}\n`
+    case 'p':
+      return `\n${kids().trim()}\n`
+    case 'b':
+    case 'strong':
+      return `**${kids()}**`
+    case 'i':
+    case 'em':
+      return `*${kids()}*`
+    case 's':
+    case 'del':
+      return `~~${kids()}~~`
+    case 'code':
+      return el.closest('pre') ? kids() : `\`${kids()}\``
+    case 'pre':
+      return `\n\`\`\`\n${el.textContent?.trim()}\n\`\`\`\n`
+    case 'blockquote':
+      return kids()
+        .split('\n')
+        .map((l) => `> ${l}`)
+        .join('\n')
+    case 'a': {
+      const href = el.getAttribute('href') ?? ''
+      const text = kids()
+      return href && href !== text ? `[${text}](${href})` : text
+    }
+    case 'img': {
+      const src = el.getAttribute('src') ?? ''
+      const alt = el.getAttribute('alt') ?? ''
+      return src ? `![${alt}](${src})` : ''
+    }
+    case 'ul':
+    case 'ol': {
+      const indent = '  '.repeat(listDepth)
+      return (
+        '\n' +
+        Array.from(el.children)
+          .filter((c) => c.tagName.toLowerCase() === 'li')
+          .map((li, i) => {
+            const prefix = tag === 'ul' ? `${indent}- ` : `${indent}${i + 1}. `
+            const text = Array.from(li.childNodes)
+              .map((c) => nodeToMd(c, listDepth + 1))
+              .join('')
+              .trimEnd()
+            return `${prefix}${text}`
+          })
+          .join('\n') +
+        '\n'
+      )
+    }
+    case 'li':
+      return kids()
+    case 'table': {
+      const rows = Array.from(el.querySelectorAll('tr'))
+      if (!rows.length) return kids()
+      const cells = rows
+        .map((r) =>
+          Array.from(r.querySelectorAll('th,td')).map((c) =>
+            (c.textContent?.trim() ?? '').replace(/\|/g, '\\|'),
+          ),
+        )
+        .filter((r) => r.length > 0)
+      if (!cells.length) return ''
+      const header = `| ${cells[0].join(' | ')} |`
+      const sep = `| ${cells[0].map(() => '---').join(' | ')} |`
+      const body = cells.slice(1).map((r) => `| ${r.join(' | ')} |`)
+      return '\n' + [header, sep, ...body].join('\n') + '\n'
+    }
+    case 'head':
+    case 'script':
+    case 'style':
+      return ''
+    default:
+      return kids()
+  }
+}
+
+function htmlToMarkdown(html: string): string | null {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  if (
+    !doc.body.querySelector(
+      'b,strong,i,em,s,del,a[href],h1,h2,h3,h4,h5,h6,ul,ol,pre,code,table,blockquote',
+    )
+  )
+    return null
+  return (
+    nodeToMd(doc.body, 0)
+      .replace(/\n{3,}/g, '\n\n')
+      .trim() || null
+  )
+}
+
 function wrapSelectionAsLink(textarea: HTMLTextAreaElement, url: string): string {
   const { value, selectionStart, selectionEnd } = textarea
   const selected = value.slice(selectionStart, selectionEnd)
@@ -166,6 +283,16 @@ export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<
       e.preventDefault()
       setValue(wrapSelectionAsLink(textarea, text))
       return
+    }
+
+    const htmlClip = e.clipboardData.getData('text/html')
+    if (htmlClip) {
+      const md = htmlToMarkdown(htmlClip)
+      if (md) {
+        e.preventDefault()
+        setValue(insertAtCursor(textarea, md))
+        return
+      }
     }
 
     const delimiter = detectTableDelimiter(text)
