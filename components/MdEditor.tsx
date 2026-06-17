@@ -1,12 +1,64 @@
 'use client'
 
 import dynamic from 'next/dynamic'
+import { visit } from 'unist-util-visit'
 import {
+  convertOutlineList,
   detectTableDelimiter,
   insertAtCursor,
   toMarkdownTable,
   wrapSelectionAsLink,
 } from '@/lib/paste-utils'
+
+// Remark plugin: finds "X.X. text" sub-items that were merged into a parent
+// list item's paragraph (because "1.1." is not a valid markdown list marker)
+// and restructures them as a proper nested ordered list in the AST.
+export function remarkOutlineList() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (tree: any) => {
+    const SUB_RE = /^\s*(\d+(?:\.\d+)+)\.[ \t]+(.+)$/
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    visit(tree, 'listItem', (listItem: any) => {
+      for (let ci = 0; ci < listItem.children.length; ci++) {
+        const para = listItem.children[ci]
+        if (para.type !== 'paragraph') continue
+
+        for (let ti = 0; ti < para.children.length; ti++) {
+          const node = para.children[ti]
+          if (node.type !== 'text') continue
+
+          const lines: string[] = node.value.split('\n')
+          if (!lines.some((l: string) => SUB_RE.test(l))) continue
+
+          const mainLines: string[] = []
+          const subItems: { num: number; text: string }[] = []
+          for (const line of lines) {
+            const m = line.match(SUB_RE)
+            if (m) {
+              subItems.push({ num: parseInt(m[1].split('.').pop()!), text: m[2].trim() })
+            } else {
+              mainLines.push(line)
+            }
+          }
+
+          para.children[ti] = { type: 'text', value: mainLines.join('\n') }
+          listItem.children.splice(ci + 1, 0, {
+            type: 'list',
+            ordered: true,
+            start: subItems[0].num,
+            spread: false,
+            children: subItems.map((item) => ({
+              type: 'listItem',
+              spread: false,
+              checked: null,
+              children: [{ type: 'paragraph', children: [{ type: 'text', value: item.text }] }],
+            })),
+          })
+        }
+      }
+    })
+  }
+}
 
 export function replaceImageWidth(markdown: string, src: string, newWidth: number): string {
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
@@ -225,6 +277,13 @@ export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<
         setValue(insertAtCursor(textarea, md))
         return
       }
+    }
+
+    const outlineMd = convertOutlineList(text)
+    if (outlineMd !== null) {
+      e.preventDefault()
+      setValue(insertAtCursor(textarea, outlineMd))
+      return
     }
 
     const delimiter = detectTableDelimiter(text)

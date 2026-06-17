@@ -69,6 +69,24 @@ export function detectTableDelimiter(text: string): '\t' | ',' | null {
   return ','
 }
 
+// Converts outline-style X.X. numbered lists to standard markdown nested lists.
+// "1.1. Foo" → "   1. Foo" (3-space indent per level). Only fires when at least
+// one sub-numbered line (X.X.) is present; bullet lists already render correctly.
+export function convertOutlineList(text: string): string | null {
+  const lines = text.split(/\r?\n/)
+  if (!lines.some((l) => /^\s*\d+\.\d+\./.test(l))) return null
+
+  return lines
+    .map((line) => {
+      const m = line.match(/^(\s*)(\d+(?:\.\d+)*)\.(\s+.*)$/)
+      if (!m) return line
+      const level = m[2].split('.').length - 1
+      const num = m[2].split('.').pop()!
+      return '   '.repeat(level) + num + '.' + m[3]
+    })
+    .join('\n')
+}
+
 export function toMarkdownTable(text: string, delimiter: '\t' | ','): string | null {
   const rows = parseDelimitedRows(text, delimiter).map((cells) =>
     cells.map((cell) => cell.trim().replace(/\|/g, '\\|')),

@@ -4,7 +4,14 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } from '@/app/actions'
 import TagSelector from './TagSelector'
-import { MDEditor, MDPreview, MarkdownLink, makeImageHandlers, replaceImageWidth } from './MdEditor'
+import {
+  MDEditor,
+  MDPreview,
+  MarkdownLink,
+  makeImageHandlers,
+  replaceImageWidth,
+  remarkOutlineList,
+} from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
 import { getDueStatus } from '@/lib/dates'
@@ -466,6 +473,101 @@ export default function TaskDetail({
     const wrapper = editorWrapperRef.current
     if (!wrapper) return
 
+    const LIST_RE = /^\s*([-*+]|\d+\.)\s/
+
+    // Returns true when lineStart sits inside an open fenced code block.
+    function isInsideCodeFence(value: string, lineStart: number): boolean {
+      const lines = value.slice(0, lineStart).split('\n')
+      let inFence = false
+      let fenceChar = ''
+      for (const line of lines) {
+        const m = line.match(/^(`{3,}|~{3,})/)
+        if (!m) continue
+        const ch = m[1][0]
+        if (!inFence) {
+          inFence = true
+          fenceChar = ch
+        } else if (ch === fenceChar) {
+          inFence = false
+          fenceChar = ''
+        }
+      }
+      return inFence
+    }
+
+    function handleTab(e: KeyboardEvent) {
+      if (e.key !== 'Tab' || e.shiftKey) return
+      const ta = wrapper!.querySelector<HTMLTextAreaElement>('textarea')
+      if (!ta || document.activeElement !== ta) return
+
+      const { value, selectionStart, selectionEnd } = ta
+      if (selectionStart === null || selectionEnd === null) return
+
+      const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1
+      const lineEndRaw = value.indexOf('\n', selectionEnd)
+      const lineEnd = lineEndRaw === -1 ? value.length : lineEndRaw
+      const lines = value.slice(lineStart, lineEnd).split('\n')
+
+      // Inside a code fence: let the library insert spaces at the cursor.
+      if (isInsideCodeFence(value, lineStart)) return
+
+      // Only intercept on list item lines; let the library handle Tab elsewhere.
+      if (!lines.some((l) => LIST_RE.test(l))) return
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      // Single top-level ordered item → convert to X.X. subitem using the
+      // previous line to determine the parent number and subitem counter.
+      if (lines.length === 1 && /^\d+\.[ \t]/.test(lines[0])) {
+        const content = lines[0].replace(/^\d+\.[ \t]*/, '')
+        const prevLine =
+          lineStart > 0
+            ? value.slice(value.lastIndexOf('\n', lineStart - 2) + 1, lineStart - 1)
+            : ''
+
+        // Previous line is already an X.X. subitem → increment last segment.
+        const subM = prevLine.match(/^\s*(\d+(?:\.\d+)+)\.[ \t]/)
+        if (subM) {
+          const parts = subM[1].split('.')
+          parts[parts.length - 1] = String(parseInt(parts[parts.length - 1]) + 1)
+          const marker = `  ${parts.join('.')}. `
+          const newValue = value.slice(0, lineStart) + marker + content + value.slice(lineEnd)
+          setDescriptionDraft(newValue)
+          setTimeout(
+            () => ta.setSelectionRange(lineStart + marker.length, lineStart + marker.length),
+            0,
+          )
+          return
+        }
+
+        // Previous line is a top-level ordered item → first subitem.
+        const topM = prevLine.match(/^(\d+)\.[ \t]/)
+        if (topM) {
+          const marker = `  ${topM[1]}.1. `
+          const newValue = value.slice(0, lineStart) + marker + content + value.slice(lineEnd)
+          setDescriptionDraft(newValue)
+          setTimeout(
+            () => ta.setSelectionRange(lineStart + marker.length, lineStart + marker.length),
+            0,
+          )
+          return
+        }
+      }
+
+      // Default: add indentation spaces (CommonMark: ordered needs 3, bullet 2).
+      const indentFor = (l: string) => (/^\s*\d+\.\s/.test(l) ? '   ' : '  ')
+      const indented = lines.map((l) => indentFor(l) + l)
+      const firstAdded = indentFor(lines[0]).length
+      const totalAdded = indented.reduce((s, l, i) => s + l.length - lines[i].length, 0)
+      const newValue = value.slice(0, lineStart) + indented.join('\n') + value.slice(lineEnd)
+      setDescriptionDraft(newValue)
+      setTimeout(
+        () => ta.setSelectionRange(selectionStart + firstAdded, selectionEnd + totalAdded),
+        0,
+      )
+    }
+
     function handleShiftTab(e: KeyboardEvent) {
       if (e.key !== 'Tab' || !e.shiftKey) return
       const ta = wrapper!.querySelector<HTMLTextAreaElement>('textarea')
@@ -497,6 +599,9 @@ export default function TaskDetail({
         } else if (line.startsWith('    ')) {
           result = line.slice(4)
           removed = 4
+        } else if (line.startsWith('   ')) {
+          result = line.slice(3)
+          removed = 3
         } else if (line.startsWith('  ')) {
           result = line.slice(2)
           removed = 2
@@ -519,8 +624,81 @@ export default function TaskDetail({
       setTimeout(() => ta.setSelectionRange(newStart, newEnd), 0)
     }
 
+    function handleEnter(e: KeyboardEvent) {
+      if (e.key !== 'Enter' || e.shiftKey || e.ctrlKey || e.metaKey) return
+      const ta = wrapper!.querySelector<HTMLTextAreaElement>('textarea')
+      if (!ta || document.activeElement !== ta) return
+
+      const { value, selectionStart, selectionEnd } = ta
+      if (selectionStart === null || selectionEnd === null || selectionStart !== selectionEnd)
+        return
+
+      const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1
+      const lineEndRaw = value.indexOf('\n', selectionStart)
+      const lineEnd = lineEndRaw === -1 ? value.length : lineEndRaw
+      // Everything on the current line up to the cursor — what the marker detection sees.
+      const linePrefix = value.slice(lineStart, selectionStart)
+
+      // Inside a code fence → preserve the current line's leading whitespace.
+      if (isInsideCodeFence(value, lineStart)) {
+        const indent = linePrefix.match(/^(\s*)/)?.[1] ?? ''
+        if (!indent) return // no indent → plain newline, let library handle
+        e.preventDefault()
+        e.stopPropagation()
+        const remainder = value.slice(selectionStart, lineEnd)
+        const insertion = '\n' + indent + remainder
+        const newValue = value.slice(0, selectionStart) + insertion + value.slice(lineEnd)
+        const newCursor = selectionStart + 1 + indent.length
+        setDescriptionDraft(newValue)
+        setTimeout(() => ta.setSelectionRange(newCursor, newCursor), 0)
+        return
+      }
+
+      let newMarker: string | null = null
+
+      // X.X. outline format ("1.1. " or "  2.3.1. ") — at least two digit groups.
+      const outlineM = linePrefix.match(/^(\s*)(\d+(?:\.\d+)+)\.[ \t]/)
+      if (outlineM) {
+        const parts = outlineM[2].split('.')
+        parts[parts.length - 1] = String(parseInt(parts[parts.length - 1]) + 1)
+        newMarker = outlineM[1] + parts.join('.') + '. '
+      }
+
+      // Indented ordered list ("   3. ") — must have leading whitespace so
+      // top-level ordered items fall through to the library's own continuation.
+      if (!newMarker) {
+        const m = linePrefix.match(/^(\s+)(\d+)\.[ \t]/)
+        if (m) newMarker = m[1] + (parseInt(m[2]) + 1) + '. '
+      }
+
+      // Indented bullet ("  - " or "  * ").
+      if (!newMarker) {
+        const m = linePrefix.match(/^(\s+)([-*+])[ \t]/)
+        if (m) newMarker = m[1] + m[2] + ' '
+      }
+
+      if (!newMarker) return
+
+      e.preventDefault()
+      e.stopPropagation()
+
+      // Text from cursor to end of line moves onto the new item (split behaviour).
+      const remainder = value.slice(selectionStart, lineEnd)
+      const insertion = '\n' + newMarker + remainder
+      const newValue = value.slice(0, selectionStart) + insertion + value.slice(lineEnd)
+      const newCursor = selectionStart + 1 + newMarker.length
+      setDescriptionDraft(newValue)
+      setTimeout(() => ta.setSelectionRange(newCursor, newCursor), 0)
+    }
+
+    wrapper.addEventListener('keydown', handleEnter, { capture: true })
+    wrapper.addEventListener('keydown', handleTab, { capture: true })
     wrapper.addEventListener('keydown', handleShiftTab, { capture: true })
-    return () => wrapper.removeEventListener('keydown', handleShiftTab, { capture: true })
+    return () => {
+      wrapper.removeEventListener('keydown', handleEnter, { capture: true })
+      wrapper.removeEventListener('keydown', handleTab, { capture: true })
+      wrapper.removeEventListener('keydown', handleShiftTab, { capture: true })
+    }
   }, [isEditingDescription])
 
   useEffect(() => {
@@ -1006,6 +1184,7 @@ export default function TaskDetail({
                     textareaProps={suggestionTextareaProps}
                     previewOptions={{
                       skipHtml: false,
+                      remarkPlugins: [remarkOutlineList],
                       components: { img: EditModeImg, table: ScrollableTable, a: MarkdownLink },
                     }}
                   />
@@ -1091,6 +1270,7 @@ export default function TaskDetail({
                         source={task.description}
                         style={{ background: 'transparent' }}
                         skipHtml={false}
+                        remarkPlugins={[remarkOutlineList]}
                         components={{
                           table: ScrollableTable,
                           a: MarkdownLink,

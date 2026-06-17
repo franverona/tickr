@@ -1,11 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import {
+  convertOutlineList,
   detectTableDelimiter,
   insertAtCursor,
   parseDelimitedRows,
   toMarkdownTable,
   wrapSelectionAsLink,
 } from '../lib/paste-utils'
+
+describe('convertOutlineList', () => {
+  it('returns null when no X.X. sub-numbering is present', () => {
+    expect(convertOutlineList('- Item 1\n  - Item 1.1\n- Item 2')).toBeNull()
+    expect(convertOutlineList('1. Item 1\n2. Item 2')).toBeNull()
+  })
+
+  it('converts X.X. numbered list to indented markdown', () => {
+    const input = '1. Item 1\n  1.1. Item 1.1\n  1.2. Item 1.2\n2. Item 2'
+    expect(convertOutlineList(input)).toBe('1. Item 1\n   1. Item 1.1\n   2. Item 1.2\n2. Item 2')
+  })
+
+  it('handles three levels of nesting', () => {
+    const input = '1. Item 1\n  1.1. Item 1.1\n    1.1.1. Item 1.1.1\n2. Item 2'
+    expect(convertOutlineList(input)).toBe(
+      '1. Item 1\n   1. Item 1.1\n      1. Item 1.1.1\n2. Item 2',
+    )
+  })
+
+  it('passes through non-list lines unchanged', () => {
+    const input = 'Header\n1. Item\n  1.1. Sub\nFooter'
+    expect(convertOutlineList(input)).toBe('Header\n1. Item\n   1. Sub\nFooter')
+  })
+})
 
 describe('detectTableDelimiter', () => {
   it('returns \\t for tab-delimited text', () => {
