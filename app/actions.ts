@@ -90,6 +90,8 @@ interface DbRow {
   due_date: string | null
   created_at: string
   updated_at: string
+  completed_at: string | null
+  archived_at: string | null
   sort_order: number
 }
 
@@ -104,6 +106,8 @@ function rowToTask(row: DbRow, urls: TaskUrl[] = []): Task {
     dueDate: row.due_date ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    completedAt: row.completed_at,
+    archivedAt: row.archived_at,
     urls,
   }
 }
@@ -191,11 +195,13 @@ export async function updateTask(
     completed: data.completed !== undefined ? (data.completed ? 1 : 0) : current.completed,
     archived: data.archived !== undefined ? (data.archived ? 1 : 0) : current.archived,
     dueDate: data.dueDate !== undefined ? data.dueDate : current.due_date,
+    completedAt: data.completed === undefined ? current.completed_at : data.completed ? now : null,
+    archivedAt: data.archived === undefined ? current.archived_at : data.archived ? now : null,
   }
 
   db.prepare(
     `UPDATE tasks
-     SET title = ?, description = ?, tags = ?, completed = ?, archived = ?, due_date = ?, updated_at = ?
+     SET title = ?, description = ?, tags = ?, completed = ?, archived = ?, due_date = ?, completed_at = ?, archived_at = ?, updated_at = ?
      WHERE id = ?`,
   ).run(
     next.title,
@@ -204,6 +210,8 @@ export async function updateTask(
     next.completed,
     next.archived,
     next.dueDate,
+    next.completedAt,
+    next.archivedAt,
     now,
     id,
   )
@@ -309,8 +317,8 @@ export async function importTasks(
     'INSERT OR IGNORE INTO tags (id, label, color, created_at) VALUES (?, ?, ?, ?)',
   )
   const insertTask = db.prepare(
-    `INSERT INTO tasks (id, title, description, tags, completed, archived, due_date, created_at, updated_at, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO tasks (id, title, description, tags, completed, archived, due_date, created_at, updated_at, completed_at, archived_at, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
 
   db.transaction(() => {
@@ -333,6 +341,8 @@ export async function importTasks(
         item.dueDate ?? null,
         now,
         now,
+        item.completed ? now : null,
+        item.archived ? now : null,
         sortOrder,
       )
       sortOrder += 1000

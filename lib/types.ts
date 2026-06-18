@@ -14,6 +14,8 @@ export interface Task {
   dueDate: string | null
   createdAt: string
   updatedAt: string
+  completedAt: string | null
+  archivedAt: string | null
   urls: TaskUrl[]
 }
 

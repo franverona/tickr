@@ -109,19 +109,25 @@ export default function Page() {
 
   const query = searchQuery.trim().toLowerCase()
 
-  const filteredTasks = tasks.filter((task) => {
-    const inTab =
-      tab === 'active'
-        ? !task.completed && !task.archived
-        : tab === 'done'
-          ? task.completed && !task.archived
-          : task.archived
-    if (!inTab) return false
-    if (!query) return true
-    return (
-      task.title.toLowerCase().includes(query) || task.description.toLowerCase().includes(query)
-    )
-  })
+  const filteredTasks = tasks
+    .filter((task) => {
+      const inTab =
+        tab === 'active'
+          ? !task.completed && !task.archived
+          : tab === 'done'
+            ? task.completed && !task.archived
+            : task.archived
+      if (!inTab) return false
+      if (!query) return true
+      return (
+        task.title.toLowerCase().includes(query) || task.description.toLowerCase().includes(query)
+      )
+    })
+    .sort((a, b) => {
+      if (tab === 'done') return (b.completedAt ?? '').localeCompare(a.completedAt ?? '')
+      if (tab === 'archived') return (b.archivedAt ?? '').localeCompare(a.archivedAt ?? '')
+      return 0
+    })
 
   function handleTaskUpdated(updated: Task) {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))

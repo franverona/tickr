@@ -16,6 +16,8 @@ const { getTestDb } = vi.hoisted(() => {
       due_date TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
+      completed_at TEXT,
+      archived_at TEXT,
       sort_order INTEGER
     );
     CREATE TABLE tags (

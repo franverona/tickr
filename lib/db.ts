@@ -30,6 +30,23 @@ function ensureMigrations(db: Database.Database) {
     // column already exists
   }
 
+  try {
+    db.exec('ALTER TABLE tasks ADD COLUMN completed_at TEXT')
+  } catch {
+    // column already exists
+  }
+
+  try {
+    db.exec('ALTER TABLE tasks ADD COLUMN archived_at TEXT')
+  } catch {
+    // column already exists
+  }
+
+  // Backfill timestamps for tasks that are already done/archived from before
+  // these columns existed, so they don't all sort as "oldest" together.
+  db.exec(`UPDATE tasks SET completed_at = updated_at WHERE completed = 1 AND completed_at IS NULL`)
+  db.exec(`UPDATE tasks SET archived_at = updated_at WHERE archived = 1 AND archived_at IS NULL`)
+
   db.exec(`
     CREATE TABLE IF NOT EXISTS task_urls (
       id TEXT PRIMARY KEY,

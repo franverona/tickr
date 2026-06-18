@@ -12,6 +12,8 @@ export function exportToJSON(tasks: Task[], tags: Tag[]): string {
     dueDate: task.dueDate,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
+    completedAt: task.completedAt,
+    archivedAt: task.archivedAt,
   }))
   return JSON.stringify(data, null, 2)
 }
@@ -23,7 +25,17 @@ function csvCell(value: string): string {
 
 export function exportToCSV(tasks: Task[], tags: Tag[]): string {
   const tagMap = new Map(tags.map((t) => [t.id, t.label]))
-  const headers = ['Title', 'Tags', 'Status', 'Due Date', 'Description', 'Created At', 'Updated At']
+  const headers = [
+    'Title',
+    'Tags',
+    'Status',
+    'Due Date',
+    'Description',
+    'Created At',
+    'Updated At',
+    'Completed At',
+    'Archived At',
+  ]
   const rows = tasks.map((task) => {
     const status = task.archived ? 'Archived' : task.completed ? 'Completed' : 'Active'
     const tagLabels = task.tags.map((id) => tagMap.get(id) ?? id).join('; ')
@@ -35,6 +47,8 @@ export function exportToCSV(tasks: Task[], tags: Tag[]): string {
       task.description,
       task.createdAt,
       task.updatedAt,
+      task.completedAt ?? '',
+      task.archivedAt ?? '',
     ]
       .map(csvCell)
       .join(',')
