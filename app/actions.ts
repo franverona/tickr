@@ -143,6 +143,7 @@ export async function createTask(data: {
   description: string
   tags: string[]
   dueDate?: string | null
+  urls?: { url: string; label: string }[]
 }): Promise<Task> {
   const db = getDb()
   const id = randomUUID()
@@ -155,21 +156,33 @@ export async function createTask(data: {
   }
   const sortOrder = minRow.min !== null ? minRow.min - 1000 : 0
 
-  db.prepare(
-    `INSERT INTO tasks (id, title, description, tags, completed, due_date, created_at, updated_at, sort_order)
-     VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)`,
-  ).run(
-    id,
-    data.title,
-    data.description,
-    JSON.stringify(data.tags),
-    data.dueDate ?? null,
-    now,
-    now,
-    sortOrder,
+  const insertUrl = db.prepare(
+    'INSERT INTO task_urls (id, task_id, url, label, created_at) VALUES (?, ?, ?, ?, ?)',
   )
 
-  return rowToTask(db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow)
+  db.transaction(() => {
+    db.prepare(
+      `INSERT INTO tasks (id, title, description, tags, completed, due_date, created_at, updated_at, sort_order)
+       VALUES (?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+    ).run(
+      id,
+      data.title,
+      data.description,
+      JSON.stringify(data.tags),
+      data.dueDate ?? null,
+      now,
+      now,
+      sortOrder,
+    )
+    for (const link of data.urls ?? []) {
+      insertUrl.run(randomUUID(), id, link.url.trim(), link.label.trim(), now)
+    }
+  })()
+
+  return rowToTask(
+    db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as DbRow,
+    getTaskUrls(db, id),
+  )
 }
 
 export async function updateTask(

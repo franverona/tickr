@@ -5,6 +5,12 @@ import { createTask } from '@/app/actions'
 import type { Tag, Task } from '@/lib/types'
 import TagSelector from './TagSelector'
 import { MDEditor, MarkdownLink } from './MdEditor'
+import { suggestLabel } from '@/lib/suggestLabel'
+
+interface DraftLink {
+  url: string
+  label: string
+}
 
 interface CreateTaskModalProps {
   tags: Tag[]
@@ -23,9 +29,25 @@ export default function CreateTaskModal({
   const [description, setDescription] = useState('')
   const [dueDate, setDueDate] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [links, setLinks] = useState<DraftLink[]>([])
+  const [urlDraft, setUrlDraft] = useState('')
+  const [urlLabelDraft, setUrlLabelDraft] = useState('')
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState('')
   const titleRef = useRef<HTMLInputElement>(null)
+
+  function handleAddLink() {
+    const url = urlDraft.trim()
+    if (!url) return
+    const label = urlLabelDraft.trim() || suggestLabel(url) || url
+    setLinks((prev) => [...prev, { url, label }])
+    setUrlDraft('')
+    setUrlLabelDraft('')
+  }
+
+  function handleRemoveLink(index: number) {
+    setLinks((prev) => prev.filter((_, i) => i !== index))
+  }
 
   useEffect(() => {
     titleRef.current?.focus()
@@ -52,6 +74,7 @@ export default function CreateTaskModal({
         description,
         tags: selectedTags,
         dueDate: dueDate || null,
+        urls: links,
       })
       onCreated(task)
     } finally {
@@ -66,7 +89,7 @@ export default function CreateTaskModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="border-surface-600 bg-surface-800 flex max-h-[90vh] w-full max-w-3xl flex-col rounded-xl border shadow-2xl">
+      <div className="border-surface-600 bg-surface-800 flex max-h-[95vh] w-full max-w-3xl flex-col rounded-xl border shadow-2xl">
         <div className="border-surface-700 flex items-center justify-between border-b px-5 py-3">
           <h2 className="text-surface-100 text-sm font-semibold tracking-wide uppercase">
             New Task
@@ -122,13 +145,76 @@ export default function CreateTaskModal({
 
             <div>
               <label className="text-surface-400 mb-2 block text-xs tracking-wide uppercase">
+                Links
+              </label>
+              {links.length > 0 && (
+                <ul className="mb-2 space-y-1">
+                  {links.map((link, i) => (
+                    <li
+                      key={i}
+                      className="border-surface-600 bg-surface-700 flex items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-sm"
+                    >
+                      <span className="text-surface-200 truncate">
+                        {link.label} <span className="text-surface-500 truncate">{link.url}</span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveLink(i)}
+                        className="text-surface-400 hover:text-surface-100 shrink-0 text-base leading-none"
+                      >
+                        ×
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={urlDraft}
+                  onChange={(e) => setUrlDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddLink()
+                    }
+                  }}
+                  placeholder="https://…"
+                  className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 flex-1 rounded-md border px-2.5 py-1.5 text-sm focus:outline-none"
+                />
+                <input
+                  type="text"
+                  value={urlLabelDraft}
+                  onChange={(e) => setUrlLabelDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      handleAddLink()
+                    }
+                  }}
+                  placeholder={suggestLabel(urlDraft) || 'Label'}
+                  className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 w-32 rounded-md border px-2.5 py-1.5 text-sm focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={handleAddLink}
+                  disabled={!urlDraft.trim()}
+                  className="bg-surface-700 text-surface-200 hover:bg-surface-600 shrink-0 rounded-md px-3 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-surface-400 mb-2 block text-xs tracking-wide uppercase">
                 Description
               </label>
               <div data-color-mode="dark">
                 <MDEditor
                   value={description}
                   onChange={(val) => setDescription(val || '')}
-                  height={200}
+                  height={240}
                   preview="edit"
                   previewOptions={{
                     components: { a: MarkdownLink },
