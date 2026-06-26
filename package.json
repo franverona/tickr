@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@commitlint/cli": "^21.0.2",
-    "@commitlint/config-conventional": "^21.0.2",
+    "@commitlint/config-conventional": "^21.1.0",
     "@tailwindcss/postcss": "^4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^25",
