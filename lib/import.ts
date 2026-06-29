@@ -1,10 +1,21 @@
+export interface ImportedTag {
+  label: string
+  color: string
+}
+
+export interface ImportedLink {
+  url: string
+  label: string
+}
+
 export interface ImportedTask {
   title: string
   description: string
-  tagLabels: string[]
+  tags: ImportedTag[]
   completed: boolean
   archived: boolean
   dueDate: string | null
+  links: ImportedLink[]
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
@@ -97,15 +108,41 @@ export function parseJSONContent(content: string): ImportedTask[] {
       return {
         title,
         description: typeof t.description === 'string' ? t.description : '',
-        tagLabels: Array.isArray(t.tags)
-          ? t.tags.filter((x): x is string => typeof x === 'string')
+        tags: Array.isArray(t.tags)
+          ? t.tags.map(parseTagEntry).filter((x): x is ImportedTag => x !== null)
           : [],
         completed: t.completed === true,
         archived: t.archived === true,
         dueDate: typeof t.dueDate === 'string' && ISO_DATE_RE.test(t.dueDate) ? t.dueDate : null,
+        links: Array.isArray(t.links)
+          ? t.links.map(parseLinkEntry).filter((x): x is ImportedLink => x !== null)
+          : [],
       }
     })
     .filter((t): t is ImportedTask => t !== null)
+}
+
+// Accepts the legacy plain-string tag format and the current {label, color} object format
+function parseTagEntry(entry: unknown): ImportedTag | null {
+  if (typeof entry === 'string') {
+    const label = entry.trim()
+    return label ? { label, color: '' } : null
+  }
+  if (typeof entry === 'object' && entry !== null) {
+    const e = entry as Record<string, unknown>
+    const label = typeof e.label === 'string' ? e.label.trim() : ''
+    if (!label) return null
+    return { label, color: typeof e.color === 'string' ? e.color : '' }
+  }
+  return null
+}
+
+function parseLinkEntry(entry: unknown): ImportedLink | null {
+  if (typeof entry !== 'object' || entry === null) return null
+  const e = entry as Record<string, unknown>
+  const url = typeof e.url === 'string' ? e.url.trim() : ''
+  if (!url) return null
+  return { url, label: typeof e.label === 'string' ? e.label.trim() : '' }
 }
 
 export function parseCSVContent(content: string): ImportedTask[] {
@@ -122,6 +159,7 @@ export function parseCSVContent(content: string): ImportedTask[] {
   const statusIdx = col('status')
   const descIdx = col('description')
   const dueDateIdx = col('due date')
+  const linksIdx = col('links')
 
   return rows
     .slice(1)
@@ -134,19 +172,39 @@ export function parseCSVContent(content: string): ImportedTask[] {
       return {
         title,
         description: descIdx !== -1 ? (row[descIdx] ?? '') : '',
-        tagLabels:
-          tagsIdx !== -1 && row[tagsIdx]
-            ? row[tagsIdx]
-                .split(';')
-                .map((t) => t.trim())
-                .filter(Boolean)
-            : [],
+        tags: tagsIdx !== -1 ? parseCSVList(row[tagsIdx]).map(parseCSVTagCell) : [],
         completed: status === 'completed',
         archived: status === 'archived',
         dueDate: ISO_DATE_RE.test(dueDate) ? dueDate : null,
+        links: linksIdx !== -1 ? parseCSVList(row[linksIdx]).map(parseCSVLinkCell) : [],
       }
     })
     .filter((t): t is ImportedTask => t !== null)
+}
+
+function parseCSVList(cell: string | undefined): string[] {
+  return cell
+    ? cell
+        .split(';')
+        .map((t) => t.trim())
+        .filter(Boolean)
+    : []
+}
+
+// Cell format: "Label::color-classes" — legacy exports have no "::" and carry no color
+function parseCSVTagCell(cell: string): ImportedTag {
+  const idx = cell.indexOf('::')
+  return idx === -1
+    ? { label: cell, color: '' }
+    : { label: cell.slice(0, idx), color: cell.slice(idx + 2) }
+}
+
+// Cell format: "Label::url"
+function parseCSVLinkCell(cell: string): ImportedLink {
+  const idx = cell.indexOf('::')
+  return idx === -1
+    ? { url: cell, label: '' }
+    : { url: cell.slice(idx + 2), label: cell.slice(0, idx) }
 }
 
 export async function processImportZip(file: File): Promise<ImportedTask[]> {

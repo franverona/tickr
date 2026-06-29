@@ -286,9 +286,18 @@ export async function updateTaskUrl(
 
 export async function importTasks(
   items: ImportedTask[],
+  overrideAll = false,
 ): Promise<{ imported: number; tasks: Task[]; tags: Tag[] }> {
   const db = getDb()
   const now = new Date().toISOString()
+
+  if (overrideAll) {
+    db.transaction(() => {
+      db.prepare('DELETE FROM task_urls').run()
+      db.prepare('DELETE FROM tasks').run()
+      db.prepare('DELETE FROM tags').run()
+    })()
+  }
 
   // Resolve existing tags by label
   const existingTags = db
@@ -301,9 +310,10 @@ export async function importTasks(
   }
 
   // Determine which tags need to be created
+  const validColors = new Set<string>(COLOR_PALETTE.map((c) => c.classes))
   const tagsToCreate: Array<{ id: string; label: string; color: string }> = []
   for (const item of items) {
-    for (const label of item.tagLabels) {
+    for (const { label, color: importedColor } of item.tags) {
       const key = label.toLowerCase()
       if (tagMap.has(key)) continue
       const id = slugify(label)
@@ -313,8 +323,13 @@ export async function importTasks(
         tagMap.set(key, id)
         continue
       }
-      const color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
-      colorIndex++
+      let color: string
+      if (validColors.has(importedColor)) {
+        color = importedColor
+      } else {
+        color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
+        colorIndex++
+      }
       tagsToCreate.push({ id, label: label.trim(), color })
       tagMap.set(key, id)
     }
@@ -333,6 +348,9 @@ export async function importTasks(
     `INSERT INTO tasks (id, title, description, tags, completed, archived, due_date, created_at, updated_at, completed_at, archived_at, sort_order)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   )
+  const insertUrl = db.prepare(
+    'INSERT INTO task_urls (id, task_id, url, label, created_at) VALUES (?, ?, ?, ?, ?)',
+  )
 
   db.transaction(() => {
     for (const tag of tagsToCreate) {
@@ -340,12 +358,13 @@ export async function importTasks(
     }
     for (const item of items) {
       if (!item.title.trim()) continue
-      const tagIds = item.tagLabels
-        .map((label) => tagMap.get(label.toLowerCase()))
+      const tagIds = item.tags
+        .map(({ label }) => tagMap.get(label.toLowerCase()))
         .filter((id): id is string => id !== undefined)
 
+      const taskId = randomUUID()
       insertTask.run(
-        randomUUID(),
+        taskId,
         item.title.trim(),
         item.description,
         JSON.stringify(tagIds),
@@ -358,6 +377,9 @@ export async function importTasks(
         item.archived ? now : null,
         sortOrder,
       )
+      for (const link of item.links) {
+        insertUrl.run(randomUUID(), taskId, link.url, link.label, now)
+      }
       sortOrder += 1000
       imported++
     }

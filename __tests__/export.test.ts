@@ -3,8 +3,8 @@ import { exportToCSV, exportToJSON } from '../lib/export'
 import type { Tag, Task } from '../lib/types'
 
 const TAGS: Tag[] = [
-  { id: 'wip', label: 'WIP', color: '' },
-  { id: 'blocked', label: 'Blocked', color: '' },
+  { id: 'wip', label: 'WIP', color: 'bg-blue-600 text-blue-100 border-blue-500' },
+  { id: 'blocked', label: 'Blocked', color: 'bg-red-600 text-red-100 border-red-500' },
 ]
 
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -26,16 +26,25 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 }
 
 describe('exportToJSON', () => {
-  it('resolves tag IDs to labels', () => {
+  it('resolves tag IDs to labels with their color', () => {
     const task = makeTask({ tags: ['wip', 'blocked'] })
     const result = JSON.parse(exportToJSON([task], TAGS))
-    expect(result[0].tags).toEqual(['WIP', 'Blocked'])
+    expect(result[0].tags).toEqual([
+      { label: 'WIP', color: 'bg-blue-600 text-blue-100 border-blue-500' },
+      { label: 'Blocked', color: 'bg-red-600 text-red-100 border-red-500' },
+    ])
   })
 
-  it('falls back to the raw ID for unknown tags', () => {
+  it('falls back to the raw ID with an empty color for unknown tags', () => {
     const task = makeTask({ tags: ['unknown-tag'] })
     const result = JSON.parse(exportToJSON([task], TAGS))
-    expect(result[0].tags).toEqual(['unknown-tag'])
+    expect(result[0].tags).toEqual([{ label: 'unknown-tag', color: '' }])
+  })
+
+  it('includes task links', () => {
+    const task = makeTask({ urls: [{ id: 'u1', url: 'https://example.com', label: 'Example' }] })
+    const result = JSON.parse(exportToJSON([task], TAGS))
+    expect(result[0].links).toEqual([{ url: 'https://example.com', label: 'Example' }])
   })
 
   it('includes all expected fields', () => {
@@ -53,6 +62,7 @@ describe('exportToJSON', () => {
         'dueDate',
         'createdAt',
         'updatedAt',
+        'links',
       ]),
     )
   })
@@ -62,7 +72,7 @@ describe('exportToCSV', () => {
   it('produces a header row followed by data rows', () => {
     const lines = exportToCSV([makeTask()], TAGS).split('\n')
     expect(lines[0]).toBe(
-      'Title,Tags,Status,Due Date,Description,Created At,Updated At,Completed At,Archived At',
+      'Title,Tags,Status,Due Date,Description,Created At,Updated At,Completed At,Archived At,Links',
     )
     expect(lines).toHaveLength(2)
   })
@@ -73,10 +83,18 @@ describe('exportToCSV', () => {
     expect(rows[1]).toContain('2024-02-15')
   })
 
-  it('resolves tag IDs to labels joined with "; "', () => {
+  it('resolves tag IDs to "label::color" pairs joined with "; "', () => {
     const task = makeTask({ tags: ['wip', 'blocked'] })
     const rows = exportToCSV([task], TAGS).split('\n')
-    expect(rows[1]).toContain('WIP; Blocked')
+    expect(rows[1]).toContain(
+      'WIP::bg-blue-600 text-blue-100 border-blue-500; Blocked::bg-red-600 text-red-100 border-red-500',
+    )
+  })
+
+  it('encodes links as "label::url" pairs joined with "; "', () => {
+    const task = makeTask({ urls: [{ id: 'u1', url: 'https://example.com', label: 'Example' }] })
+    const rows = exportToCSV([task], TAGS).split('\n')
+    expect(rows[1]).toContain('Example::https://example.com')
   })
 
   it('marks active task as "Active"', () => {

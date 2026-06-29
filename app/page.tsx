@@ -2,15 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { getTasks, getTags, reorderTasks, importTasks, updateTask, deleteTask } from '@/app/actions'
+import { getTasks, getTags, reorderTasks, updateTask, deleteTask } from '@/app/actions'
 import TaskCard from '@/components/TaskCard'
 import TaskDetail from '@/components/TaskDetail'
 import CreateTaskModal from '@/components/CreateTaskModal'
 import TagManagementModal from '@/components/TagManagementModal'
 import TaskContextMenu from '@/components/TaskContextMenu'
+import ImportModal from '@/components/ImportModal'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
-import { processImportZip } from '@/lib/import'
 
 export default function Page() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -25,7 +25,7 @@ export default function Page() {
   const [isTagsOpen, setIsTagsOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
-  const [isImporting, setIsImporting] = useState(false)
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
   const [menuFeedback, setMenuFeedback] = useState<string | null>(null)
   const importInputRef = useRef<HTMLInputElement>(null)
   const [contextMenu, setContextMenu] = useState<{ taskId: string; x: number; y: number } | null>(
@@ -67,25 +67,19 @@ export default function Page() {
     }
   }
 
-  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
-    setIsImporting(true)
-    setMenuFeedback('Importing…')
-    try {
-      const items = await processImportZip(file)
-      const { imported, tasks: newTasks, tags: newTags } = await importTasks(items)
-      setTasks(newTasks)
-      setTags(newTags)
-      setMenuFeedback(`Imported ${imported}`)
-    } catch (err) {
-      console.error('Import failed:', err)
-      setMenuFeedback('Failed')
-    } finally {
-      setIsImporting(false)
-      setTimeout(() => setMenuFeedback(null), 4000)
-    }
+    setPendingImportFile(file)
+  }
+
+  function handleImported(result: { imported: number; tasks: Task[]; tags: Tag[] }) {
+    setTasks(result.tasks)
+    setTags(result.tags)
+    setPendingImportFile(null)
+    setMenuFeedback(`Imported ${result.imported}`)
+    setTimeout(() => setMenuFeedback(null), 4000)
   }
 
   function handleTagCreated(tag: Tag) {
@@ -321,7 +315,7 @@ export default function Page() {
           <div ref={menuRef} className="relative">
             <button
               onClick={() => setIsMenuOpen((o) => !o)}
-              disabled={isExporting || isImporting}
+              disabled={isExporting || pendingImportFile !== null}
               className="border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100 flex h-8 w-8 items-center justify-center rounded-lg border text-base font-bold tracking-widest transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               title="More options"
             >
@@ -599,6 +593,14 @@ export default function Page() {
           onClose={() => setIsTagsOpen(false)}
           onTagUpdated={handleTagUpdated}
           onTagDeleted={handleTagDeleted}
+        />
+      )}
+
+      {pendingImportFile && (
+        <ImportModal
+          file={pendingImportFile}
+          onClose={() => setPendingImportFile(null)}
+          onImported={handleImported}
         />
       )}
 

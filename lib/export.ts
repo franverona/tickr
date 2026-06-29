@@ -1,12 +1,15 @@
 import type { Tag, Task } from './types'
 
 export function exportToJSON(tasks: Task[], tags: Tag[]): string {
-  const tagMap = new Map(tags.map((t) => [t.id, t.label]))
+  const tagMap = new Map(tags.map((t) => [t.id, t]))
   const data = tasks.map((task) => ({
     id: task.id,
     title: task.title,
     description: task.description,
-    tags: task.tags.map((id) => tagMap.get(id) ?? id),
+    tags: task.tags.map((id) => {
+      const tag = tagMap.get(id)
+      return tag ? { label: tag.label, color: tag.color } : { label: id, color: '' }
+    }),
     completed: task.completed,
     archived: task.archived,
     dueDate: task.dueDate,
@@ -14,6 +17,7 @@ export function exportToJSON(tasks: Task[], tags: Tag[]): string {
     updatedAt: task.updatedAt,
     completedAt: task.completedAt,
     archivedAt: task.archivedAt,
+    links: task.urls.map((u) => ({ url: u.url, label: u.label })),
   }))
   return JSON.stringify(data, null, 2)
 }
@@ -24,7 +28,7 @@ function csvCell(value: string): string {
 }
 
 export function exportToCSV(tasks: Task[], tags: Tag[]): string {
-  const tagMap = new Map(tags.map((t) => [t.id, t.label]))
+  const tagMap = new Map(tags.map((t) => [t.id, t]))
   const headers = [
     'Title',
     'Tags',
@@ -35,13 +39,20 @@ export function exportToCSV(tasks: Task[], tags: Tag[]): string {
     'Updated At',
     'Completed At',
     'Archived At',
+    'Links',
   ]
   const rows = tasks.map((task) => {
     const status = task.archived ? 'Archived' : task.completed ? 'Completed' : 'Active'
-    const tagLabels = task.tags.map((id) => tagMap.get(id) ?? id).join('; ')
+    const tagCells = task.tags
+      .map((id) => {
+        const tag = tagMap.get(id)
+        return tag ? `${tag.label}::${tag.color}` : id
+      })
+      .join('; ')
+    const linkCells = task.urls.map((u) => `${u.label}::${u.url}`).join('; ')
     return [
       task.title,
-      tagLabels,
+      tagCells,
       status,
       task.dueDate ?? '',
       task.description,
@@ -49,6 +60,7 @@ export function exportToCSV(tasks: Task[], tags: Tag[]): string {
       task.updatedAt,
       task.completedAt ?? '',
       task.archivedAt ?? '',
+      linkCells,
     ]
       .map(csvCell)
       .join(',')

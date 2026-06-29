@@ -33,7 +33,28 @@ describe('parseJSONContent', () => {
     const result = parseJSONContent(json)
     expect(result).toHaveLength(1)
     expect(result[0].title).toBe('Task A')
-    expect(result[0].tagLabels).toEqual(['WIP'])
+    expect(result[0].tags).toEqual([{ label: 'WIP', color: '' }])
+  })
+
+  it('parses tags with colors from the current export format', () => {
+    const json = JSON.stringify([
+      { title: 'Task A', tags: [{ label: 'WIP', color: 'bg-blue-600' }] },
+    ])
+    const result = parseJSONContent(json)
+    expect(result[0].tags).toEqual([{ label: 'WIP', color: 'bg-blue-600' }])
+  })
+
+  it('parses links', () => {
+    const json = JSON.stringify([
+      { title: 'Task A', links: [{ url: 'https://example.com', label: 'Example' }] },
+    ])
+    const result = parseJSONContent(json)
+    expect(result[0].links).toEqual([{ url: 'https://example.com', label: 'Example' }])
+  })
+
+  it('defaults links to an empty array when absent', () => {
+    const result = parseJSONContent(JSON.stringify([{ title: 'Task A' }]))
+    expect(result[0].links).toEqual([])
   })
 
   it('filters out items with an empty or missing title', () => {
@@ -76,7 +97,7 @@ describe('parseCSVContent', () => {
     const result = parseCSVContent(csv)
     expect(result).toHaveLength(1)
     expect(result[0].title).toBe('Task one')
-    expect(result[0].tagLabels).toEqual(['WIP'])
+    expect(result[0].tags).toEqual([{ label: 'WIP', color: '' }])
     expect(result[0].completed).toBe(false)
     expect(result[0].archived).toBe(false)
   })
@@ -98,7 +119,28 @@ describe('parseCSVContent', () => {
   it('splits semicolon-separated tags', () => {
     const csv = [HEADER, 'T,WIP; Blocked,Active,,,'].join('\n')
     const result = parseCSVContent(csv)
-    expect(result[0].tagLabels).toEqual(['WIP', 'Blocked'])
+    expect(result[0].tags).toEqual([
+      { label: 'WIP', color: '' },
+      { label: 'Blocked', color: '' },
+    ])
+  })
+
+  it('parses tag colors encoded as "label::color"', () => {
+    const csv = [HEADER, 'T,WIP::bg-blue-600,Active,,,'].join('\n')
+    const result = parseCSVContent(csv)
+    expect(result[0].tags).toEqual([{ label: 'WIP', color: 'bg-blue-600' }])
+  })
+
+  it('parses a Links column encoded as "label::url"', () => {
+    const header = 'Title,Tags,Status,Description,Created At,Updated At,Links'
+    const csv = [header, 'T,,Active,,,,Example::https://example.com'].join('\n')
+    const result = parseCSVContent(csv)
+    expect(result[0].links).toEqual([{ url: 'https://example.com', label: 'Example' }])
+  })
+
+  it('defaults links to an empty array when the Links column is missing', () => {
+    const result = parseCSVContent([HEADER, 'T,,Active,,,'].join('\n'))
+    expect(result[0].links).toEqual([])
   })
 
   it('skips rows with an empty title', () => {
