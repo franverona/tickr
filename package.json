@@ -30,7 +30,7 @@
     "@uiw/react-md-editor": "^4.1.1",
     "better-sqlite3": "^12.11.1",
     "jszip": "^3.10.1",
-    "next": "16.2.9",
+    "next": "16.2.10",
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "uuid": "^14.0.1"
