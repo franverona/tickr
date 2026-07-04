@@ -36,8 +36,8 @@ A local task management app for tracking work.
 ## Getting Started
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
@@ -52,8 +52,8 @@ Tickr runs on port **9876** in production mode so it doesn't collide with other 
 
 ```bash
 npm install -g pm2
-npm run build
-pm2 start "npm start -- -p 9876" --name tickr
+pnpm build
+pm2 start "pnpm start -- -p 9876" --name tickr
 pm2 save
 pm2 startup   # follow the printed command to register with launchd
 ```
@@ -74,21 +74,21 @@ pm2 delete tickr    # remove from pm2 entirely
 
 ```bash
 git pull
-npm install
-npm run build
+pnpm install
+pnpm build
 pm2 restart tickr
 ```
 
 ## Scripts
 
 ```bash
-npm run dev          # Start dev server
-npm run build        # Production build
-npm test             # Run unit tests (Vitest)
-npm run test:watch   # Run tests in watch mode
-npm run lint         # ESLint
-npm run format       # Prettier (write)
-npm run format:check # Prettier (check)
+pnpm dev             # Start dev server
+pnpm build           # Production build
+pnpm test            # Run unit tests (Vitest)
+pnpm test:watch      # Run tests in watch mode
+pnpm lint            # ESLint
+pnpm format          # Prettier (write)
+pnpm format:check    # Prettier (check)
 ```
 
 ## Data
