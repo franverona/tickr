@@ -66,7 +66,7 @@ public/
 
 ## Testing
 
-- **Vitest** — run with `npm test` (or `npm run test:watch`)
+- **Vitest** — run with `pnpm test` (or `pnpm test:watch`)
 - Tests live in `__tests__/`: `export.test.ts`, `import.test.ts`, `actions.test.ts`
 - `actions.test.ts` mocks `lib/db` with an in-memory SQLite DB via `vi.hoisted` + `vi.mock`; `beforeEach` wipes all rows for isolation
 - `parseCSVRows`, `parseJSONContent`, `parseCSVContent` in `lib/import.ts` are exported so they can be unit-tested directly
@@ -76,16 +76,16 @@ public/
 Run all three of the following and fix any failures:
 
 ```bash
-npx tsc --noEmit
-npm run lint
-npm run test
+pnpm exec tsc --noEmit
+pnpm lint
+pnpm test
 ```
 
 ## Running
 
 ```bash
-npm run dev           # development
-npm run build && npm start -- -p 9876   # production (pm2 manages this)
+pnpm dev              # development
+pnpm build && pnpm start -- -p 9876   # production (pm2 manages this)
 ```
 
 See README.md for full pm2 setup instructions.
