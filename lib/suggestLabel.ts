@@ -5,6 +5,8 @@ export function suggestLabel(url: string): string {
     if (jiraMatch) return jiraMatch[1]
     const mrMatch = u.pathname.match(/\/merge_requests\/(\d+)/)
     if (mrMatch) return `MR !${mrMatch[1]}`
+    const pipelineMatch = u.pathname.match(/\/pipelines\/(\d+)/)
+    if (pipelineMatch) return `Pipeline - ${pipelineMatch[1]}`
     const issueMatch = u.pathname.match(/\/issues\/(\d+)/)
     if (issueMatch) return `Issue #${issueMatch[1]}`
     const parts = u.pathname.split('/').filter(Boolean)
