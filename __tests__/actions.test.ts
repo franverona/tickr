@@ -1,56 +1,47 @@
 import type Database from 'better-sqlite3'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { DbSchema } from '../lib/db/types'
 
 const { getTestDb } = vi.hoisted(() => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Ctor = require('better-sqlite3') as typeof Database
   const db = new Ctor(':memory:')
-  db.exec(`
-    CREATE TABLE tasks (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL DEFAULT '',
-      tags TEXT NOT NULL DEFAULT '[]',
-      completed INTEGER NOT NULL DEFAULT 0,
-      archived INTEGER NOT NULL DEFAULT 0,
-      due_date TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      completed_at TEXT,
-      archived_at TEXT,
-      sort_order INTEGER
-    );
-    CREATE TABLE tags (
-      id TEXT PRIMARY KEY,
-      label TEXT NOT NULL,
-      color TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE task_urls (
-      id TEXT PRIMARY KEY,
-      task_id TEXT NOT NULL,
-      url TEXT NOT NULL,
-      label TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-  `)
+  db.pragma('foreign_keys = ON')
   return { getTestDb: () => db }
 })
 
-vi.mock('../lib/db', () => ({ getDb: getTestDb }))
+// Builds the in-memory DB through the real schema/migration code path (rather
+// than a hand-duplicated DDL copy) so the test fixture can't drift from the
+// production schema.
+vi.mock('../lib/db', async () => {
+  const { Kysely, SqliteDialect } = await import('kysely')
+  const { ensureSchema } = await import('../lib/db/sqlite/migrate')
+  const { SqliteTaskRepository } = await import('../lib/db/sqlite/repository')
+  const kysely = new Kysely<DbSchema>({ dialect: new SqliteDialect({ database: getTestDb() }) })
+  await ensureSchema(kysely)
+  const repository = new SqliteTaskRepository(kysely)
+  return { getRepository: () => repository }
+})
 
 import { createTask, deleteTag, deleteTask, getTasks, updateTask } from '../app/actions'
 
 const SEED_TAG = { id: 'wip', label: 'WIP', color: 'bg-blue-600 text-blue-100 border-blue-500' }
+const BLOCKED_TAG = {
+  id: 'blocked',
+  label: 'Blocked',
+  color: 'bg-red-600 text-red-100 border-red-500',
+}
 
 beforeEach(() => {
-  getTestDb().exec('DELETE FROM tasks; DELETE FROM tags;')
+  getTestDb().exec(
+    'DELETE FROM task_tags; DELETE FROM task_urls; DELETE FROM tasks; DELETE FROM tags;',
+  )
 })
 
-function seedTag() {
+function seedTag(tag: { id: string; label: string; color: string } = SEED_TAG) {
   getTestDb()
     .prepare('INSERT INTO tags (id, label, color, created_at) VALUES (?, ?, ?, ?)')
-    .run(SEED_TAG.id, SEED_TAG.label, SEED_TAG.color, new Date().toISOString())
+    .run(tag.id, tag.label, tag.color, new Date().toISOString())
 }
 
 describe('createTask', () => {
@@ -62,7 +53,9 @@ describe('createTask', () => {
     expect(Array.isArray(task.tags)).toBe(true)
   })
 
-  it('persists and returns tags as a string array', async () => {
+  it('persists and returns tags as a string array, in order', async () => {
+    seedTag(SEED_TAG)
+    seedTag(BLOCKED_TAG)
     const task = await createTask({
       title: 'Tagged',
       description: '',
