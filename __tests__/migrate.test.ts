@@ -5,7 +5,7 @@ import type { DbSchema } from '../lib/db/types'
 import { ensureSchema } from '../lib/db/sqlite/migrate'
 
 describe('ensureSchema', () => {
-  it('self-heals a task_urls_new left behind by a previously interrupted migration, and dedupes concurrent calls', async () => {
+  it('self-heals a task_urls_new left behind by a previously interrupted migration, drops orphaned task_urls rows, and dedupes concurrent calls', async () => {
     const raw = new Database(':memory:')
     raw.pragma('foreign_keys = ON')
 
@@ -43,6 +43,12 @@ describe('ensureSchema', () => {
     raw
       .prepare('INSERT INTO task_urls (id, task_id, url, label, created_at) VALUES (?, ?, ?, ?, ?)')
       .run('u1', 't1', 'https://example.com', 'Example', '2026-01-01')
+    // A URL row referencing a task that was already deleted — possible
+    // because task_urls.task_id has no FK in the old schema (the exact
+    // pre-existing bug this rebuild fixes), so real databases can have these.
+    raw
+      .prepare('INSERT INTO task_urls (id, task_id, url, label, created_at) VALUES (?, ?, ?, ?, ?)')
+      .run('u2', 'deleted-task', 'https://orphaned.example.com', 'Orphan', '2026-01-01')
 
     // Simulate the exact broken state: an orphaned task_urls_new left behind
     // by a previously interrupted migration attempt (the bug the user hit).
@@ -80,9 +86,7 @@ describe('ensureSchema', () => {
     const taskTags = raw.prepare('SELECT * FROM task_tags WHERE task_id = ?').all('t1')
     expect(taskTags).toEqual([{ task_id: 't1', tag_id: 'wip', position: 0 }])
 
-    const urls = raw
-      .prepare('SELECT id, task_id, url, label FROM task_urls WHERE task_id = ?')
-      .all('t1')
+    const urls = raw.prepare('SELECT id, task_id, url, label FROM task_urls').all()
     expect(urls).toEqual([
       { id: 'u1', task_id: 't1', url: 'https://example.com', label: 'Example' },
     ])

@@ -109,9 +109,14 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
           created_at TEXT NOT NULL
         )
       `.execute(trx)
+      // task_urls.task_id never had a FK before this rebuild, so rows whose
+      // task was already deleted can exist (the exact orphan bug this rebuild
+      // fixes) — drop them here rather than let them violate the new
+      // constraint on insert.
       await sql`
         INSERT INTO task_urls_new (id, task_id, url, label, created_at)
         SELECT id, task_id, url, label, created_at FROM task_urls
+        WHERE task_id IN (SELECT id FROM tasks)
       `.execute(trx)
       await sql`DROP TABLE task_urls`.execute(trx)
       await sql`ALTER TABLE task_urls_new RENAME TO task_urls`.execute(trx)
