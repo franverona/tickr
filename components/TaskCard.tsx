@@ -10,6 +10,8 @@ interface TaskCardProps {
   isSelected: boolean
   onClick: () => void
   onContextMenu?: (e: React.MouseEvent) => void
+  selectMode?: boolean
+  checked?: boolean
 }
 
 export default function TaskCard({
@@ -18,6 +20,8 @@ export default function TaskCard({
   isSelected,
   onClick,
   onContextMenu,
+  selectMode,
+  checked,
 }: TaskCardProps) {
   const preview = task.description
     .replace(/<[^>]*>/g, '')
@@ -40,13 +44,40 @@ export default function TaskCard({
       } ${task.completed ? 'opacity-55' : ''}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <span
-          className={`text-sm leading-snug font-medium ${
-            task.completed ? 'text-surface-400 line-through' : 'text-surface-100'
-          }`}
-        >
-          {task.title}
-        </span>
+        <div className="flex min-w-0 items-start gap-2">
+          {selectMode && (
+            <span
+              role="checkbox"
+              aria-checked={checked ?? false}
+              className={`mt-0.5 flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border ${
+                checked ? 'border-accent-500 bg-accent-500' : 'border-surface-500'
+              }`}
+            >
+              {checked && (
+                <svg
+                  width="9"
+                  height="9"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="text-surface-900"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </span>
+          )}
+          <span
+            className={`text-sm leading-snug font-medium ${
+              task.completed ? 'text-surface-400 line-through' : 'text-surface-100'
+            }`}
+          >
+            {task.title}
+          </span>
+        </div>
       </div>
 
       {(task.tags.length > 0 || task.dueDate) && (

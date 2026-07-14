@@ -2,7 +2,15 @@
 
 import { useState, useEffect, useRef } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { getTasks, getTags, reorderTasks, updateTask, deleteTask } from '@/app/actions'
+import {
+  getTasks,
+  getTags,
+  reorderTasks,
+  updateTask,
+  deleteTask,
+  updateTasks,
+  deleteTasks,
+} from '@/app/actions'
 import TaskCard from '@/components/TaskCard'
 import TaskDetail from '@/components/TaskDetail'
 import CreateTaskModal from '@/components/CreateTaskModal'
@@ -31,6 +39,10 @@ export default function Page() {
   const [contextMenu, setContextMenu] = useState<{ taskId: string; x: number; y: number } | null>(
     null,
   )
+  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false)
+  const [bulkStatusMessage, setBulkStatusMessage] = useState<string | null>(null)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
@@ -216,6 +228,61 @@ export default function Page() {
               : { archived: false }
       const updated = await updateTask(taskId, data)
       handleTaskUpdated(updated)
+    }
+  }
+
+  function handleTaskCardClick(taskId: string) {
+    if (isSelectMode) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev)
+        if (next.has(taskId)) next.delete(taskId)
+        else next.add(taskId)
+        return next
+      })
+    } else {
+      setSelectedTaskId(taskId === selectedTaskId ? null : taskId)
+    }
+  }
+
+  function cancelSelectMode() {
+    setIsSelectMode(false)
+    setSelectedIds(new Set())
+    setBulkConfirmDelete(false)
+  }
+
+  const allFilteredSelected =
+    filteredTasks.length > 0 && filteredTasks.every((t) => selectedIds.has(t.id))
+
+  function toggleSelectAll() {
+    setSelectedIds(allFilteredSelected ? new Set() : new Set(filteredTasks.map((t) => t.id)))
+  }
+
+  async function handleBulkAction(
+    action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete',
+  ) {
+    const ids = Array.from(selectedIds)
+    const verb = action === 'delete' ? 'Deleting' : 'Updating'
+    setBulkStatusMessage(`${verb} ${ids.length} ${ids.length === 1 ? 'task' : 'tasks'}…`)
+    try {
+      if (action === 'delete') {
+        await deleteTasks(ids)
+        setTasks((prev) => prev.filter((t) => !selectedIds.has(t.id)))
+        if (selectedTaskId && selectedIds.has(selectedTaskId)) setSelectedTaskId(null)
+      } else {
+        const data =
+          action === 'complete'
+            ? { completed: true }
+            : action === 'reopen'
+              ? { completed: false }
+              : action === 'archive'
+                ? { archived: true }
+                : { archived: false }
+        const updated = await updateTasks(ids, data)
+        setTasks((prev) => prev.map((t) => updated.find((u) => u.id === t.id) ?? t))
+      }
+      cancelSelectMode()
+    } finally {
+      setBulkStatusMessage(null)
     }
   }
 
@@ -437,31 +504,124 @@ export default function Page() {
             selectedTask ? 'hidden md:flex md:w-90' : 'flex w-full md:w-90'
           }`}
         >
-          <div className="border-surface-700 flex h-10 items-center border-b px-3 sm:px-4">
-            <div className="flex h-full gap-4 sm:gap-5">
-              {(['active', 'done', 'archived'] as const).map((t) => (
+          {isSelectMode ? (
+            <div className="border-surface-700 flex h-12 flex-col justify-center gap-1 border-b px-3 sm:px-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-surface-300 text-xs font-medium">
+                    {selectedIds.size} selected
+                  </span>
+                  <button
+                    onClick={toggleSelectAll}
+                    className="text-accent-500 hover:text-accent-400 text-xs transition-colors"
+                  >
+                    {allFilteredSelected ? 'Deselect all' : 'Select all'}
+                  </button>
+                </div>
                 <button
-                  key={t}
-                  onClick={() => {
-                    setTab(t)
-                    setSelectedTaskId(null)
-                  }}
-                  className={`flex h-full items-center border-b-2 text-xs font-medium transition-colors ${
-                    tab === t
-                      ? 'border-surface-300 text-surface-100'
-                      : 'text-surface-400 hover:text-surface-200 border-transparent'
-                  }`}
+                  onClick={cancelSelectMode}
+                  className="text-surface-400 hover:text-surface-100 text-xs transition-colors"
                 >
-                  {t === 'active' ? 'Active' : t === 'done' ? 'Done' : 'Archived'}
+                  Cancel
                 </button>
-              ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                {tab === 'active' && (
+                  <button
+                    onClick={() => handleBulkAction('complete')}
+                    disabled={selectedIds.size === 0}
+                    className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Complete
+                  </button>
+                )}
+                {tab === 'done' && (
+                  <button
+                    onClick={() => handleBulkAction('reopen')}
+                    disabled={selectedIds.size === 0}
+                    className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Reopen
+                  </button>
+                )}
+                {(tab === 'active' || tab === 'done') && (
+                  <button
+                    onClick={() => handleBulkAction('archive')}
+                    disabled={selectedIds.size === 0}
+                    className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Archive
+                  </button>
+                )}
+                {tab === 'archived' && (
+                  <button
+                    onClick={() => handleBulkAction('unarchive')}
+                    disabled={selectedIds.size === 0}
+                    className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Unarchive
+                  </button>
+                )}
+                {bulkConfirmDelete ? (
+                  <button
+                    onClick={() => handleBulkAction('delete')}
+                    disabled={selectedIds.size === 0}
+                    className="text-xs text-red-400 transition-colors hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Confirm Delete?
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setBulkConfirmDelete(true)}
+                    disabled={selectedIds.size === 0}
+                    className="text-xs text-red-400 transition-colors hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Delete
+                  </button>
+                )}
+              </div>
             </div>
-            <span className="text-surface-500 ml-auto text-xs">
-              {isLoading
-                ? ''
-                : `${filteredTasks.length} ${filteredTasks.length === 1 ? 'task' : 'tasks'}`}
-            </span>
-          </div>
+          ) : (
+            <div className="border-surface-700 flex h-12 items-center border-b px-3 sm:px-4">
+              <div className="flex h-full gap-4 sm:gap-5">
+                {(['active', 'done', 'archived'] as const).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      setTab(t)
+                      setSelectedTaskId(null)
+                      cancelSelectMode()
+                    }}
+                    className={`flex h-full items-center border-b-2 text-xs font-medium transition-colors ${
+                      tab === t
+                        ? 'border-surface-300 text-surface-100'
+                        : 'text-surface-400 hover:text-surface-200 border-transparent'
+                    }`}
+                  >
+                    {t === 'active' ? 'Active' : t === 'done' ? 'Done' : 'Archived'}
+                  </button>
+                ))}
+              </div>
+              <div className="ml-auto flex items-center gap-2.5">
+                <span className="text-surface-500 text-xs">
+                  {isLoading
+                    ? ''
+                    : `${filteredTasks.length} ${filteredTasks.length === 1 ? 'task' : 'tasks'}`}
+                </span>
+                {!isLoading && filteredTasks.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setIsSelectMode(true)
+                      setSelectedTaskId(null)
+                    }}
+                    className="text-surface-400 hover:text-surface-100 text-xs transition-colors"
+                  >
+                    Select
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto p-3">
             {isLoading ? (
@@ -523,10 +683,10 @@ export default function Page() {
                         task={task}
                         tags={tags}
                         isSelected={task.id === selectedTaskId}
-                        onClick={() =>
-                          setSelectedTaskId(task.id === selectedTaskId ? null : task.id)
-                        }
+                        onClick={() => handleTaskCardClick(task.id)}
                         onContextMenu={(e) => handleContextMenu(e, task.id)}
+                        selectMode={isSelectMode}
+                        checked={selectedIds.has(task.id)}
                       />
                     </div>
                   </div>
@@ -551,8 +711,10 @@ export default function Page() {
                     task={task}
                     tags={tags}
                     isSelected={task.id === selectedTaskId}
-                    onClick={() => setSelectedTaskId(task.id === selectedTaskId ? null : task.id)}
+                    onClick={() => handleTaskCardClick(task.id)}
                     onContextMenu={(e) => handleContextMenu(e, task.id)}
+                    selectMode={isSelectMode}
+                    checked={selectedIds.has(task.id)}
                   />
                 ))}
               </div>
@@ -614,6 +776,13 @@ export default function Page() {
           onClose={() => setPendingImportFile(null)}
           onImported={handleImported}
         />
+      )}
+
+      {bulkStatusMessage && (
+        <div className="bg-surface-900/80 fixed inset-0 z-50 flex flex-col items-center justify-center gap-3">
+          <div className="border-surface-500 border-t-accent-500 h-8 w-8 animate-spin rounded-full border-2" />
+          <p className="text-surface-200 text-sm">{bulkStatusMessage}</p>
+        </div>
       )}
 
       {contextMenu && (

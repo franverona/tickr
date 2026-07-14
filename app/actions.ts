@@ -63,6 +63,31 @@ export async function deleteTask(id: string): Promise<void> {
   return getRepository().deleteTask(id)
 }
 
+// ponytail: sequential loop over single-item ops, not real bulk SQL — fine
+// up to normal selection sizes; upgrade to a batched query per backend only
+// if selections regularly reach into the hundreds.
+export async function updateTasks(
+  ids: string[],
+  data: Partial<{
+    title: string
+    description: string
+    tags: string[]
+    completed: boolean
+    archived: boolean
+    dueDate: string | null
+  }>,
+): Promise<Task[]> {
+  const repo = getRepository()
+  const updated: Task[] = []
+  for (const id of ids) updated.push(await repo.updateTask(id, data))
+  return updated
+}
+
+export async function deleteTasks(ids: string[]): Promise<void> {
+  const repo = getRepository()
+  for (const id of ids) await repo.deleteTask(id)
+}
+
 export async function addTaskUrl(
   taskId: string,
   data: { url: string; label: string },
