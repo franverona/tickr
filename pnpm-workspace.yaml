@@ -1,5 +1,6 @@
 allowBuilds:
   better-sqlite3: true
+  protobufjs: true
   sharp: true
   unrs-resolver: true
 

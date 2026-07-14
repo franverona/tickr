@@ -7,7 +7,7 @@ This project uses **Next.js 16**. Read `node_modules/next/dist/docs/` before wri
 ## Stack
 
 - **Next.js 16** App Router with Server Actions (`'use server'` file directive)
-- **Pluggable database** behind a `TaskRepository` interface (`lib/db/`), selected at runtime via `DB_TYPE`. SQLite (via `better-sqlite3` + Kysely) and Postgres (via `pg` + Kysely) are implemented; MySQL/Firestore are designed for but not yet built — see "Database backend" below
+- **Pluggable database** behind a `TaskRepository` interface (`lib/db/`), selected at runtime via `DB_TYPE`. SQLite (via `better-sqlite3` + Kysely), Postgres (via `pg` + Kysely), and Firestore (via `@google-cloud/firestore`, no Kysely) are implemented; MySQL is designed for but not yet built — see "Database backend" below
 - **Tailwind CSS v4**
 - **TypeScript**
 - `@uiw/react-md-editor` — loaded via `next/dynamic` with `{ ssr: false }`
@@ -49,6 +49,12 @@ lib/
       migrate.ts                # ensureSchema() — DDL (final shape, no migration history), tag seeding
       repository.ts               # PostgresTaskRepository implements TaskRepository
       index.ts                     # getPostgresRepository(), globalThis-cached
+    firestore/
+      connection.ts        # Firestore client singleton, globalThis-cached, reads FIRESTORE_SERVICE_ACCOUNT_KEY
+      seed.ts                 # ensureSeeded() — predefined-tag seeding only (no DDL to run)
+      chunk.ts                  # chunk() — splits arrays for Firestore's 500-op batch limit
+      repository.ts               # FirestoreTaskRepository implements TaskRepository (no Kysely)
+      index.ts                     # getFirestoreRepository(), globalThis-cached
   types.ts             # Task and Tag interfaces
   constants.ts         # PREDEFINED_TAGS and COLOR_PALETTE
   export.ts            # exportToJSON, exportToCSV, exportToZip (client-side)
@@ -71,8 +77,8 @@ public/
 
 ## Database backend
 
-- **`DB_TYPE`** env var selects the backend. Defaults to `sqlite` (zero-config — no env var needed for the common case). `sqlite` and `postgres` are implemented; setting `DB_TYPE=mysql` or `firestore` throws a clear "not implemented yet" error from `getRepository()` (`lib/db/factory.ts`) rather than silently falling back
-- Postgres shares a Kysely-based SQL layer with the SQLite adapter and reads connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars). MySQL, when implemented, will follow the same convention
+- **`DB_TYPE`** env var selects the backend. Defaults to `sqlite` (zero-config — no env var needed for the common case). `sqlite`, `postgres`, and `firestore` are implemented; setting `DB_TYPE=mysql` throws a clear "not implemented yet" error from `getRepository()` (`lib/db/factory.ts`) rather than silently falling back
+- Postgres shares a Kysely-based SQL layer with the SQLite adapter and reads connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars). MySQL, when implemented, will follow the same convention. Firestore is schemaless and reads a single **`FIRESTORE_SERVICE_ACCOUNT_KEY`** connection string instead (see "Firestore adapter" below)
 - **To add a new backend**: implement `TaskRepository` (`lib/db/types.ts`) in a new `lib/db/<backend>/` directory (mirror `lib/db/sqlite/` or `lib/db/postgres/`), then register it in the `switch` in `lib/db/factory.ts`
 - All DB access goes through `getRepository()` from `lib/db` — `app/actions.ts`'s Server Actions are thin wrappers over it and contain no backend-specific logic themselves
 
@@ -93,6 +99,17 @@ public/
 - `lib/db/postgres/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder (`db.schema.createTable(...)`) — no incremental migration history to replay, unlike `sqlite/migrate.ts`, since Postgres starts fresh
 - **Local testing**: `docker-compose.yml` at the repo root runs a `postgres:16-alpine` container (`docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=postgres` and `DATABASE_URL`, then `pnpm dev`
 - To reset: `docker compose down -v` (drops the named volume) and restart
+
+## Firestore adapter
+
+- Configured via **`FIRESTORE_SERVICE_ACCOUNT_KEY`** — the full service-account JSON (Firebase Console → Project Settings → Service Accounts → Generate new private key) as a single-line env var, `JSON.parse`d and passed as `credentials` to the `Firestore` constructor (`lib/db/firestore/connection.ts`). Not the Web SDK client config (`apiKey`/`authDomain`/`appId`) — that can't authenticate server-side access. The service-account key file itself must never be committed; `*firebase-adminsdk*.json` is gitignored as a safety net and the code never reads a file path (`keyFilename`), only the env var
+- **No emulator** — `DB_TYPE=firestore` always connects to the real remote project, including in local dev. `getFirestoreClient()` logs a one-time `console.warn` on first connection as a reminder
+- **Schema**: two collections, no Kysely, no join tables — `tasks/{id}` (with `tags: string[]` and `urls: {id,url,label}[]` embedded directly, replacing `task_tags`/`task_urls`) and `tags/{id}` (`id = slugify(label)`, same as the SQL adapters). Firestore field names match the `Task`/`Tag` domain types' camelCase fields directly (`sortOrder`, `dueDate`, `createdAt`, …) — no snake_case translation layer
+- `lib/db/firestore/seed.ts`'s `ensureSeeded()` seeds `PREDEFINED_TAGS` idempotently via `doc(id).create()` caught against `ALREADY_EXISTS` (gRPC code 6) — the Firestore analog to the SQL adapters' `.onConflict().doNothing()`
+- **No cascade deletes**: `deleteTag` has to fan out — query every task with `tags array-contains id` and `FieldValue.arrayRemove(id)` each one, batched. `deleteTask` needs no fan-out at all, since urls/tags are embedded on the task doc itself
+- `createTask`'s "lowest sort_order among incomplete tasks" query (`where('completed', '==', false).orderBy('sortOrder')`) needs a Firestore **composite index** — it can't be created from application code; Firestore throws `FAILED_PRECONDITION` with a direct Console link to create it, once, on first use
+- `reorderTasks`/`importTasks`/`deleteTag`'s fan-out all use `lib/db/firestore/chunk.ts`'s `chunk()` to stay under Firestore's 500-operation batch limit. Large imports are **not** atomic across chunks (each chunk commits independently) — an accepted trade-off, since Firestore transactions share the same 500-write cap so true atomicity isn't available for imports that size anyway
+- No automated tests against Firestore (no emulator, by design — would require live credentials in CI and risk polluting real data). Verify manually against the live project instead
 
 ## Testing
 
