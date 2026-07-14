@@ -13,7 +13,7 @@ A local task management app for tracking work.
 ## Stack
 
 - **Next.js 16** (App Router, Server Actions)
-- **SQLite** (default) or **Postgres** — pluggable via `DB_TYPE`
+- **SQLite** (default), **Postgres**, or **Firestore** — pluggable via `DB_TYPE`
 - **Tailwind CSS v4**
 - **TypeScript**
 - **@uiw/react-md-editor** for markdown descriptions
@@ -42,11 +42,23 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-The SQLite database is created automatically at `./data/tasks.db` on first run. Predefined tags (WIP, UAT, Pipeline, Blocked, Review) are seeded on startup.
+By default, Tickr uses SQLite — no config needed. Predefined tags (WIP, UAT, Pipeline, Blocked, Review) are seeded on startup regardless of backend. See [Database](#database) below to use Postgres or Firestore instead.
 
-### Using Postgres instead
+## Database
 
-Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`) to use Postgres instead of the SQLite default. For a local Postgres to test against: `docker compose up -d` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables.
+Pluggable via `DB_TYPE`, defaulting to `sqlite`.
+
+### SQLite
+
+Created automatically at `./data/tasks.db` on first run — no config needed. To reset, delete the file and restart the server.
+
+### Postgres
+
+Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`). For a local Postgres to test against: `docker compose up -d` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset: `docker compose down -v` (drops the local container's volume), or clear the tables directly for a remote instance.
+
+### Firestore
+
+Set `DB_TYPE=firestore` and `FIRESTORE_SERVICE_ACCOUNT_KEY` (the full service-account JSON from Firebase Console → Project Settings → Service Accounts → Generate new private key, as a single-line string). There's no local/emulator mode — this always connects to the real remote Firestore project, even in dev, so use a project you don't mind writing test data to. The first `createTask` call will throw an error containing a Firebase Console link to create a required composite index — click through it once. To reset, clear the `tasks`/`tags` collections directly in the Firebase Console.
 
 ## Running as a background service (pm2)
 
@@ -95,8 +107,6 @@ pnpm format          # Prettier (write)
 pnpm format:check    # Prettier (check)
 ```
 
-## Data
-
-The database lives at `./data/tasks.db` and is excluded from version control. To reset, delete the file and restart the server.
+## Uploads
 
 Uploaded images are stored at `public/uploads/` (gitignored). They are included automatically when using the Export feature.
