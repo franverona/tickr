@@ -7,7 +7,7 @@ This project uses **Next.js 16**. Read `node_modules/next/dist/docs/` before wri
 ## Stack
 
 - **Next.js 16** App Router with Server Actions (`'use server'` file directive)
-- **Pluggable database** behind a `TaskRepository` interface (`lib/db/`), selected at runtime via `DB_TYPE`. Only SQLite is implemented (via `better-sqlite3` + Kysely); Postgres/MySQL/Firestore are designed for but not yet built — see "Database backend" below
+- **Pluggable database** behind a `TaskRepository` interface (`lib/db/`), selected at runtime via `DB_TYPE`. SQLite (via `better-sqlite3` + Kysely) and Postgres (via `pg` + Kysely) are implemented; MySQL/Firestore are designed for but not yet built — see "Database backend" below
 - **Tailwind CSS v4**
 - **TypeScript**
 - `@uiw/react-md-editor` — loaded via `next/dynamic` with `{ ssr: false }`
@@ -43,6 +43,12 @@ lib/
       migrate.ts             # ensureSchema() — DDL, migrations, tag seeding
       repository.ts            # SqliteTaskRepository implements TaskRepository
       index.ts                  # getSqliteRepository(), globalThis-cached
+    postgres/
+      schema.ts             # PgDbSchema — same tables as sqlite's, native BOOLEAN columns
+      connection.ts           # pg.Pool + Kysely singleton, globalThis-cached, reads DATABASE_URL
+      migrate.ts                # ensureSchema() — DDL (final shape, no migration history), tag seeding
+      repository.ts               # PostgresTaskRepository implements TaskRepository
+      index.ts                     # getPostgresRepository(), globalThis-cached
   types.ts             # Task and Tag interfaces
   constants.ts         # PREDEFINED_TAGS and COLOR_PALETTE
   export.ts            # exportToJSON, exportToCSV, exportToZip (client-side)
@@ -65,20 +71,28 @@ public/
 
 ## Database backend
 
-- **`DB_TYPE`** env var selects the backend. Defaults to `sqlite` (zero-config — no env var needed for the common case). `sqlite` is the only implemented backend; setting `DB_TYPE=postgres`, `mysql`, or `firestore` throws a clear "not implemented yet" error from `getRepository()` (`lib/db/factory.ts`) rather than silently falling back
-- Postgres/MySQL, when implemented, will share a Kysely-based SQL layer with the SQLite adapter and read connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars)
-- **To add a new backend**: implement `TaskRepository` (`lib/db/types.ts`) in a new `lib/db/<backend>/` directory (mirror `lib/db/sqlite/`), then register it in the `switch` in `lib/db/factory.ts`
+- **`DB_TYPE`** env var selects the backend. Defaults to `sqlite` (zero-config — no env var needed for the common case). `sqlite` and `postgres` are implemented; setting `DB_TYPE=mysql` or `firestore` throws a clear "not implemented yet" error from `getRepository()` (`lib/db/factory.ts`) rather than silently falling back
+- Postgres shares a Kysely-based SQL layer with the SQLite adapter and reads connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars). MySQL, when implemented, will follow the same convention
+- **To add a new backend**: implement `TaskRepository` (`lib/db/types.ts`) in a new `lib/db/<backend>/` directory (mirror `lib/db/sqlite/` or `lib/db/postgres/`), then register it in the `switch` in `lib/db/factory.ts`
 - All DB access goes through `getRepository()` from `lib/db` — `app/actions.ts`'s Server Actions are thin wrappers over it and contain no backend-specific logic themselves
 
 ## SQLite adapter
 
 - SQLite at `./data/tasks.db`, created automatically on first run. Connection is a `better-sqlite3` instance wrapped in Kysely (`lib/db/sqlite/connection.ts`), `globalThis`-cached, with `PRAGMA foreign_keys = ON`
 - Schema: `tasks`, `tags`, `task_urls`, and `task_tags` tables
-- `tasks` columns: `id`, `title`, `description`, `completed`, `archived`, `due_date`, `created_at`, `updated_at`, `completed_at`, `archived_at`, `sort_order`
+- `tasks` columns: `id`, `title`, `description`, `completed`, `archived`, `due_date`, `created_at`, `updated_at`, `completed_at`, `archived_at`, `sort_order`. `completed`/`archived` are stored as `INTEGER` 0/1 — the better-sqlite3 driver doesn't auto-convert JS booleans, so `lib/db/sqlite/repository.ts` converts manually
 - `task_tags` is a join table (`task_id`, `tag_id`, `position`) — replaces the old JSON-array-in-TEXT `tasks.tags` column. `position` preserves tag display order (tag badges render in array order, so this isn't cosmetic). Both FKs cascade on delete
 - `task_urls` columns: `id`, `task_id`, `url`, `label`, `created_at` — backs the Links section in the task detail panel. `task_id` cascades on delete
 - Predefined tags seeded via Kysely `.onConflict().doNothing()` on every startup (user edits/deletes of predefined tags are never overwritten)
 - To reset: delete `./data/tasks.db` and restart
+
+## Postgres adapter
+
+- Configured via **`DATABASE_URL`** (e.g. `postgresql://user:pass@host:5432/dbname`) — `lib/db/postgres/connection.ts` throws a clear error if unset when `DB_TYPE=postgres`. Connection is a `pg.Pool` wrapped in Kysely (`PostgresDialect`), `globalThis`-cached (load-bearing, not just parity with SQLite — without it, dev-mode hot-reload would spawn a new `Pool`/new TCP connections on every module re-evaluation)
+- Same 4-table schema as SQLite (`tasks`, `tags`, `task_urls`, `task_tags`), but `completed`/`archived` are native `BOOLEAN` columns (the `pg` driver handles JS booleans natively, unlike better-sqlite3) — see `lib/db/postgres/schema.ts`'s `PgTasksTable`. Timestamps stay `TEXT` (ISO-8601 strings) on both backends for consistency
+- `lib/db/postgres/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder (`db.schema.createTable(...)`) — no incremental migration history to replay, unlike `sqlite/migrate.ts`, since Postgres starts fresh
+- **Local testing**: `docker-compose.yml` at the repo root runs a `postgres:16-alpine` container (`docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=postgres` and `DATABASE_URL`, then `pnpm dev`
+- To reset: `docker compose down -v` (drops the named volume) and restart
 
 ## Testing
 

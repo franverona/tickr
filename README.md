@@ -13,7 +13,7 @@ A local task management app for tracking work.
 ## Stack
 
 - **Next.js 16** (App Router, Server Actions)
-- **SQLite** via `better-sqlite3`
+- **SQLite** (default) or **Postgres** — pluggable via `DB_TYPE`
 - **Tailwind CSS v4**
 - **TypeScript**
 - **@uiw/react-md-editor** for markdown descriptions
@@ -43,6 +43,10 @@ pnpm dev
 Open [http://localhost:3000](http://localhost:3000).
 
 The SQLite database is created automatically at `./data/tasks.db` on first run. Predefined tags (WIP, UAT, Pipeline, Blocked, Review) are seeded on startup.
+
+### Using Postgres instead
+
+Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`) to use Postgres instead of the SQLite default. For a local Postgres to test against: `docker compose up -d` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables.
 
 ## Running as a background service (pm2)
 
