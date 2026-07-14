@@ -464,7 +464,19 @@ export default function Page() {
           </div>
 
           <div className="flex-1 overflow-y-auto p-3">
-            {hasNoTasks ? (
+            {isLoading ? (
+              <div className="flex flex-col gap-2">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="border-surface-700 bg-surface-800 animate-pulse rounded-lg border p-3"
+                  >
+                    <div className="bg-surface-700 h-3.5 w-3/4 rounded" />
+                    <div className="bg-surface-700 mt-2.5 h-2.5 w-1/2 rounded" />
+                  </div>
+                ))}
+              </div>
+            ) : hasNoTasks ? (
               <div className="text-surface-500 flex h-full flex-col items-center justify-center gap-3">
                 <p className="text-sm">No tasks yet</p>
                 <button
