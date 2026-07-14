@@ -23,7 +23,15 @@ vi.mock('../lib/db', async () => {
   return { getRepository: () => repository }
 })
 
-import { createTask, deleteTag, deleteTask, getTasks, updateTask } from '../app/actions'
+import {
+  createTask,
+  deleteTag,
+  deleteTask,
+  deleteTasks,
+  getTasks,
+  updateTask,
+  updateTasks,
+} from '../app/actions'
 
 const SEED_TAG = { id: 'wip', label: 'WIP', color: 'bg-blue-600 text-blue-100 border-blue-500' }
 const BLOCKED_TAG = {
@@ -103,6 +111,35 @@ describe('deleteTask', () => {
     const task = await createTask({ title: 'Doomed', description: '', tags: [] })
     await deleteTask(task.id)
     expect(await getTasks()).toHaveLength(0)
+  })
+})
+
+describe('updateTasks', () => {
+  it('applies the update to every id and leaves untouched tasks alone', async () => {
+    const a = await createTask({ title: 'A', description: '', tags: [] })
+    const b = await createTask({ title: 'B', description: '', tags: [] })
+    const c = await createTask({ title: 'C', description: '', tags: [] })
+
+    const updated = await updateTasks([a.id, b.id], { completed: true })
+    expect(updated.map((t) => t.completed)).toEqual([true, true])
+
+    const tasks = await getTasks()
+    expect(tasks.find((t) => t.id === a.id)?.completed).toBe(true)
+    expect(tasks.find((t) => t.id === b.id)?.completed).toBe(true)
+    expect(tasks.find((t) => t.id === c.id)?.completed).toBe(false)
+  })
+})
+
+describe('deleteTasks', () => {
+  it('removes every id and leaves untouched tasks alone', async () => {
+    const a = await createTask({ title: 'A', description: '', tags: [] })
+    const b = await createTask({ title: 'B', description: '', tags: [] })
+    const c = await createTask({ title: 'C', description: '', tags: [] })
+
+    await deleteTasks([a.id, b.id])
+
+    const tasks = await getTasks()
+    expect(tasks.map((t) => t.id)).toEqual([c.id])
   })
 })
 
