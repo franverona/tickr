@@ -2,13 +2,25 @@ import { Kysely, sql } from 'kysely'
 import type { DbSchema } from '../types'
 import { PREDEFINED_TAGS } from '../../constants'
 
-// Module-level flag — reset to false on every hot-reload (module re-evaluation),
-// so migrations re-run idempotently against the cached globalThis connection.
-let _migrated = false
+// Module-level cache — reset on every hot-reload (module re-evaluation), so
+// migrations re-run idempotently against the cached globalThis connection.
+// Caching the in-flight promise (not just a boolean) means concurrent first
+// calls (e.g. a page's simultaneous getTasks()/getTags() requests) await the
+// same run instead of racing each other through the DDL below; clearing it on
+// failure lets the next call retry instead of getting stuck.
+let _migration: Promise<void> | null = null
 
-export async function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
-  if (_migrated) return
+export function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
+  if (!_migration) {
+    _migration = runMigrations(db).catch((err) => {
+      _migration = null
+      throw err
+    })
+  }
+  return _migration
+}
 
+async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
   await sql`
     CREATE TABLE IF NOT EXISTS tasks (
       id TEXT PRIMARY KEY,
@@ -77,26 +89,33 @@ export async function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
   `.execute(db)
 
   // task_urls may pre-date the ON DELETE CASCADE constraint above (SQLite can't
-  // ALTER TABLE to add a foreign key). Rebuild it if it's missing one.
+  // ALTER TABLE to add a foreign key). Rebuild it if it's missing one. SQLite's
+  // DDL is transactional, so wrapping the whole rebuild means a failure partway
+  // through rolls back cleanly instead of leaving an orphaned task_urls_new
+  // that collides with the CREATE TABLE on the next retry; the DROP TABLE IF
+  // EXISTS also self-heals any such leftover from before this fix existed.
   const urlFks = await sql<{ table: string }>`
     SELECT "table" FROM pragma_foreign_key_list('task_urls')
   `.execute(db)
   if (urlFks.rows.length === 0) {
-    await sql`
-      CREATE TABLE task_urls_new (
-        id TEXT PRIMARY KEY,
-        task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-        url TEXT NOT NULL,
-        label TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      )
-    `.execute(db)
-    await sql`
-      INSERT INTO task_urls_new (id, task_id, url, label, created_at)
-      SELECT id, task_id, url, label, created_at FROM task_urls
-    `.execute(db)
-    await sql`DROP TABLE task_urls`.execute(db)
-    await sql`ALTER TABLE task_urls_new RENAME TO task_urls`.execute(db)
+    await db.transaction().execute(async (trx) => {
+      await sql`DROP TABLE IF EXISTS task_urls_new`.execute(trx)
+      await sql`
+        CREATE TABLE task_urls_new (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          url TEXT NOT NULL,
+          label TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `.execute(trx)
+      await sql`
+        INSERT INTO task_urls_new (id, task_id, url, label, created_at)
+        SELECT id, task_id, url, label, created_at FROM task_urls
+      `.execute(trx)
+      await sql`DROP TABLE task_urls`.execute(trx)
+      await sql`ALTER TABLE task_urls_new RENAME TO task_urls`.execute(trx)
+    })
   }
 
   // Initialize sort_order for any tasks that don't have one yet,
@@ -132,6 +151,10 @@ export async function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
   // column, then drop it. Guarded by column existence (not a version table,
   // consistent with the ADD COLUMN migrations above) since a stray read after
   // the drop would throw, unlike the try/catch-swallowed ADD COLUMN pattern.
+  // The backfill and the DROP COLUMN share one transaction (SQLite's DDL is
+  // transactional) so a failure partway through can't leave the column
+  // dropped without the backfill, or vice versa; onConflict doNothing makes a
+  // retry after a pre-fix partial failure safe too.
   const taskCols = await sql<{ name: string }>`SELECT name FROM pragma_table_info('tasks')`.execute(
     db,
   )
@@ -156,13 +179,13 @@ export async function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
           await trx
             .insertInto('task_tags')
             .values({ task_id: row.id, tag_id: tagId, position })
+            .onConflict((oc) => oc.doNothing())
             .execute()
           position++
         }
       }
+      await sql`ALTER TABLE tasks DROP COLUMN tags`.execute(trx)
     })
-
-    await sql`ALTER TABLE tasks DROP COLUMN tags`.execute(db)
   }
 
   // Seed predefined tags (onConflict doNothing so user edits/deletes of these
@@ -182,6 +205,4 @@ export async function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
         .execute()
     }
   })
-
-  _migrated = true
 }
