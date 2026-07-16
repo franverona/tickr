@@ -42,7 +42,11 @@ export default function Page() {
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false)
-  const [bulkStatusMessage, setBulkStatusMessage] = useState<string | null>(null)
+  const [toast, setToast] = useState<{
+    message: string
+    kind: 'loading' | 'success' | 'error'
+  } | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
@@ -92,6 +96,14 @@ export default function Page() {
     setPendingImportFile(null)
     setMenuFeedback(`Imported ${result.imported}`)
     setTimeout(() => setMenuFeedback(null), 4000)
+  }
+
+  function showToast(message: string, kind: 'loading' | 'success' | 'error') {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast({ message, kind })
+    if (kind !== 'loading') {
+      toastTimerRef.current = setTimeout(() => setToast(null), 3000)
+    }
   }
 
   function handleTagCreated(tag: Tag) {
@@ -176,7 +188,7 @@ export default function Page() {
     }
   }
 
-  function handleDrop(e: React.DragEvent) {
+  async function handleDrop(e: React.DragEvent) {
     e.preventDefault()
     const src = dragSrcIdxRef.current
     const over = dragOverIdxRef.current
@@ -193,7 +205,13 @@ export default function Page() {
     reordered.splice(over > src ? over - 1 : over, 0, item)
 
     setTasks((prev) => [...reordered, ...prev.filter((t) => t.completed)])
-    reorderTasks(reordered.map((t) => t.id))
+    showToast('Saving order…', 'loading')
+    try {
+      await reorderTasks(reordered.map((t) => t.id))
+      showToast('Order saved', 'success')
+    } catch {
+      showToast('Failed to save order', 'error')
+    }
   }
 
   function handleDragEnd() {
@@ -261,8 +279,10 @@ export default function Page() {
     action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete',
   ) {
     const ids = Array.from(selectedIds)
+    const count = ids.length
+    const noun = count === 1 ? 'task' : 'tasks'
     const verb = action === 'delete' ? 'Deleting' : 'Updating'
-    setBulkStatusMessage(`${verb} ${ids.length} ${ids.length === 1 ? 'task' : 'tasks'}…`)
+    showToast(`${verb} ${count} ${noun}…`, 'loading')
     try {
       if (action === 'delete') {
         await deleteTasks(ids)
@@ -280,9 +300,10 @@ export default function Page() {
         const updated = await updateTasks(ids, data)
         setTasks((prev) => prev.map((t) => updated.find((u) => u.id === t.id) ?? t))
       }
+      showToast(`${action === 'delete' ? 'Deleted' : 'Updated'} ${count} ${noun}`, 'success')
       cancelSelectMode()
-    } finally {
-      setBulkStatusMessage(null)
+    } catch {
+      showToast(`Failed to ${verb.toLowerCase()} ${count} ${noun}`, 'error')
     }
   }
 
@@ -778,10 +799,20 @@ export default function Page() {
         />
       )}
 
-      {bulkStatusMessage && (
-        <div className="bg-surface-900/80 fixed inset-0 z-50 flex flex-col items-center justify-center gap-3">
-          <div className="border-surface-500 border-t-accent-500 h-8 w-8 animate-spin rounded-full border-2" />
-          <p className="text-surface-200 text-sm">{bulkStatusMessage}</p>
+      {toast && (
+        <div
+          className={`fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm shadow-xl ${
+            toast.kind === 'error'
+              ? 'bg-red-600 text-white'
+              : 'border-surface-700 bg-surface-800 text-surface-100 border'
+          }`}
+        >
+          {toast.kind === 'loading' && (
+            <span className="border-surface-500 border-t-accent-500 h-3.5 w-3.5 animate-spin rounded-full border-2" />
+          )}
+          {toast.kind === 'success' && <span className="text-emerald-400">✓</span>}
+          {toast.kind === 'error' && <span>⚠</span>}
+          <span>{toast.message}</span>
         </div>
       )}
 
