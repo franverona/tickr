@@ -138,3 +138,7 @@ pnpm build && pnpm start -- -p 9876   # production (pm2 manages this)
 ```
 
 See README.md for full pm2 setup instructions.
+
+## Before testing anything in the browser
+
+If Firestore is being used, do not change remote data. If needed, switch to the SQLite version for testing with Playwright or similar tools.

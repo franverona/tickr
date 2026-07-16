@@ -189,6 +189,12 @@ function ScrollableTable({ children, ...props }: React.ComponentPropsWithoutRef<
   )
 }
 
+function SavingSpinner() {
+  return (
+    <span className="border-surface-500 border-t-accent-500 inline-block h-3 w-3 animate-spin rounded-full border-2" />
+  )
+}
+
 function suggestionItemClass(active: boolean): string {
   return `flex w-full items-center justify-between gap-2.5 px-3 py-1.5 text-left text-sm transition-colors ${
     active
@@ -220,6 +226,7 @@ export default function TaskDetail({
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>(
     'idle',
   )
+  const [savingSection, setSavingSection] = useState<'tags' | 'due' | 'links' | null>(null)
   const [showUrlLinks, setShowUrlLinks] = useState(true)
   const [showAddUrl, setShowAddUrl] = useState(false)
   const [urlDraft, setUrlDraft] = useState('')
@@ -443,13 +450,17 @@ export default function TaskDetail({
   }
 
   async function saveTags(tags: string[]) {
+    setSavingSection('tags')
     const updated = await updateTask(task.id, { tags })
     onUpdate(updated)
+    setSavingSection(null)
   }
 
   async function saveDueDate(dueDate: string) {
+    setSavingSection('due')
     const updated = await updateTask(task.id, { dueDate: dueDate || null })
     onUpdate(updated)
+    setSavingSection(null)
   }
 
   useEffect(() => {
@@ -738,16 +749,20 @@ export default function TaskDetail({
     const url = urlDraft.trim()
     if (!url) return
     const label = urlLabelDraft.trim() || suggestLabel(url) || url
+    setSavingSection('links')
     const updated = await addTaskUrl(task.id, { url, label })
     onUpdate(updated)
+    setSavingSection(null)
     setUrlDraft('')
     setUrlLabelDraft('')
     setShowAddUrl(false)
   }
 
   async function handleDeleteUrl(urlId: string) {
+    setSavingSection('links')
     const updated = await deleteTaskUrl(task.id, urlId)
     onUpdate(updated)
+    setSavingSection(null)
   }
 
   async function handleCopyForSlack(u: Task['urls'][number]) {
@@ -767,8 +782,10 @@ export default function TaskDetail({
     const url = editUrlDraft.trim()
     if (!url || !editingUrlId) return
     const label = editLabelDraft.trim() || suggestLabel(url) || url
+    setSavingSection('links')
     const updated = await updateTaskUrl(task.id, editingUrlId, { url, label })
     onUpdate(updated)
+    setSavingSection(null)
     setEditingUrlId(null)
     setEditUrlDraft('')
     setEditLabelDraft('')
@@ -906,8 +923,9 @@ export default function TaskDetail({
         <div className="space-y-2.5">
           {/* Tags */}
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-            <span className="text-surface-500 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
+            <span className="text-surface-500 flex items-center gap-1.5 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
               Tags
+              {savingSection === 'tags' && <SavingSpinner />}
             </span>
             <div className="min-w-0 flex-1">
               <TagSelector
@@ -921,8 +939,9 @@ export default function TaskDetail({
 
           {/* Due date */}
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
-            <span className="text-surface-500 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
+            <span className="text-surface-500 flex items-center gap-1.5 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
               Due
+              {savingSection === 'due' && <SavingSpinner />}
             </span>
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <input
@@ -962,6 +981,7 @@ export default function TaskDetail({
                 </span>
                 <span>Links{task.urls.length > 0 ? ` (${task.urls.length})` : ''}</span>
               </button>
+              {savingSection === 'links' && <SavingSpinner />}
               {showUrlLinks && !showAddUrl && (
                 <button
                   onClick={() => setShowAddUrl(true)}
@@ -1132,7 +1152,10 @@ export default function TaskDetail({
                     <span className="text-surface-500 text-xs">Unsaved…</span>
                   )}
                   {autoSaveStatus === 'saving' && (
-                    <span className="text-surface-400 text-xs">Saving…</span>
+                    <span className="text-surface-400 flex items-center gap-1.5 text-xs">
+                      <span className="border-surface-500 border-t-accent-500 h-3 w-3 animate-spin rounded-full border-2" />
+                      Saving…
+                    </span>
                   )}
                   {autoSaveStatus === 'saved' && (
                     <span className="text-xs text-emerald-400">Saved</span>
