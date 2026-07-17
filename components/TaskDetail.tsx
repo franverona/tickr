@@ -26,6 +26,7 @@ interface TaskDetailProps {
   onClose: () => void
   onTagCreated: (tag: Tag) => void
   onSelectTask: (id: string) => void
+  onError: (message: string) => void
 }
 
 const CHECKLIST_ITEM_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/gm
@@ -217,6 +218,7 @@ export default function TaskDetail({
   onClose,
   onTagCreated,
   onSelectTask,
+  onError,
 }: TaskDetailProps) {
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(task.title)
@@ -444,23 +446,37 @@ export default function TaskDetail({
       setIsEditingTitle(false)
       return
     }
-    const updated = await updateTask(task.id, { title: trimmed })
-    onUpdate(updated)
-    setIsEditingTitle(false)
+    try {
+      const updated = await updateTask(task.id, { title: trimmed })
+      onUpdate(updated)
+      setIsEditingTitle(false)
+    } catch {
+      onError('Failed to save title')
+    }
   }
 
   async function saveTags(tags: string[]) {
     setSavingSection('tags')
-    const updated = await updateTask(task.id, { tags })
-    onUpdate(updated)
-    setSavingSection(null)
+    try {
+      const updated = await updateTask(task.id, { tags })
+      onUpdate(updated)
+    } catch {
+      onError('Failed to save tags')
+    } finally {
+      setSavingSection(null)
+    }
   }
 
   async function saveDueDate(dueDate: string) {
     setSavingSection('due')
-    const updated = await updateTask(task.id, { dueDate: dueDate || null })
-    onUpdate(updated)
-    setSavingSection(null)
+    try {
+      const updated = await updateTask(task.id, { dueDate: dueDate || null })
+      onUpdate(updated)
+    } catch {
+      onError('Failed to save due date')
+    } finally {
+      setSavingSection(null)
+    }
   }
 
   useEffect(() => {
@@ -732,17 +748,23 @@ export default function TaskDetail({
         const updated = await updateTask(task.id, { description: descriptionDraft })
         lastSavedDescRef.current = descriptionDraft
         onUpdate(updated)
-      } catch {}
+      } catch {
+        onError('Failed to save description')
+      }
     }
     setIsEditingDescription(false)
     setAutoSaveStatus('idle')
   }
 
   async function handleToggleChecklist(index: number) {
-    const updated = await updateTask(task.id, {
-      description: toggleChecklistItem(task.description, index),
-    })
-    onUpdate(updated)
+    try {
+      const updated = await updateTask(task.id, {
+        description: toggleChecklistItem(task.description, index),
+      })
+      onUpdate(updated)
+    } catch {
+      onError('Failed to update checklist item')
+    }
   }
 
   async function handleAddUrl() {
@@ -750,19 +772,30 @@ export default function TaskDetail({
     if (!url) return
     const label = urlLabelDraft.trim() || suggestLabel(url) || url
     setSavingSection('links')
-    const updated = await addTaskUrl(task.id, { url, label })
-    onUpdate(updated)
-    setSavingSection(null)
-    setUrlDraft('')
-    setUrlLabelDraft('')
-    setShowAddUrl(false)
+    try {
+      const updated = await addTaskUrl(task.id, { url, label })
+      onUpdate(updated)
+      setUrlDraft('')
+      setUrlLabelDraft('')
+      setShowAddUrl(false)
+    } catch {
+      onError('Failed to add link')
+    } finally {
+      setSavingSection(null)
+    }
   }
 
   async function handleDeleteUrl(urlId: string) {
+    if (!window.confirm('Delete this link?')) return
     setSavingSection('links')
-    const updated = await deleteTaskUrl(task.id, urlId)
-    onUpdate(updated)
-    setSavingSection(null)
+    try {
+      const updated = await deleteTaskUrl(task.id, urlId)
+      onUpdate(updated)
+    } catch {
+      onError('Failed to delete link')
+    } finally {
+      setSavingSection(null)
+    }
   }
 
   async function handleCopyForSlack(u: Task['urls'][number]) {
@@ -783,12 +816,17 @@ export default function TaskDetail({
     if (!url || !editingUrlId) return
     const label = editLabelDraft.trim() || suggestLabel(url) || url
     setSavingSection('links')
-    const updated = await updateTaskUrl(task.id, editingUrlId, { url, label })
-    onUpdate(updated)
-    setSavingSection(null)
-    setEditingUrlId(null)
-    setEditUrlDraft('')
-    setEditLabelDraft('')
+    try {
+      const updated = await updateTaskUrl(task.id, editingUrlId, { url, label })
+      onUpdate(updated)
+      setEditingUrlId(null)
+      setEditUrlDraft('')
+      setEditLabelDraft('')
+    } catch {
+      onError('Failed to save link')
+    } finally {
+      setSavingSection(null)
+    }
   }
 
   function startEditUrl(urlId: string, currentUrl: string, currentLabel: string) {
@@ -805,18 +843,30 @@ export default function TaskDetail({
   }
 
   async function toggleComplete() {
-    const updated = await updateTask(task.id, { completed: !task.completed })
-    onUpdate(updated)
+    try {
+      const updated = await updateTask(task.id, { completed: !task.completed })
+      onUpdate(updated)
+    } catch {
+      onError('Failed to update task')
+    }
   }
 
   async function toggleArchived() {
-    const updated = await updateTask(task.id, { archived: !task.archived })
-    onUpdate(updated)
+    try {
+      const updated = await updateTask(task.id, { archived: !task.archived })
+      onUpdate(updated)
+    } catch {
+      onError('Failed to update task')
+    }
   }
 
   async function handleDelete() {
-    await deleteTask(task.id)
-    onDelete(task.id)
+    try {
+      await deleteTask(task.id)
+      onDelete(task.id)
+    } catch {
+      onError('Failed to delete task')
+    }
   }
 
   return (

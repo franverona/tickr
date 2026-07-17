@@ -77,6 +77,8 @@ export default function CreateTaskModal({
         urls: links,
       })
       onCreated(task)
+    } catch {
+      setError('Failed to create task — please try again')
     } finally {
       setIsPending(false)
     }

@@ -232,20 +232,24 @@ export default function Page() {
     if (!contextMenu) return
     const { taskId } = contextMenu
     setContextMenu(null)
-    if (action === 'delete') {
-      await deleteTask(taskId)
-      handleTaskDeleted(taskId)
-    } else {
-      const data =
-        action === 'complete'
-          ? { completed: true }
-          : action === 'reopen'
-            ? { completed: false }
-            : action === 'archive'
-              ? { archived: true }
-              : { archived: false }
-      const updated = await updateTask(taskId, data)
-      handleTaskUpdated(updated)
+    try {
+      if (action === 'delete') {
+        await deleteTask(taskId)
+        handleTaskDeleted(taskId)
+      } else {
+        const data =
+          action === 'complete'
+            ? { completed: true }
+            : action === 'reopen'
+              ? { completed: false }
+              : action === 'archive'
+                ? { archived: true }
+                : { archived: false }
+        const updated = await updateTask(taskId, data)
+        handleTaskUpdated(updated)
+      }
+    } catch {
+      showToast(action === 'delete' ? 'Failed to delete task' : 'Failed to update task', 'error')
     }
   }
 
@@ -756,6 +760,7 @@ export default function Page() {
               onClose={() => setSelectedTaskId(null)}
               onTagCreated={handleTagCreated}
               onSelectTask={setSelectedTaskId}
+              onError={(message) => showToast(message, 'error')}
             />
           </div>
         ) : (
