@@ -5,16 +5,67 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import TaskDetail from '../components/TaskDetail'
 import type { Tag, Task } from '../lib/types'
 
-const { updateTask, deleteTask } = vi.hoisted(() => ({
+const { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } = vi.hoisted(() => ({
   updateTask: vi.fn(),
   deleteTask: vi.fn(),
+  addTaskUrl: vi.fn(),
+  deleteTaskUrl: vi.fn(),
+  updateTaskUrl: vi.fn(),
 }))
 vi.mock('@/app/actions', () => ({
   updateTask,
   deleteTask,
-  addTaskUrl: vi.fn(),
-  deleteTaskUrl: vi.fn(),
-  updateTaskUrl: vi.fn(),
+  addTaskUrl,
+  deleteTaskUrl,
+  updateTaskUrl,
+}))
+
+// Mock for @/components/MdEditor — MDEditor/MarkdownLink/etc. copied from
+// CreateTaskModal.test.tsx. MDPreview is enhanced here: it scans `source`
+// for markdown checklist lines (mirroring TaskDetail.tsx's own
+// CHECKLIST_ITEM_RE) and renders each one through the real `input` render
+// prop TaskDetail passes in, so clicking a checkbox exercises the same
+// handleToggleChecklist wiring the app uses — not just a dumb <div>.
+const CHECKLIST_LINE_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\](.*)$/gm
+
+vi.mock('@/components/MdEditor', () => ({
+  MDEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
+    <textarea data-testid="md-editor" value={value} onChange={(e) => onChange(e.target.value)} />
+  ),
+  MDPreview: ({
+    source,
+    components,
+  }: {
+    source: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    components?: { input?: (props: any) => React.ReactNode }
+  }) => {
+    const items: { mark: string; text: string }[] = []
+    let match: RegExpExecArray | null
+    CHECKLIST_LINE_RE.lastIndex = 0
+    while ((match = CHECKLIST_LINE_RE.exec(source))) {
+      items.push({ mark: match[2], text: match[3] })
+    }
+    const InputComponent = components?.input
+    return (
+      <div data-testid="md-preview">
+        {items.map((item, i) => (
+          <label key={i}>
+            {InputComponent ? (
+              InputComponent({ type: 'checkbox', checked: item.mark !== ' ', node: {} })
+            ) : (
+              <input type="checkbox" checked={item.mark !== ' '} readOnly />
+            )}
+            {item.text}
+          </label>
+        ))}
+      </div>
+    )
+  },
+  MarkdownLink: (props: React.AnchorHTMLAttributes<HTMLAnchorElement>) => <a {...props} />,
+  makeImageHandlers: () => ({ onDrop: vi.fn(), onPaste: vi.fn() }),
+  replaceImageWidth: (markdown: string) => markdown,
+  remarkOutlineList: () => (tree: unknown) => tree,
 }))
 
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -72,6 +123,9 @@ describe('TaskDetail', () => {
     cleanup()
     updateTask.mockReset()
     deleteTask.mockReset()
+    addTaskUrl.mockReset()
+    deleteTaskUrl.mockReset()
+    updateTaskUrl.mockReset()
   })
 
   it('edits and saves the title', async () => {
@@ -175,5 +229,138 @@ describe('TaskDetail', () => {
 
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
     expect(deleteTask).not.toHaveBeenCalled()
+  })
+
+  it('auto-saves the description after the debounce elapses', async () => {
+    vi.useFakeTimers()
+    const task = makeTask()
+    const updated = makeTask({ description: 'New notes' })
+    updateTask.mockResolvedValueOnce(updated)
+    const { props } = renderTaskDetail(task)
+
+    fireEvent.click(screen.getByText('Edit'))
+    const editor = screen.getByTestId('md-editor')
+    fireEvent.change(editor, { target: { value: 'New notes' } })
+
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'New notes' })
+    expect(props.onUpdate).toHaveBeenCalledWith(updated)
+    vi.useRealTimers()
+  })
+
+  it('saves the description immediately when Done is clicked', async () => {
+    const task = makeTask()
+    const updated = makeTask({ description: 'Finished notes' })
+    updateTask.mockResolvedValueOnce(updated)
+    const { props } = renderTaskDetail(task)
+
+    fireEvent.click(screen.getByText('Edit'))
+    const editor = screen.getByTestId('md-editor')
+    fireEvent.change(editor, { target: { value: 'Finished notes' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+
+    await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
+    expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'Finished notes' })
+    expect(screen.queryByTestId('md-editor')).not.toBeInTheDocument()
+  })
+
+  it('adds a link', async () => {
+    const task = makeTask()
+    const updated = makeTask({ urls: [{ id: 'url-1', url: 'not-a-real-url', label: 'notes' }] })
+    addTaskUrl.mockResolvedValueOnce(updated)
+    const { props } = renderTaskDetail(task)
+
+    // Links section starts expanded (showUrlLinks defaults to true).
+    fireEvent.click(screen.getByRole('button', { name: '+ Add' }))
+    fireEvent.change(screen.getByPlaceholderText('URL'), { target: { value: 'not-a-real-url' } })
+    fireEvent.change(screen.getByPlaceholderText('Label (optional)'), {
+      target: { value: 'notes' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
+    expect(addTaskUrl).toHaveBeenCalledWith('task-1', { url: 'not-a-real-url', label: 'notes' })
+  })
+
+  it('edits an existing link', async () => {
+    const task = makeTask({
+      urls: [{ id: 'url-1', url: 'https://example.com', label: 'Example' }],
+    })
+    const updated = makeTask({
+      urls: [{ id: 'url-1', url: 'https://example.com/updated', label: 'Example' }],
+    })
+    updateTaskUrl.mockResolvedValueOnce(updated)
+    const { props } = renderTaskDetail(task)
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0])
+    const urlInput = screen.getByDisplayValue('https://example.com')
+    fireEvent.change(urlInput, { target: { value: 'https://example.com/updated' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
+    expect(updateTaskUrl).toHaveBeenCalledWith('task-1', 'url-1', {
+      url: 'https://example.com/updated',
+      label: 'Example',
+    })
+  })
+
+  it('deletes a link after confirmation', async () => {
+    const task = makeTask({
+      urls: [{ id: 'url-1', url: 'https://example.com', label: 'Example' }],
+    })
+    const updated = makeTask({ urls: [] })
+    deleteTaskUrl.mockResolvedValueOnce(updated)
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const { props } = renderTaskDetail(task)
+
+    fireEvent.click(screen.getByTitle('Remove link'))
+
+    await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
+    expect(deleteTaskUrl).toHaveBeenCalledWith('task-1', 'url-1')
+    confirmSpy.mockRestore()
+  })
+
+  it('does not delete a link when the user cancels the confirmation', () => {
+    const task = makeTask({
+      urls: [{ id: 'url-1', url: 'https://example.com', label: 'Example' }],
+    })
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false)
+    renderTaskDetail(task)
+
+    fireEvent.click(screen.getByTitle('Remove link'))
+
+    expect(deleteTaskUrl).not.toHaveBeenCalled()
+    confirmSpy.mockRestore()
+  })
+
+  it('checks an unchecked checklist item', async () => {
+    const task = makeTask({ description: '- [ ] First item\n- [x] Second item' })
+    const updated = makeTask({ description: '- [x] First item\n- [x] Second item' })
+    updateTask.mockResolvedValueOnce(updated)
+    const { props } = renderTaskDetail(task)
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    fireEvent.click(checkboxes[0])
+
+    await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
+    expect(updateTask).toHaveBeenCalledWith('task-1', {
+      description: '- [x] First item\n- [x] Second item',
+    })
+  })
+
+  it('unchecks a checked checklist item', async () => {
+    const task = makeTask({ description: '- [ ] First item\n- [x] Second item' })
+    const updated = makeTask({ description: '- [ ] First item\n- [ ] Second item' })
+    updateTask.mockResolvedValueOnce(updated)
+    const { props } = renderTaskDetail(task)
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    fireEvent.click(checkboxes[1])
+
+    await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
+    expect(updateTask).toHaveBeenCalledWith('task-1', {
+      description: '- [ ] First item\n- [ ] Second item',
+    })
   })
 })
