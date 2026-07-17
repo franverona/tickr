@@ -7,7 +7,7 @@ This project uses **Next.js 16**. Read `node_modules/next/dist/docs/` before wri
 ## Stack
 
 - **Next.js 16** App Router with Server Actions (`'use server'` file directive)
-- **Pluggable database** behind a `TaskRepository` interface (`lib/db/`), selected at runtime via `DB_TYPE`. SQLite (via `better-sqlite3` + Kysely), Postgres (via `pg` + Kysely), and Firestore (via `@google-cloud/firestore`, no Kysely) are implemented; MySQL is designed for but not yet built — see "Database backend" below
+- **Pluggable database** behind a `TaskRepository` interface (`lib/db/`), selected at runtime via `DB_TYPE`. SQLite, Postgres, and MySQL (all via Kysely — `better-sqlite3`, `pg`, `mysql2` drivers respectively) and Firestore (via `@google-cloud/firestore`, no Kysely) are implemented — see "Database backend" below
 - **Tailwind CSS v4**
 - **TypeScript**
 - `@uiw/react-md-editor` — loaded via `next/dynamic` with `{ ssr: false }`
@@ -49,6 +49,11 @@ lib/
       migrate.ts                # ensureSchema() — DDL (final shape, no migration history), tag seeding
       repository.ts               # PostgresTaskRepository implements TaskRepository
       index.ts                     # getPostgresRepository(), globalThis-cached
+    mysql/
+      connection.ts           # mysql2 Pool + Kysely singleton, globalThis-cached, reads DATABASE_URL
+      migrate.ts                # ensureSchema() — DDL (final shape, no migration history), tag seeding
+      repository.ts               # MysqlTaskRepository implements TaskRepository
+      index.ts                     # getMysqlRepository(), globalThis-cached
     firestore/
       connection.ts        # Firestore client singleton, globalThis-cached, reads FIRESTORE_SERVICE_ACCOUNT_KEY
       seed.ts                 # ensureSeeded() — predefined-tag seeding only (no DDL to run)
@@ -74,12 +79,12 @@ public/
 - **Migrations** run idempotently in `ensureSchema()` inside `lib/db/sqlite/migrate.ts` — add `ALTER TABLE … ADD COLUMN` wrapped in try/catch to extend the schema without breaking existing databases. There's no migration-version table; idempotency comes from try/catch on `ADD COLUMN` and existence checks (e.g. `pragma_table_info`) for anything that can't be safely retried the same way (like `DROP COLUMN`)
 - **Export format**: ZIP containing `tasks.json` or `tasks.csv` + `uploads/` folder. Image paths in the data file are rewritten from `/uploads/` to `uploads/` (relative) so the archive is self-contained. `lib/export.ts` is client-only.
 - **Import**: `lib/import.ts` is client-only — it parses the ZIP with JSZip, uploads images through `/api/upload`, rewrites paths, then calls the `importTasks` server action which resolves/creates tags and bulk-inserts tasks. Imported tags without a matching existing tag get a color cycled from `COLOR_PALETTE`.
-- **Export/import is backend-agnostic**: a ZIP exported while running on one `DB_TYPE` imports cleanly into any other. `ImportedTask` (`lib/import.ts`) carries no `id` or timestamp fields — every backend's `importTasks` re-links tags by `label.toLowerCase()` (not by id) and regenerates ids via `randomUUID()`/`slugify()` rather than relying on DB-native autoincrement, so there's no backend-specific ID format to round-trip. Verified by `__tests__/cross-backend-import-export.test.ts` (automated SQLite↔Postgres) and manually against a live Firestore project (SQLite→Firestore), consistent with the Firestore adapter's no-automated-tests convention below.
+- **Export/import is backend-agnostic**: a ZIP exported while running on one `DB_TYPE` imports cleanly into any other. `ImportedTask` (`lib/import.ts`) carries no `id` or timestamp fields — every backend's `importTasks` re-links tags by `label.toLowerCase()` (not by id) and regenerates ids via `randomUUID()`/`slugify()` rather than relying on DB-native autoincrement, so there's no backend-specific ID format to round-trip. Verified by `__tests__/cross-backend-import-export.test.ts` (automated SQLite↔Postgres and SQLite↔MySQL) and manually against a live Firestore project (SQLite→Firestore), consistent with the Firestore adapter's no-automated-tests convention below.
 
 ## Database backend
 
-- **`DB_TYPE`** env var selects the backend. Defaults to `sqlite` (zero-config — no env var needed for the common case). `sqlite`, `postgres`, and `firestore` are implemented; setting `DB_TYPE=mysql` throws a clear "not implemented yet" error from `getRepository()` (`lib/db/factory.ts`) rather than silently falling back
-- Postgres shares a Kysely-based SQL layer with the SQLite adapter and reads connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars). MySQL, when implemented, will follow the same convention. Firestore is schemaless and reads a single **`FIRESTORE_SERVICE_ACCOUNT_KEY`** connection string instead (see "Firestore adapter" below)
+- **`DB_TYPE`** env var selects the backend. Defaults to `sqlite` (zero-config — no env var needed for the common case). `sqlite`, `postgres`, `mysql`, and `firestore` are all implemented
+- Postgres and MySQL share a Kysely-based SQL layer with the SQLite adapter and read connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars). Firestore is schemaless and reads a single **`FIRESTORE_SERVICE_ACCOUNT_KEY`** connection string instead (see "Firestore adapter" below)
 - **To add a new backend**: implement `TaskRepository` (`lib/db/types.ts`) in a new `lib/db/<backend>/` directory (mirror `lib/db/sqlite/` or `lib/db/postgres/`), then register it in the `switch` in `lib/db/factory.ts`
 - All DB access goes through `getRepository()` from `lib/db` — `app/actions.ts`'s Server Actions are thin wrappers over it and contain no backend-specific logic themselves
 
@@ -101,6 +106,16 @@ public/
 - **Local testing**: `docker-compose.yml` at the repo root runs a `postgres:16-alpine` container (`docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=postgres` and `DATABASE_URL`, then `pnpm dev`
 - To reset: `docker compose down -v` (drops the named volume) and restart
 
+## MySQL adapter
+
+- Configured via **`DATABASE_URL`** (e.g. `mysql://user:pass@host:3306/dbname`) — `lib/db/mysql/connection.ts` throws a clear error if unset when `DB_TYPE=mysql`. Connection is a `mysql2` (callback API, not `mysql2/promise`) `Pool` wrapped in Kysely (`MysqlDialect`), `globalThis`-cached for the same hot-reload reason as Postgres
+- Reuses SQLite's `DbSchema`/`TasksTable` from `lib/db/types.ts` directly rather than a dedicated schema file like Postgres's — `completed`/`archived` are declared `boolean` in the DDL (MySQL stores this as `TINYINT(1)`), but the `mysql2` driver reads it back as a JS number (0|1), same as `better-sqlite3` and unlike `pg`, so the number-based row type and manual `=== 1` conversion in `lib/db/mysql/repository.ts` is identical to `lib/db/sqlite/repository.ts`'s
+- `id`/foreign-key columns (`tasks.id`, `tags.id`, `task_urls.id`, `task_urls.task_id`, `task_tags.task_id`, `task_tags.tag_id`) use `varchar(255)` rather than `text` — MySQL can't index a `TEXT`/`BLOB` column, including as a primary or foreign key, without an explicit key length. Non-indexed text columns (`title`, `description`, `url`, `label`, `color`, and the `TEXT`-stored ISO-8601 timestamp columns) stay `text`
+- MySQL has no `ON CONFLICT` — predefined-tag seeding (`lib/db/mysql/migrate.ts`) and imported-tag creation (`lib/db/mysql/repository.ts`) use Kysely's `.ignore()` (`INSERT IGNORE`) instead of the SQLite/Postgres adapters' `.onConflict((oc) => oc.doNothing())`
+- `lib/db/mysql/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder — no incremental migration history to replay, same as Postgres
+- **Local testing**: `docker-compose.yml`'s `mysql` service (`mysql:8.4`, `docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=mysql` and its `DATABASE_URL`, then `pnpm dev`
+- To reset: `docker compose down -v` (drops the named volume) and restart
+
 ## Firestore adapter
 
 - Configured via **`FIRESTORE_SERVICE_ACCOUNT_KEY`** — the full service-account JSON (Firebase Console → Project Settings → Service Accounts → Generate new private key) as a single-line env var, `JSON.parse`d and passed as `credentials` to the `Firestore` constructor (`lib/db/firestore/connection.ts`). Not the Web SDK client config (`apiKey`/`authDomain`/`appId`) — that can't authenticate server-side access. The service-account key file itself must never be committed; `*firebase-adminsdk*.json` is gitignored as a safety net and the code never reads a file path (`keyFilename`), only the env var
@@ -118,7 +133,7 @@ public/
 - Tests live in `__tests__/`: `export.test.ts`, `import.test.ts`, `actions.test.ts`, `cross-backend-import-export.test.ts`
 - `actions.test.ts` mocks `lib/db`'s `getRepository` via `vi.hoisted` + `vi.mock`, backed by a `SqliteTaskRepository` built on an in-memory `better-sqlite3` DB — schema comes from the real `ensureSchema()` (`lib/db/sqlite/migrate.ts`) rather than a duplicated DDL copy, so the test fixture can't drift from production. `beforeEach` wipes all rows (including seeded tags) for isolation; tests that need specific tags insert them directly first
 - `parseCSVRows`, `parseJSONContent`, `parseCSVContent` in `lib/import.ts` are exported so they can be unit-tested directly
-- `cross-backend-import-export.test.ts` seeds a source `TaskRepository`, runs it through `exportToJSON`/`exportToCSV` → `parseJSONContent`/`parseCSVContent` → a destination repository's `importTasks`, and asserts the data survives modulo backend-regenerated ids/timestamps. The SQLite↔SQLite case (two independent in-memory DBs) always runs; the SQLite↔Postgres cases skip themselves (via a runtime reachability check, not a hardcoded env flag) when the local `docker-compose.yml` Postgres isn't running. Because two independent in-memory SQLite DBs are created in the same process, `makeSqliteRepo()` calls `vi.resetModules()` before each one — `lib/db/sqlite/migrate.ts` caches its migration promise at module scope (correct for production's single connection), so without a fresh module instance per DB, the second DB's tables would never actually get created
+- `cross-backend-import-export.test.ts` seeds a source `TaskRepository`, runs it through `exportToJSON`/`exportToCSV` → `parseJSONContent`/`parseCSVContent` → a destination repository's `importTasks`, and asserts the data survives modulo backend-regenerated ids/timestamps. The SQLite↔SQLite case (two independent in-memory DBs) always runs; the SQLite↔Postgres and SQLite↔MySQL cases each skip themselves (via a runtime reachability check, not a hardcoded env flag) when the corresponding `docker-compose.yml` service isn't running. Because two independent in-memory SQLite DBs are created in the same process, `makeSqliteRepo()` calls `vi.resetModules()` before each one — `lib/db/sqlite/migrate.ts` caches its migration promise at module scope (correct for production's single connection), so without a fresh module instance per DB, the second DB's tables would never actually get created
 
 ## Before considering a feature or fix done
 

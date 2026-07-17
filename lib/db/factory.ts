@@ -1,6 +1,7 @@
 import type { TaskRepository } from './types'
 import { getSqliteRepository } from './sqlite'
 import { getPostgresRepository } from './postgres'
+import { getMysqlRepository } from './mysql'
 import { getFirestoreRepository } from './firestore'
 
 // DB_TYPE selects the backend, defaulting to "sqlite" so existing deployments
@@ -17,16 +18,13 @@ export function getRepository(): TaskRepository {
       return getSqliteRepository()
     case 'postgres':
       return getPostgresRepository()
+    case 'mysql':
+      return getMysqlRepository()
     case 'firestore':
       return getFirestoreRepository()
-    case 'mysql':
-      throw new Error(
-        `DB_TYPE="mysql" is not implemented yet. Currently "sqlite", "postgres", and "firestore" are supported. ` +
-          `When implemented, this backend will be configured via DATABASE_URL (a single connection string).`,
-      )
     default:
       throw new Error(
-        `Unknown DB_TYPE="${dbType}". Supported: "sqlite" (default), "postgres", "firestore". Planned: "mysql".`,
+        `Unknown DB_TYPE="${dbType}". Supported: "sqlite" (default), "postgres", "mysql", "firestore".`,
       )
   }
 }

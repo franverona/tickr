@@ -13,7 +13,7 @@ A local task management app for tracking work.
 ## Stack
 
 - **Next.js 16** (App Router, Server Actions)
-- **SQLite** (default), **Postgres**, or **Firestore** — pluggable via `DB_TYPE`
+- **SQLite** (default), **Postgres**, **MySQL**, or **Firestore** — pluggable via `DB_TYPE`
 - **Tailwind CSS v4**
 - **TypeScript**
 - **@uiw/react-md-editor** for markdown descriptions
@@ -42,7 +42,7 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-By default, Tickr uses SQLite — no config needed. Predefined tags (WIP, UAT, Pipeline, Blocked, Review) are seeded on startup regardless of backend. See [Database](#database) below to use Postgres or Firestore instead.
+By default, Tickr uses SQLite — no config needed. Predefined tags (WIP, UAT, Pipeline, Blocked, Review) are seeded on startup regardless of backend. See [Database](#database) below to use Postgres, MySQL, or Firestore instead.
 
 ## Database
 
@@ -54,7 +54,11 @@ Created automatically at `./data/tasks.db` on first run — no config needed. To
 
 ### Postgres
 
-Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`). For a local Postgres to test against: `docker compose up -d` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset: `docker compose down -v` (drops the local container's volume), or clear the tables directly for a remote instance.
+Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`). For a local Postgres to test against: `docker compose up -d postgres` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset: `docker compose down -v` (drops the local container's volume), or clear the tables directly for a remote instance.
+
+### MySQL
+
+Set `DB_TYPE=mysql` and `DATABASE_URL` (e.g. `mysql://user:pass@host:3306/dbname`). For a local MySQL to test against: `docker compose up -d mysql` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset: `docker compose down -v` (drops the local container's volume), or clear the tables directly for a remote instance.
 
 ### Firestore
 
