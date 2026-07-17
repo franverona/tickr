@@ -1,5 +1,5 @@
-# Local Postgres for testing DB_TYPE=postgres. Dev-only: fixed weak
-# credentials are fine since this is bound to localhost.
+# Local Postgres/MySQL for testing DB_TYPE=postgres / DB_TYPE=mysql. Dev-only:
+# fixed weak credentials are fine since these are bound to localhost.
 services:
   postgres:
     image: postgres:16-alpine
@@ -19,5 +19,23 @@ services:
       timeout: 5s
       retries: 5
 
+  mysql:
+    image: mysql:8.4
+    container_name: tickr-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_DATABASE: tickr
+    ports:
+      - '3306:3306'
+    volumes:
+      - tickr-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD-SHELL', 'mysqladmin ping -h localhost -u root -pmysql']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   tickr-postgres-data:
+  tickr-mysql-data:

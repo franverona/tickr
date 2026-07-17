@@ -7,7 +7,7 @@ This project uses **Next.js 16**. Read `node_modules/next/dist/docs/` before wri
 ## Stack
 
 - **Next.js 16** App Router with Server Actions (`'use server'` file directive)
-- **Pluggable database** behind a `TaskRepository` interface (`lib/db/`), selected at runtime via `DB_TYPE`. SQLite (via `better-sqlite3` + Kysely), Postgres (via `pg` + Kysely), and Firestore (via `@google-cloud/firestore`, no Kysely) are implemented; MySQL is designed for but not yet built — see "Database backend" below
+- **Pluggable database** behind a `TaskRepository` interface (`lib/db/`), selected at runtime via `DB_TYPE`. SQLite, Postgres, and MySQL (all via Kysely — `better-sqlite3`, `pg`, `mysql2` drivers respectively) and Firestore (via `@google-cloud/firestore`, no Kysely) are implemented — see "Database backend" below
 - **Tailwind CSS v4**
 - **TypeScript**
 - `@uiw/react-md-editor` — loaded via `next/dynamic` with `{ ssr: false }`
@@ -49,6 +49,11 @@ lib/
       migrate.ts                # ensureSchema() — DDL (final shape, no migration history), tag seeding
       repository.ts               # PostgresTaskRepository implements TaskRepository
       index.ts                     # getPostgresRepository(), globalThis-cached
+    mysql/
+      connection.ts           # mysql2 Pool + Kysely singleton, globalThis-cached, reads DATABASE_URL
+      migrate.ts                # ensureSchema() — DDL (final shape, no migration history), tag seeding
+      repository.ts               # MysqlTaskRepository implements TaskRepository
+      index.ts                     # getMysqlRepository(), globalThis-cached
     firestore/
       connection.ts        # Firestore client singleton, globalThis-cached, reads FIRESTORE_SERVICE_ACCOUNT_KEY
       seed.ts                 # ensureSeeded() — predefined-tag seeding only (no DDL to run)
@@ -78,8 +83,8 @@ public/
 
 ## Database backend
 
-- **`DB_TYPE`** env var selects the backend. Defaults to `sqlite` (zero-config — no env var needed for the common case). `sqlite`, `postgres`, and `firestore` are implemented; setting `DB_TYPE=mysql` throws a clear "not implemented yet" error from `getRepository()` (`lib/db/factory.ts`) rather than silently falling back
-- Postgres shares a Kysely-based SQL layer with the SQLite adapter and reads connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars). MySQL, when implemented, will follow the same convention. Firestore is schemaless and reads a single **`FIRESTORE_SERVICE_ACCOUNT_KEY`** connection string instead (see "Firestore adapter" below)
+- **`DB_TYPE`** env var selects the backend. Defaults to `sqlite` (zero-config — no env var needed for the common case). `sqlite`, `postgres`, `mysql`, and `firestore` are all implemented
+- Postgres and MySQL share a Kysely-based SQL layer with the SQLite adapter and read connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars). Firestore is schemaless and reads a single **`FIRESTORE_SERVICE_ACCOUNT_KEY`** connection string instead (see "Firestore adapter" below)
 - **To add a new backend**: implement `TaskRepository` (`lib/db/types.ts`) in a new `lib/db/<backend>/` directory (mirror `lib/db/sqlite/` or `lib/db/postgres/`), then register it in the `switch` in `lib/db/factory.ts`
 - All DB access goes through `getRepository()` from `lib/db` — `app/actions.ts`'s Server Actions are thin wrappers over it and contain no backend-specific logic themselves
 
@@ -99,6 +104,16 @@ public/
 - Same 4-table schema as SQLite (`tasks`, `tags`, `task_urls`, `task_tags`), but `completed`/`archived` are native `BOOLEAN` columns (the `pg` driver handles JS booleans natively, unlike better-sqlite3) — see `lib/db/postgres/schema.ts`'s `PgTasksTable`. Timestamps stay `TEXT` (ISO-8601 strings) on both backends for consistency
 - `lib/db/postgres/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder (`db.schema.createTable(...)`) — no incremental migration history to replay, unlike `sqlite/migrate.ts`, since Postgres starts fresh
 - **Local testing**: `docker-compose.yml` at the repo root runs a `postgres:16-alpine` container (`docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=postgres` and `DATABASE_URL`, then `pnpm dev`
+- To reset: `docker compose down -v` (drops the named volume) and restart
+
+## MySQL adapter
+
+- Configured via **`DATABASE_URL`** (e.g. `mysql://user:pass@host:3306/dbname`) — `lib/db/mysql/connection.ts` throws a clear error if unset when `DB_TYPE=mysql`. Connection is a `mysql2` (callback API, not `mysql2/promise`) `Pool` wrapped in Kysely (`MysqlDialect`), `globalThis`-cached for the same hot-reload reason as Postgres
+- Reuses SQLite's `DbSchema`/`TasksTable` from `lib/db/types.ts` directly rather than a dedicated schema file like Postgres's — `completed`/`archived` are declared `boolean` in the DDL (MySQL stores this as `TINYINT(1)`), but the `mysql2` driver reads it back as a JS number (0|1), same as `better-sqlite3` and unlike `pg`, so the number-based row type and manual `=== 1` conversion in `lib/db/mysql/repository.ts` is identical to `lib/db/sqlite/repository.ts`'s
+- `id`/foreign-key columns (`tasks.id`, `tags.id`, `task_urls.id`, `task_urls.task_id`, `task_tags.task_id`, `task_tags.tag_id`) use `varchar(255)` rather than `text` — MySQL can't index a `TEXT`/`BLOB` column, including as a primary or foreign key, without an explicit key length. Non-indexed text columns (`title`, `description`, `url`, `label`, `color`, and the `TEXT`-stored ISO-8601 timestamp columns) stay `text`
+- MySQL has no `ON CONFLICT` — predefined-tag seeding (`lib/db/mysql/migrate.ts`) and imported-tag creation (`lib/db/mysql/repository.ts`) use Kysely's `.ignore()` (`INSERT IGNORE`) instead of the SQLite/Postgres adapters' `.onConflict((oc) => oc.doNothing())`
+- `lib/db/mysql/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder — no incremental migration history to replay, same as Postgres
+- **Local testing**: `docker-compose.yml`'s `mysql` service (`mysql:8.4`, `docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=mysql` and its `DATABASE_URL`, then `pnpm dev`
 - To reset: `docker compose down -v` (drops the named volume) and restart
 
 ## Firestore adapter
