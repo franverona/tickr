@@ -46,6 +46,7 @@ export default function Page() {
     message: string
     kind: 'loading' | 'success' | 'error'
   } | null>(null)
+  const [toastClosing, setToastClosing] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
@@ -100,9 +101,10 @@ export default function Page() {
 
   function showToast(message: string, kind: 'loading' | 'success' | 'error') {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToastClosing(false)
     setToast({ message, kind })
     if (kind !== 'loading') {
-      toastTimerRef.current = setTimeout(() => setToast(null), 3000)
+      toastTimerRef.current = setTimeout(() => setToastClosing(true), 3000)
     }
   }
 
@@ -232,20 +234,24 @@ export default function Page() {
     if (!contextMenu) return
     const { taskId } = contextMenu
     setContextMenu(null)
-    if (action === 'delete') {
-      await deleteTask(taskId)
-      handleTaskDeleted(taskId)
-    } else {
-      const data =
-        action === 'complete'
-          ? { completed: true }
-          : action === 'reopen'
-            ? { completed: false }
-            : action === 'archive'
-              ? { archived: true }
-              : { archived: false }
-      const updated = await updateTask(taskId, data)
-      handleTaskUpdated(updated)
+    try {
+      if (action === 'delete') {
+        await deleteTask(taskId)
+        handleTaskDeleted(taskId)
+      } else {
+        const data =
+          action === 'complete'
+            ? { completed: true }
+            : action === 'reopen'
+              ? { completed: false }
+              : action === 'archive'
+                ? { archived: true }
+                : { archived: false }
+        const updated = await updateTask(taskId, data)
+        handleTaskUpdated(updated)
+      }
+    } catch {
+      showToast(action === 'delete' ? 'Failed to delete task' : 'Failed to update task', 'error')
     }
   }
 
@@ -756,6 +762,7 @@ export default function Page() {
               onClose={() => setSelectedTaskId(null)}
               onTagCreated={handleTagCreated}
               onSelectTask={setSelectedTaskId}
+              onError={(message) => showToast(message, 'error')}
             />
           </div>
         ) : (
@@ -801,7 +808,12 @@ export default function Page() {
 
       {toast && (
         <div
-          className={`fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm shadow-xl ${
+          onTransitionEnd={() => {
+            if (toastClosing) setToast(null)
+          }}
+          className={`fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-lg px-3.5 py-2.5 text-sm shadow-xl transition-all duration-200 ease-out starting:translate-y-2 starting:opacity-0 ${
+            toastClosing ? 'translate-y-2 opacity-0' : 'translate-y-0 opacity-100'
+          } ${
             toast.kind === 'error'
               ? 'bg-red-600 text-white'
               : 'border-surface-700 bg-surface-800 text-surface-100 border'
