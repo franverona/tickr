@@ -1,17 +1,20 @@
 import Database from 'better-sqlite3'
-import { Kysely, PostgresDialect, SqliteDialect } from 'kysely'
+import { Kysely, MysqlDialect, PostgresDialect, SqliteDialect } from 'kysely'
+import { createPool } from 'mysql2'
+import { createConnection } from 'mysql2/promise'
 import { Pool } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
 import type { DbSchema, TaskRepository } from '../lib/db/types'
 import type { PgDbSchema } from '../lib/db/postgres/schema'
 import { PostgresTaskRepository } from '../lib/db/postgres/repository'
+import { MysqlTaskRepository } from '../lib/db/mysql/repository'
 import { exportToCSV, exportToJSON } from '../lib/export'
 import { parseCSVContent, parseJSONContent } from '../lib/import'
 import type { Tag, Task } from '../lib/types'
 
 // Proves the export/import contract is backend-agnostic: seed a source
 // repository, export it, import into a *different* repository instance
-// (a different backend, in the postgres case), and assert the data is
+// (a different backend, in the postgres/mysql cases), and assert the data is
 // equivalent modulo backend-regenerated ids/timestamps.
 
 // lib/db/sqlite/migrate.ts caches its "schema is ready" promise at module
@@ -51,11 +54,31 @@ async function isPostgresAvailable(): Promise<boolean> {
   }
 }
 
+const MYSQL_URL = process.env.MYSQL_DATABASE_URL ?? 'mysql://root:mysql@localhost:3306/tickr'
+
+function makeMysqlRepo(): TaskRepository {
+  const kysely = new Kysely<DbSchema>({
+    dialect: new MysqlDialect({ pool: createPool(MYSQL_URL) }),
+  })
+  return new MysqlTaskRepository(kysely)
+}
+
+async function isMysqlAvailable(): Promise<boolean> {
+  try {
+    const conn = await createConnection(MYSQL_URL)
+    await conn.query('select 1')
+    await conn.end()
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function seedSource(repo: TaskRepository): Promise<void> {
-  // Wipe first: the postgres-backed repos in this file point at a real,
-  // persistent docker-compose database, not a fresh in-memory one, so a
-  // repeated test run would otherwise collide with tags left over from the
-  // last run.
+  // Wipe first: the postgres/mysql-backed repos in this file point at a
+  // real, persistent docker-compose database, not a fresh in-memory one, so
+  // a repeated test run would otherwise collide with tags left over from
+  // the last run.
   await repo.importTasks([], true)
 
   const bug = await repo.createTag({
@@ -145,5 +168,21 @@ describe('cross-backend import/export round trip', () => {
       return
     }
     await assertRoundTrip(makePostgresRepo(), await makeSqliteRepo())
+  })
+
+  it('sqlite -> mysql', async (ctx) => {
+    if (!(await isMysqlAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertRoundTrip(await makeSqliteRepo(), makeMysqlRepo())
+  })
+
+  it('mysql -> sqlite', async (ctx) => {
+    if (!(await isMysqlAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertRoundTrip(makeMysqlRepo(), await makeSqliteRepo())
   })
 })
