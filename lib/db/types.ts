@@ -2,16 +2,18 @@ import type { Tag, Task } from '../types'
 import type { ImportedTask } from '../import'
 
 // ── Kysely schema ────────────────────────────────────────────────────────────
-// completed/archived are stored as 0|1: Kysely + the better-sqlite3 driver does
-// not auto-convert JS booleans, binding one throws. Conversion is manual, done
-// in each adapter.
+// completed/archived are stored as 0|1 on SQLite/MySQL (neither driver
+// auto-converts JS booleans) and as native boolean on Postgres. TasksTable is
+// generic over that column type so lib/db/shared/sql-repository.ts can share
+// one implementation across all three; the default (`number`) keeps every
+// existing `TasksTable`/`DbSchema` usage (SQLite, MySQL) unchanged.
 
-export interface TasksTable {
+export interface TasksTable<Bool = number> {
   id: string
   title: string
   description: string
-  completed: number
-  archived: number
+  completed: Bool
+  archived: Bool
   due_date: string | null
   created_at: string
   updated_at: string
