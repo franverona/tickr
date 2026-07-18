@@ -158,6 +158,7 @@ export default function Page() {
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
 
   const query = searchQuery.trim().toLowerCase()
+  const tagLabelById = new Map(tags.map((t) => [t.id, t.label.toLowerCase()]))
 
   const filteredTasks = tasks
     .filter((task) => {
@@ -170,7 +171,10 @@ export default function Page() {
       if (!inTab) return false
       if (!query) return true
       return (
-        task.title.toLowerCase().includes(query) || task.description.toLowerCase().includes(query)
+        task.title.toLowerCase().includes(query) ||
+        task.description.toLowerCase().includes(query) ||
+        task.tags.some((id) => tagLabelById.get(id)?.includes(query)) ||
+        task.urls.some((url) => url.label.toLowerCase().includes(query))
       )
     })
     .sort((a, b) => {
