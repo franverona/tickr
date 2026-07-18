@@ -235,12 +235,16 @@ export default function Page() {
 
     if (src === null || over === null || src === over || over === src + 1) return
 
-    const active = tasks.filter((t) => !t.completed)
+    // Must match filteredTasks' active-tab set exactly (same filter, same
+    // order) since src/over are indices into that array — reorder is only
+    // ever triggered while it has no search query applied (see draggable
+    // below), so filteredTasks here is just tasks filtered, unsorted.
+    const active = tasks.filter((t) => !t.completed && !t.archived)
     const reordered = [...active]
     const [item] = reordered.splice(src, 1)
     reordered.splice(over > src ? over - 1 : over, 0, item)
 
-    setTasks((prev) => [...reordered, ...prev.filter((t) => t.completed)])
+    setTasks((prev) => [...reordered, ...prev.filter((t) => t.completed || t.archived)])
     showToast('Saving order…', 'loading')
     try {
       await reorderTasks(reordered.map((t) => t.id))
@@ -748,14 +752,18 @@ export default function Page() {
                         <div className="bg-accent-500 mb-2 h-0.5 rounded-full" />
                       )}
                     <div
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = 'move'
-                        handleDragStart(i)
-                      }}
-                      onDragOver={(e) => handleDragOver(e, i)}
-                      onDrop={handleDrop}
-                      onDragEnd={handleDragEnd}
+                      draggable={!query}
+                      onDragStart={
+                        query
+                          ? undefined
+                          : (e) => {
+                              e.dataTransfer.effectAllowed = 'move'
+                              handleDragStart(i)
+                            }
+                      }
+                      onDragOver={query ? undefined : (e) => handleDragOver(e, i)}
+                      onDrop={query ? undefined : handleDrop}
+                      onDragEnd={query ? undefined : handleDragEnd}
                       className={dragSrcIdx === i ? 'opacity-40' : ''}
                     >
                       <TaskCard
@@ -772,8 +780,8 @@ export default function Page() {
                 ))}
                 <div
                   className="h-4"
-                  onDragOver={(e) => handleDragOver(e, filteredTasks.length)}
-                  onDrop={handleDrop}
+                  onDragOver={query ? undefined : (e) => handleDragOver(e, filteredTasks.length)}
+                  onDrop={query ? undefined : handleDrop}
                 >
                   {dragSrcIdx !== null &&
                     dragOverIdx === filteredTasks.length &&
