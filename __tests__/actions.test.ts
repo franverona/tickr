@@ -120,13 +120,25 @@ describe('updateTasks', () => {
     const b = await createTask({ title: 'B', description: '', tags: [] })
     const c = await createTask({ title: 'C', description: '', tags: [] })
 
-    const updated = await updateTasks([a.id, b.id], { completed: true })
-    expect(updated.map((t) => t.completed)).toEqual([true, true])
+    const result = await updateTasks([a.id, b.id], { completed: true })
+    expect(result.failedIds).toEqual([])
+    expect(result.succeeded.map((t) => t.completed)).toEqual([true, true])
 
     const tasks = await getTasks()
     expect(tasks.find((t) => t.id === a.id)?.completed).toBe(true)
     expect(tasks.find((t) => t.id === b.id)?.completed).toBe(true)
     expect(tasks.find((t) => t.id === c.id)?.completed).toBe(false)
+  })
+
+  it('applies the update to the ids that exist and reports the rest as failed', async () => {
+    const a = await createTask({ title: 'A', description: '', tags: [] })
+
+    const result = await updateTasks([a.id, 'nonexistent'], { completed: true })
+    expect(result.failedIds).toEqual(['nonexistent'])
+    expect(result.succeeded.map((t) => t.id)).toEqual([a.id])
+
+    const tasks = await getTasks()
+    expect(tasks.find((t) => t.id === a.id)?.completed).toBe(true)
   })
 })
 
@@ -136,7 +148,9 @@ describe('deleteTasks', () => {
     const b = await createTask({ title: 'B', description: '', tags: [] })
     const c = await createTask({ title: 'C', description: '', tags: [] })
 
-    await deleteTasks([a.id, b.id])
+    const result = await deleteTasks([a.id, b.id])
+    expect(result.failedIds).toEqual([])
+    expect(result.succeededIds).toEqual([a.id, b.id])
 
     const tasks = await getTasks()
     expect(tasks.map((t) => t.id)).toEqual([c.id])
