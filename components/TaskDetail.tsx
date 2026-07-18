@@ -244,6 +244,7 @@ export default function TaskDetail({
   const titleInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDescRef = useRef(task.description)
+  const descriptionDraftRef = useRef(task.description)
   const editorWrapperRef = useRef<HTMLDivElement>(null)
   const dueStatus = getDueStatus(task.dueDate, task.completed)
   const imageHandlers = makeImageHandlers(setDescriptionDraft)
@@ -737,6 +738,29 @@ export default function TaskDetail({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [descriptionDraft, isEditingDescription])
+
+  useEffect(() => {
+    descriptionDraftRef.current = descriptionDraft
+  }, [descriptionDraft])
+
+  useEffect(() => {
+    // Flush a pending debounced description save on unmount instead of
+    // silently discarding it. TaskDetail is remounted (key={task.id} in
+    // page.tsx) whenever the user switches tasks or closes the panel, which
+    // unmounts this instance — the timer-clearing cleanup above only
+    // cancels the *future* save, so without this, editing a description and
+    // clicking away within the 1.5s debounce window lost the edit with no
+    // warning. Empty deps: this only fires on true unmount, not on every
+    // keystroke re-render (unlike the debounce effect above).
+    return () => {
+      if (descriptionDraftRef.current !== lastSavedDescRef.current) {
+        updateTask(task.id, { description: descriptionDraftRef.current })
+          .then(onUpdate)
+          .catch(() => onError('Failed to save description'))
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   async function handleDone() {
     if (autoSaveTimerRef.current) {

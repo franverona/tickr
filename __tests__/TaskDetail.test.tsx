@@ -249,6 +249,26 @@ describe('TaskDetail', () => {
     vi.useRealTimers()
   })
 
+  it('flushes a pending debounced save when unmounted before the debounce elapses', async () => {
+    const task = makeTask()
+    const updated = makeTask({ description: 'Switched away mid-edit' })
+    updateTask.mockResolvedValueOnce(updated)
+    const { props, unmount } = renderTaskDetail(task)
+
+    fireEvent.click(screen.getByText('Edit'))
+    const editor = screen.getByTestId('md-editor')
+    fireEvent.change(editor, { target: { value: 'Switched away mid-edit' } })
+
+    // Simulates switching tasks or closing the panel within the 1.5s
+    // debounce window — page.tsx remounts TaskDetail via key={task.id}.
+    unmount()
+
+    await vi.waitFor(() =>
+      expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'Switched away mid-edit' }),
+    )
+    expect(props.onUpdate).toHaveBeenCalledWith(updated)
+  })
+
   it('saves the description immediately when Done is clicked', async () => {
     const task = makeTask()
     const updated = makeTask({ description: 'Finished notes' })
