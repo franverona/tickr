@@ -326,6 +326,7 @@ export default function Page() {
     const count = ids.length
     const noun = count === 1 ? 'task' : 'tasks'
     const verb = action === 'delete' ? 'Deleting' : 'Updating'
+    const infinitive = action === 'delete' ? 'delete' : 'update'
     showToast(`${verb} ${count} ${noun}…`, 'loading')
     try {
       let failedIds: string[]
@@ -354,7 +355,7 @@ export default function Page() {
         showToast(`${pastVerb} ${count} ${noun}`, 'success')
         cancelSelectMode()
       } else if (failedIds.length === count) {
-        showToast(`Failed to ${verb.toLowerCase()} ${count} ${noun}`, 'error')
+        showToast(`Failed to ${infinitive} ${count} ${noun}`, 'error')
       } else {
         const succeededCount = count - failedIds.length
         showToast(
