@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { importTasks } from '@/app/actions'
 import { processImportZip } from '@/lib/import'
 import type { Tag, Task } from '@/lib/types'
+import { useFocusTrap } from '@/lib/useFocusTrap'
 
 const CONFIRM_PHRASE = 'DELETE'
 
@@ -18,6 +19,8 @@ export default function ImportModal({ file, onClose, onImported }: ImportModalPr
   const [confirmText, setConfirmText] = useState('')
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState('')
+  const modalRef = useFocusTrap<HTMLDivElement>()
+  const headingId = useId()
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -50,9 +53,18 @@ export default function ImportModal({ file, onClose, onImported }: ImportModalPr
         if (e.target === e.currentTarget && !isPending) onClose()
       }}
     >
-      <div className="border-surface-600 bg-surface-800 flex w-full max-w-md flex-col rounded-xl border shadow-2xl">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={headingId}
+        className="border-surface-600 bg-surface-800 flex w-full max-w-md flex-col rounded-xl border shadow-2xl"
+      >
         <div className="border-surface-700 flex items-center justify-between border-b px-5 py-3">
-          <h2 className="text-surface-100 text-sm font-semibold tracking-wide uppercase">
+          <h2
+            id={headingId}
+            className="text-surface-100 text-sm font-semibold tracking-wide uppercase"
+          >
             Import Tasks
           </h2>
           <button

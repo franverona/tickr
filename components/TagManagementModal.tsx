@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { updateTag, deleteTag } from '@/app/actions'
 import { COLOR_PALETTE } from '@/lib/constants'
 import type { Tag } from '@/lib/types'
 import TagBadge from './TagBadge'
+import { useFocusTrap } from '@/lib/useFocusTrap'
 
 interface TagManagementModalProps {
   tags: Tag[]
@@ -26,6 +27,8 @@ export default function TagManagementModal({
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState('')
+  const modalRef = useFocusTrap<HTMLDivElement>()
+  const headingId = useId()
 
   function startEdit(tag: Tag) {
     setEditingId(tag.id)
@@ -75,11 +78,17 @@ export default function TagManagementModal({
       onClick={onClose}
     >
       <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={headingId}
         className="border-surface-700 bg-surface-800 flex max-h-[80vh] w-full max-w-110 flex-col rounded-xl border shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="border-surface-700 flex flex-shrink-0 items-center justify-between border-b px-4 py-3">
-          <h2 className="text-surface-100 text-sm font-semibold">Manage Tags</h2>
+          <h2 id={headingId} className="text-surface-100 text-sm font-semibold">
+            Manage Tags
+          </h2>
           <button
             onClick={onClose}
             className="text-surface-400 hover:text-surface-100 text-xl leading-none transition-colors"

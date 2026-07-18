@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useId } from 'react'
 import { createTask } from '@/app/actions'
 import type { Tag, Task } from '@/lib/types'
 import TagSelector from './TagSelector'
 import { MDEditor, MarkdownLink } from './MdEditor'
 import { suggestLabel } from '@/lib/suggestLabel'
+import { useFocusTrap } from '@/lib/useFocusTrap'
 
 interface DraftLink {
   url: string
@@ -35,6 +36,8 @@ export default function CreateTaskModal({
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState('')
   const titleRef = useRef<HTMLInputElement>(null)
+  const modalRef = useFocusTrap<HTMLDivElement>(titleRef)
+  const headingId = useId()
 
   function handleAddLink() {
     const url = urlDraft.trim()
@@ -48,10 +51,6 @@ export default function CreateTaskModal({
   function handleRemoveLink(index: number) {
     setLinks((prev) => prev.filter((_, i) => i !== index))
   }
-
-  useEffect(() => {
-    titleRef.current?.focus()
-  }, [])
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -91,9 +90,18 @@ export default function CreateTaskModal({
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="border-surface-600 bg-surface-800 flex max-h-[95vh] w-full max-w-3xl flex-col rounded-xl border shadow-2xl">
+      <div
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={headingId}
+        className="border-surface-600 bg-surface-800 flex max-h-[95vh] w-full max-w-3xl flex-col rounded-xl border shadow-2xl"
+      >
         <div className="border-surface-700 flex items-center justify-between border-b px-5 py-3">
-          <h2 className="text-surface-100 text-sm font-semibold tracking-wide uppercase">
+          <h2
+            id={headingId}
+            className="text-surface-100 text-sm font-semibold tracking-wide uppercase"
+          >
             New Task
           </h2>
           <button
