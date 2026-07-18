@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { Kysely } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import type { TagsTable, TaskUrlsTable, TaskTagsTable, TasksTable, TaskRepository } from '../types'
 import type { Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTask } from '../../import'
@@ -257,30 +257,34 @@ export function createSqlTaskRepository<Bool>(
     ): Promise<Task> {
       const db = await ready()
       const now = new Date().toISOString()
-      const current = await db
-        .selectFrom('tasks')
-        .selectAll()
-        .where('id', '=', id)
-        .executeTakeFirst()
-      if (!current) throw new Error(`Task ${id} not found`)
 
-      const next = {
-        title: data.title ?? current.title,
-        description: data.description ?? current.description,
-        completed: data.completed !== undefined ? boolIn(data.completed) : current.completed,
-        archived: data.archived !== undefined ? boolIn(data.archived) : current.archived,
-        due_date: data.dueDate !== undefined ? data.dueDate : current.due_date,
-        completed_at:
-          data.completed === undefined ? current.completed_at : data.completed ? now : null,
-        archived_at: data.archived === undefined ? current.archived_at : data.archived ? now : null,
+      // Only the columns actually provided are included in the SET clause —
+      // no read-then-merge. Two concurrent calls touching different fields
+      // (e.g. a description autosave alongside a status toggle) each patch
+      // only their own columns instead of one clobbering the other's change
+      // with a stale value read before either write committed. (Two calls
+      // racing to set the *same* field is still last-write-wins, same as any
+      // concurrent write without optimistic locking — not attempted here.)
+      const patch: Record<string, unknown> = { updated_at: now }
+      if (data.title !== undefined) patch.title = data.title
+      if (data.description !== undefined) patch.description = data.description
+      if (data.completed !== undefined) {
+        patch.completed = boolIn(data.completed)
+        patch.completed_at = data.completed ? now : null
       }
+      if (data.archived !== undefined) {
+        patch.archived = boolIn(data.archived)
+        patch.archived_at = data.archived ? now : null
+      }
+      if (data.dueDate !== undefined) patch.due_date = data.dueDate
 
       await db.transaction().execute(async (trx) => {
-        await trx
+        const result = await trx
           .updateTable('tasks')
-          .set({ ...next, updated_at: now } as never)
+          .set(patch as never)
           .where('id', '=', id)
-          .execute()
+          .executeTakeFirst()
+        if (!result || !result.numUpdatedRows) throw new Error(`Task ${id} not found`)
 
         if (data.tags !== undefined) {
           await trx.deleteFrom('task_tags').where('task_id', '=', id).execute()
@@ -302,16 +306,18 @@ export function createSqlTaskRepository<Bool>(
     },
 
     async reorderTasks(orderedIds: string[]): Promise<void> {
+      if (orderedIds.length === 0) return
       const db = await ready()
-      await db.transaction().execute(async (trx) => {
-        for (let i = 0; i < orderedIds.length; i++) {
-          await trx
-            .updateTable('tasks')
-            .set({ sort_order: i * 1000 })
-            .where('id', '=', orderedIds[i])
-            .execute()
-        }
-      })
+      // A single UPDATE ... CASE, not one round trip per task — the prior
+      // sequential-loop version was fine on local SQLite but meant one
+      // network round trip per task on Postgres/MySQL, so reordering a
+      // list of a few hundred tasks was a few hundred sequential awaits.
+      const whenClauses = orderedIds.map((id, i) => sql`WHEN ${id} THEN ${i * 1000}`)
+      await sql`
+        UPDATE tasks
+        SET sort_order = CASE id ${sql.join(whenClauses, sql` `)} END
+        WHERE id IN (${sql.join(orderedIds)})
+      `.execute(db)
     },
 
     async deleteTask(id: string): Promise<void> {

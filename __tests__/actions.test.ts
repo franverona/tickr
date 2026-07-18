@@ -29,6 +29,7 @@ import {
   deleteTask,
   deleteTasks,
   getTasks,
+  reorderTasks,
   updateTask,
   updateTasks,
 } from '../app/actions'
@@ -103,6 +104,35 @@ describe('updateTask', () => {
 
   it('throws when the task does not exist', async () => {
     await expect(updateTask('nonexistent', { title: 'X' })).rejects.toThrow()
+  })
+
+  it('does not let concurrent updates to different fields clobber each other', async () => {
+    const task = await createTask({ title: 'Original', description: '', tags: [] })
+    await Promise.all([
+      updateTask(task.id, { title: 'New title' }),
+      updateTask(task.id, { completed: true }),
+    ])
+    const [fromDb] = await getTasks()
+    expect(fromDb.title).toBe('New title')
+    expect(fromDb.completed).toBe(true)
+  })
+})
+
+describe('reorderTasks', () => {
+  it('applies the new order', async () => {
+    const a = await createTask({ title: 'A', description: '', tags: [] })
+    const b = await createTask({ title: 'B', description: '', tags: [] })
+    const c = await createTask({ title: 'C', description: '', tags: [] })
+
+    await reorderTasks([c.id, a.id, b.id])
+
+    const tasks = await getTasks()
+    expect(tasks.map((t) => t.id)).toEqual([c.id, a.id, b.id])
+  })
+
+  it('does nothing for an empty list', async () => {
+    await createTask({ title: 'A', description: '', tags: [] })
+    await expect(reorderTasks([])).resolves.toBeUndefined()
   })
 })
 
