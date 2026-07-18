@@ -72,6 +72,36 @@ export default function Page() {
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [isMenuOpen])
 
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      const activeEl = document.activeElement
+      const isTyping =
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        (activeEl instanceof HTMLElement && activeEl.isContentEditable)
+      const isModalOpen = isCreateOpen || isTagsOpen || pendingImportFile !== null
+
+      if (e.key === 'Escape') {
+        if (!isTyping && !isModalOpen && selectedTaskId) {
+          setSelectedTaskId(null)
+        }
+        return
+      }
+
+      if (isTyping || isModalOpen || e.metaKey || e.ctrlKey || e.altKey) return
+
+      if (e.key === 'n') {
+        e.preventDefault()
+        setIsCreateOpen(true)
+      } else if (e.key === '/') {
+        e.preventDefault()
+        setIsSearchOpen(true)
+      }
+    }
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isCreateOpen, isTagsOpen, pendingImportFile, selectedTaskId])
+
   async function handleExport(format: 'json' | 'csv') {
     setIsMenuOpen(false)
     setIsExporting(true)
