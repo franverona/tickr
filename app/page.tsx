@@ -320,10 +320,13 @@ export default function Page() {
     const verb = action === 'delete' ? 'Deleting' : 'Updating'
     showToast(`${verb} ${count} ${noun}…`, 'loading')
     try {
+      let failedIds: string[]
       if (action === 'delete') {
-        await deleteTasks(ids)
-        setTasks((prev) => prev.filter((t) => !selectedIds.has(t.id)))
-        if (selectedTaskId && selectedIds.has(selectedTaskId)) setSelectedTaskId(null)
+        const result = await deleteTasks(ids)
+        failedIds = result.failedIds
+        const succeededIds = new Set(result.succeededIds)
+        setTasks((prev) => prev.filter((t) => !succeededIds.has(t.id)))
+        if (selectedTaskId && succeededIds.has(selectedTaskId)) setSelectedTaskId(null)
       } else {
         const data =
           action === 'complete'
@@ -333,11 +336,26 @@ export default function Page() {
               : action === 'archive'
                 ? { archived: true }
                 : { archived: false }
-        const updated = await updateTasks(ids, data)
-        setTasks((prev) => prev.map((t) => updated.find((u) => u.id === t.id) ?? t))
+        const result = await updateTasks(ids, data)
+        failedIds = result.failedIds
+        setTasks((prev) => prev.map((t) => result.succeeded.find((u) => u.id === t.id) ?? t))
       }
-      showToast(`${action === 'delete' ? 'Deleted' : 'Updated'} ${count} ${noun}`, 'success')
-      cancelSelectMode()
+
+      const pastVerb = action === 'delete' ? 'Deleted' : 'Updated'
+      if (failedIds.length === 0) {
+        showToast(`${pastVerb} ${count} ${noun}`, 'success')
+        cancelSelectMode()
+      } else if (failedIds.length === count) {
+        showToast(`Failed to ${verb.toLowerCase()} ${count} ${noun}`, 'error')
+      } else {
+        const succeededCount = count - failedIds.length
+        showToast(
+          `${pastVerb} ${succeededCount} of ${count} ${noun} — ${failedIds.length} failed`,
+          'error',
+        )
+        // Narrow the selection to just the failures so retrying the same action tries only them.
+        setSelectedIds(new Set(failedIds))
+      }
     } catch {
       showToast(`Failed to ${verb.toLowerCase()} ${count} ${noun}`, 'error')
     }

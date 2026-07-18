@@ -63,9 +63,14 @@ export async function deleteTask(id: string): Promise<void> {
   return getRepository().deleteTask(id)
 }
 
-// ponytail: sequential loop over single-item ops, not real bulk SQL — fine
-// up to normal selection sizes; upgrade to a batched query per backend only
-// if selections regularly reach into the hundreds.
+// ponytail: parallel per-item ops via Promise.allSettled, not real bulk SQL —
+// fine up to normal selection sizes; upgrade to a batched query per backend
+// only if selections regularly reach into the hundreds.
+export interface BulkUpdateResult {
+  succeeded: Task[]
+  failedIds: string[]
+}
+
 export async function updateTasks(
   ids: string[],
   data: Partial<{
@@ -76,16 +81,33 @@ export async function updateTasks(
     archived: boolean
     dueDate: string | null
   }>,
-): Promise<Task[]> {
+): Promise<BulkUpdateResult> {
   const repo = getRepository()
-  const updated: Task[] = []
-  for (const id of ids) updated.push(await repo.updateTask(id, data))
-  return updated
+  const results = await Promise.allSettled(ids.map((id) => repo.updateTask(id, data)))
+  const succeeded: Task[] = []
+  const failedIds: string[] = []
+  results.forEach((result, i) => {
+    if (result.status === 'fulfilled') succeeded.push(result.value)
+    else failedIds.push(ids[i])
+  })
+  return { succeeded, failedIds }
 }
 
-export async function deleteTasks(ids: string[]): Promise<void> {
+export interface BulkDeleteResult {
+  succeededIds: string[]
+  failedIds: string[]
+}
+
+export async function deleteTasks(ids: string[]): Promise<BulkDeleteResult> {
   const repo = getRepository()
-  for (const id of ids) await repo.deleteTask(id)
+  const results = await Promise.allSettled(ids.map((id) => repo.deleteTask(id)))
+  const succeededIds: string[] = []
+  const failedIds: string[] = []
+  results.forEach((result, i) => {
+    if (result.status === 'fulfilled') succeededIds.push(ids[i])
+    else failedIds.push(ids[i])
+  })
+  return { succeededIds, failedIds }
 }
 
 export async function addTaskUrl(
