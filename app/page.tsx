@@ -53,6 +53,8 @@ export default function Page() {
   const dragSrcIdxRef = useRef<number | null>(null)
   const dragOverIdxRef = useRef<number | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+  const [activeCardId, setActiveCardId] = useState<string | null>(null)
+  const cardRefs = useRef(new Map<string, HTMLButtonElement>())
 
   useEffect(() => {
     Promise.all([getTasks(), getTags()]).then(([t, g]) => {
@@ -187,6 +189,14 @@ export default function Page() {
       return 0
     })
 
+  // Roving tabindex: only one card is a Tab stop at a time (falls back to
+  // the first visible card if the last-active one scrolled out of the
+  // current tab/search filter), so Tab moves in/out of the list as a single
+  // stop and ArrowUp/ArrowDown/Home/End move within it.
+  const rovingCardId = filteredTasks.some((t) => t.id === activeCardId)
+    ? activeCardId
+    : (filteredTasks[0]?.id ?? null)
+
   function handleTaskUpdated(updated: Task) {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
     if (updated.id === selectedTaskId) {
@@ -270,6 +280,37 @@ export default function Page() {
     setContextMenu({ taskId, x: e.clientX, y: e.clientY })
   }
 
+  function focusCardAt(index: number) {
+    const clamped = Math.max(0, Math.min(filteredTasks.length - 1, index))
+    const task = filteredTasks[clamped]
+    if (!task) return
+    setActiveCardId(task.id)
+    cardRefs.current.get(task.id)?.focus()
+  }
+
+  function handleCardKeyDown(e: React.KeyboardEvent, index: number, task: Task) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      focusCardAt(index + 1)
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      focusCardAt(index - 1)
+    } else if (e.key === 'Home') {
+      e.preventDefault()
+      focusCardAt(0)
+    } else if (e.key === 'End') {
+      e.preventDefault()
+      focusCardAt(filteredTasks.length - 1)
+    } else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
+      // Standard OS convention for opening a context menu via keyboard —
+      // otherwise TaskContextMenu (Complete/Archive/Delete) is unreachable
+      // without a mouse.
+      e.preventDefault()
+      const rect = e.currentTarget.getBoundingClientRect()
+      setContextMenu({ taskId: task.id, x: rect.left, y: rect.bottom })
+    }
+  }
+
   async function handleContextMenuAction(
     action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete',
   ) {
@@ -298,6 +339,7 @@ export default function Page() {
   }
 
   function handleTaskCardClick(taskId: string) {
+    setActiveCardId(taskId)
     if (isSelectMode) {
       setSelectedIds((prev) => {
         const next = new Set(prev)
@@ -781,13 +823,19 @@ export default function Page() {
                       className={dragSrcIdx === i ? 'opacity-40' : ''}
                     >
                       <TaskCard
+                        ref={(el) => {
+                          if (el) cardRefs.current.set(task.id, el)
+                          else cardRefs.current.delete(task.id)
+                        }}
                         task={task}
                         tags={tags}
                         isSelected={task.id === selectedTaskId}
                         onClick={() => handleTaskCardClick(task.id)}
                         onContextMenu={(e) => handleContextMenu(e, task.id)}
+                        onKeyDown={(e) => handleCardKeyDown(e, i, task)}
                         selectMode={isSelectMode}
                         checked={selectedIds.has(task.id)}
+                        tabIndex={task.id === rovingCardId ? 0 : -1}
                       />
                     </div>
                   </div>
@@ -806,16 +854,22 @@ export default function Page() {
               </div>
             ) : (
               <div className="space-y-2">
-                {filteredTasks.map((task) => (
+                {filteredTasks.map((task, i) => (
                   <TaskCard
                     key={task.id}
+                    ref={(el) => {
+                      if (el) cardRefs.current.set(task.id, el)
+                      else cardRefs.current.delete(task.id)
+                    }}
                     task={task}
                     tags={tags}
                     isSelected={task.id === selectedTaskId}
                     onClick={() => handleTaskCardClick(task.id)}
                     onContextMenu={(e) => handleContextMenu(e, task.id)}
+                    onKeyDown={(e) => handleCardKeyDown(e, i, task)}
                     selectMode={isSelectMode}
                     checked={selectedIds.has(task.id)}
+                    tabIndex={task.id === rovingCardId ? 0 : -1}
                   />
                 ))}
               </div>

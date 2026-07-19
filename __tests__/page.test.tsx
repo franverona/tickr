@@ -268,3 +268,48 @@ describe('drag-and-drop reorder', () => {
     expect(wrapper).toHaveAttribute('draggable', 'false')
   })
 })
+
+describe('keyboard list navigation', () => {
+  it('only one card is a Tab stop at a time; ArrowDown/ArrowUp/Home/End move it', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    const b = makeTask({ id: 'b', title: 'Beta' })
+    const c = makeTask({ id: 'c', title: 'Gamma' })
+    await renderReady([a, b, c])
+
+    const cardA = screen.getByRole('button', { name: 'Alpha' })
+    const cardB = screen.getByRole('button', { name: 'Beta' })
+    const cardC = screen.getByRole('button', { name: 'Gamma' })
+    expect(cardA).toHaveAttribute('tabindex', '0')
+    expect(cardB).toHaveAttribute('tabindex', '-1')
+    expect(cardC).toHaveAttribute('tabindex', '-1')
+
+    fireEvent.keyDown(cardA, { key: 'ArrowDown' })
+    expect(cardB).toHaveFocus()
+    expect(cardB).toHaveAttribute('tabindex', '0')
+    expect(cardA).toHaveAttribute('tabindex', '-1')
+
+    fireEvent.keyDown(cardB, { key: 'ArrowDown' })
+    expect(cardC).toHaveFocus()
+
+    // Clamps at the last card instead of wrapping.
+    fireEvent.keyDown(cardC, { key: 'ArrowDown' })
+    expect(cardC).toHaveFocus()
+
+    fireEvent.keyDown(cardC, { key: 'Home' })
+    expect(cardA).toHaveFocus()
+
+    fireEvent.keyDown(cardA, { key: 'End' })
+    expect(cardC).toHaveFocus()
+  })
+
+  it('opens the context menu for the focused card via the ContextMenu key', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    await renderReady([a])
+    const cardA = screen.getByRole('button', { name: 'Alpha' })
+
+    fireEvent.keyDown(cardA, { key: 'ContextMenu' })
+
+    expect(await screen.findByRole('menu')).toBeInTheDocument()
+    expect(screen.getByRole('menuitem', { name: 'Mark as Complete' })).toBeInTheDocument()
+  })
+})

@@ -1,5 +1,6 @@
 'use client'
 
+import { forwardRef } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import TagBadge from './TagBadge'
 import { formatDueDate, getDueStatus } from '@/lib/dates'
@@ -10,19 +11,16 @@ interface TaskCardProps {
   isSelected: boolean
   onClick: () => void
   onContextMenu?: (e: React.MouseEvent) => void
+  onKeyDown?: (e: React.KeyboardEvent<HTMLButtonElement>) => void
   selectMode?: boolean
   checked?: boolean
+  tabIndex?: number
 }
 
-export default function TaskCard({
-  task,
-  tags,
-  isSelected,
-  onClick,
-  onContextMenu,
-  selectMode,
-  checked,
-}: TaskCardProps) {
+const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
+  { task, tags, isSelected, onClick, onContextMenu, onKeyDown, selectMode, checked, tabIndex },
+  ref,
+) {
   const preview = task.description
     .replace(/<[^>]*>/g, '')
     .replace(/```[\s\S]*?```/g, '')
@@ -36,8 +34,11 @@ export default function TaskCard({
 
   return (
     <button
+      ref={ref}
+      tabIndex={tabIndex}
       onClick={onClick}
       onContextMenu={onContextMenu}
+      onKeyDown={onKeyDown}
       className={`w-full rounded-lg border p-3 text-left transition-colors ${
         isSelected
           ? 'border-surface-400 bg-surface-700'
@@ -108,4 +109,6 @@ export default function TaskCard({
       )}
     </button>
   )
-}
+})
+
+export default TaskCard
