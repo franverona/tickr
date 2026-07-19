@@ -112,4 +112,72 @@ describe('CreateTaskModal', () => {
 
     expect(onClose).toHaveBeenCalled()
   })
+
+  it('asks for confirmation instead of closing immediately when the draft has unsaved content', () => {
+    const onClose = vi.fn()
+    render(
+      <CreateTaskModal tags={[]} onCreated={() => {}} onClose={onClose} onTagCreated={() => {}} />,
+    )
+    fireEvent.change(screen.getByPlaceholderText('Task title'), { target: { value: 'Write docs' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByText('Discard this task?')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Discard' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('"Keep Editing" dismisses the discard confirmation and preserves the draft', () => {
+    const onClose = vi.fn()
+    render(
+      <CreateTaskModal tags={[]} onCreated={() => {}} onClose={onClose} onTagCreated={() => {}} />,
+    )
+    fireEvent.change(screen.getByPlaceholderText('Task title'), { target: { value: 'Write docs' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.getByText('Discard this task?')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Keep Editing' }))
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.queryByText('Discard this task?')).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Task title')).toHaveValue('Write docs')
+    // NOT a regression guard for the bug that motivated the footer buttons'
+    // `key`s (confirmed by testing): jsdom's synthetic click doesn't
+    // reproduce the real-browser timing where React reconciling "Keep
+    // Editing" (type="button") into the same-position "Create Task"
+    // (type="submit") in place, mid-click, made the browser submit the
+    // form. This assertion still passes without the `key`s in jsdom. Kept
+    // as a basic sanity check; the `key` fix itself was only verified live
+    // in an actual browser.
+    expect(createTask).not.toHaveBeenCalled()
+  })
+
+  it('asks for confirmation on a backdrop click with unsaved content', () => {
+    const onClose = vi.fn()
+    const { container } = render(
+      <CreateTaskModal tags={[]} onCreated={() => {}} onClose={onClose} onTagCreated={() => {}} />,
+    )
+    fireEvent.change(screen.getByPlaceholderText('Task title'), { target: { value: 'Write docs' } })
+
+    fireEvent.click(container.firstChild as Element)
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByText('Discard this task?')).toBeInTheDocument()
+  })
+
+  it('asks for confirmation on Escape (focus outside a text input) with unsaved content', () => {
+    const onClose = vi.fn()
+    render(
+      <CreateTaskModal tags={[]} onCreated={() => {}} onClose={onClose} onTagCreated={() => {}} />,
+    )
+    fireEvent.change(screen.getByPlaceholderText('Task title'), { target: { value: 'Write docs' } })
+    screen.getByRole('button', { name: 'Cancel' }).focus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByText('Discard this task?')).toBeInTheDocument()
+  })
 })

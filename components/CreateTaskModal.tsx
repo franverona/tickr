@@ -35,9 +35,22 @@ export default function CreateTaskModal({
   const [urlLabelDraft, setUrlLabelDraft] = useState('')
   const [isPending, setIsPending] = useState(false)
   const [error, setError] = useState('')
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const modalRef = useFocusTrap<HTMLDivElement>(titleRef)
   const headingId = useId()
+
+  const isDirty =
+    title.trim() !== '' ||
+    description.trim() !== '' ||
+    selectedTags.length > 0 ||
+    links.length > 0 ||
+    dueDate !== ''
+
+  function requestClose() {
+    if (isDirty) setShowDiscardConfirm(true)
+    else onClose()
+  }
 
   function handleAddLink() {
     const url = urlDraft.trim()
@@ -61,11 +74,12 @@ export default function CreateTaskModal({
         activeEl instanceof HTMLTextAreaElement ||
         (activeEl instanceof HTMLElement && activeEl.isContentEditable)
       if (isTyping) return
-      onClose()
+      requestClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [onClose])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onClose, isDirty])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -94,7 +108,7 @@ export default function CreateTaskModal({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) requestClose()
       }}
     >
       <div
@@ -112,7 +126,7 @@ export default function CreateTaskModal({
             New Task
           </h2>
           <button
-            onClick={onClose}
+            onClick={requestClose}
             className="text-surface-400 hover:text-surface-100 text-xl leading-none transition-colors"
           >
             ×
@@ -241,21 +255,54 @@ export default function CreateTaskModal({
             </div>
           </div>
 
-          <div className="border-surface-700 flex justify-end gap-2 border-t px-5 py-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isPending}
-              className="bg-primary-600 text-surface-900 hover:bg-primary-500 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
-            >
-              {isPending ? 'Creating…' : 'Create Task'}
-            </button>
+          <div className="border-surface-700 flex items-center justify-end gap-2 border-t px-5 py-3">
+            {showDiscardConfirm ? (
+              <>
+                <span key="label" className="text-surface-400 mr-auto text-sm">
+                  Discard this task?
+                </span>
+                <button
+                  key="keep-editing"
+                  type="button"
+                  onClick={() => setShowDiscardConfirm(false)}
+                  className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
+                >
+                  Keep Editing
+                </button>
+                <button
+                  key="discard"
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg bg-red-700 px-4 py-1.5 text-sm font-medium text-red-100 transition-colors hover:bg-red-600"
+                >
+                  Discard
+                </button>
+              </>
+            ) : (
+              <>
+                {/* Explicit keys: without them React reconciles "Keep
+                    Editing" (type="button") into this same-position "Create
+                    Task" (type="submit") in place rather than replacing the
+                    node — mutating a button's type mid-click makes the
+                    browser treat that same click as a form submit. */}
+                <button
+                  key="cancel"
+                  type="button"
+                  onClick={requestClose}
+                  className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  key="submit"
+                  type="submit"
+                  disabled={isPending}
+                  className="bg-primary-600 text-surface-900 hover:bg-primary-500 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors disabled:opacity-50"
+                >
+                  {isPending ? 'Creating…' : 'Create Task'}
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>

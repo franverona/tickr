@@ -936,6 +936,9 @@ export default function Page() {
 
       {toast && (
         <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
           onTransitionEnd={() => {
             if (toastClosing) setToast(null)
           }}
