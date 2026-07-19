@@ -235,6 +235,21 @@ describe('keyboard shortcuts', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('menu')).not.toBeInTheDocument()
   })
+
+  it('focuses the first item of the "···" menu on open, and ArrowDown/ArrowUp cycle focus', async () => {
+    await renderReady([])
+    fireEvent.click(screen.getByTitle('More options'))
+
+    const first = screen.getByRole('menuitem', { name: 'Tags' })
+    const second = screen.getByRole('menuitem', { name: 'Export as JSON' })
+    await waitFor(() => expect(first).toHaveFocus())
+
+    fireEvent.keyDown(document, { key: 'ArrowDown' })
+    expect(second).toHaveFocus()
+
+    fireEvent.keyDown(document, { key: 'ArrowUp' })
+    expect(first).toHaveFocus()
+  })
 })
 
 describe('drag-and-drop reorder', () => {

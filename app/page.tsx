@@ -75,6 +75,29 @@ export default function Page() {
   }, [isMenuOpen])
 
   useEffect(() => {
+    if (!isMenuOpen) return
+    const items = menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')
+    items?.[0]?.focus()
+
+    function onMenuKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const menuItems = menuRef.current
+        ? Array.from(menuRef.current.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+        : []
+      if (menuItems.length === 0) return
+      e.preventDefault()
+      const current = menuItems.indexOf(document.activeElement as HTMLButtonElement)
+      const next =
+        e.key === 'ArrowDown'
+          ? (current + 1) % menuItems.length
+          : (current - 1 + menuItems.length) % menuItems.length
+      menuItems[next]?.focus()
+    }
+    document.addEventListener('keydown', onMenuKeyDown)
+    return () => document.removeEventListener('keydown', onMenuKeyDown)
+  }, [isMenuOpen])
+
+  useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       const activeEl = document.activeElement
       const isTyping =
