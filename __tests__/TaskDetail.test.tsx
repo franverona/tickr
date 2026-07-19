@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, fireEvent, within } from '@testing-library/react'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TaskDetail from '../components/TaskDetail'
 import type { Tag, Task } from '../lib/types'
+import { EMOJI_LIST } from '../lib/emojis'
 
 const { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } = vi.hoisted(() => ({
   updateTask: vi.fn(),
@@ -29,8 +30,26 @@ vi.mock('@/app/actions', () => ({
 const CHECKLIST_LINE_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\](.*)$/gm
 
 vi.mock('@/components/MdEditor', () => ({
-  MDEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
-    <textarea data-testid="md-editor" value={value} onChange={(e) => onChange(e.target.value)} />
+  // textareaProps is forwarded onto the real textarea (autoFocus/onKeyDown/
+  // onKeyUp/onClick) so the description-autocomplete tests below exercise
+  // TaskDetail's actual detectSuggestion/selectSuggestion wiring, not a
+  // dumb stand-in — value/onChange still come from the explicit props so
+  // TaskDetail's own state stays authoritative.
+  MDEditor: ({
+    value,
+    onChange,
+    textareaProps,
+  }: {
+    value: string
+    onChange: (v: string) => void
+    textareaProps?: React.TextareaHTMLAttributes<HTMLTextAreaElement>
+  }) => (
+    <textarea
+      data-testid="md-editor"
+      {...textareaProps}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
   ),
   MDPreview: ({
     source,
@@ -396,6 +415,114 @@ describe('TaskDetail', () => {
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
     expect(updateTask).toHaveBeenCalledWith('task-1', {
       description: '- [ ] First item\n- [ ] Second item',
+    })
+  })
+
+  describe('description autocomplete', () => {
+    beforeEach(() => {
+      // Editing the description in these tests leaves it "dirty" relative
+      // to lastSavedDescRef when the component unmounts at test end, which
+      // triggers the flush-on-unmount save (see the autosave-flush fix) —
+      // give it something to resolve to so that fire-and-forget call
+      // doesn't reject/crash after the test has already finished asserting.
+      updateTask.mockResolvedValue(makeTask())
+    })
+
+    it('shows an emoji suggestion while typing and inserts it on selection', async () => {
+      const task = makeTask()
+      renderTaskDetail(task)
+      fireEvent.click(screen.getByText('Edit'))
+      const editor = screen.getByTestId('md-editor')
+
+      fireEvent.change(editor, { target: { value: 'Great :smile' } })
+      fireEvent.keyUp(editor, { key: 'e' })
+
+      const option = await screen.findByText(':smile')
+      fireEvent.mouseDown(option)
+
+      expect(editor).toHaveValue('Great 😊')
+    })
+
+    it('shows a snippet suggestion and inserts its template', async () => {
+      const task = makeTask()
+      renderTaskDetail(task)
+      fireEvent.click(screen.getByText('Edit'))
+      const editor = screen.getByTestId('md-editor')
+
+      fireEvent.change(editor, { target: { value: '/note' } })
+      fireEvent.keyUp(editor, { key: 'e' })
+
+      const option = await screen.findByText('Note callout')
+      fireEvent.mouseDown(option)
+
+      expect(editor).toHaveValue('> [!NOTE]\n> ')
+    })
+
+    it('shows a mention suggestion and inserts a link to the mentioned task', async () => {
+      const task = makeTask()
+      const other = makeTask({ id: 'task-2', title: 'Write more tests' })
+      renderTaskDetail(task, [], { allTasks: [task, other] })
+      fireEvent.click(screen.getByText('Edit'))
+      const editor = screen.getByTestId('md-editor')
+
+      fireEvent.change(editor, { target: { value: 'See @Write' } })
+      fireEvent.keyUp(editor, { key: 'e' })
+
+      const option = await screen.findByText('Write more tests')
+      fireEvent.mouseDown(option)
+
+      expect(editor).toHaveValue('See [Write more tests](#task-2)')
+    })
+
+    it('does not suggest mentioning the task being edited itself', async () => {
+      const task = makeTask({ title: 'Write more tests' })
+      renderTaskDetail(task, [], { allTasks: [task] })
+      fireEvent.click(screen.getByText('Edit'))
+      const editor = screen.getByTestId('md-editor')
+
+      fireEvent.change(editor, { target: { value: 'See @Write' } })
+      fireEvent.keyUp(editor, { key: 'e' })
+
+      // Give any (incorrect) suggestion a chance to render before asserting absence.
+      await new Promise((r) => setTimeout(r, 0))
+      expect(
+        screen.queryByText('Write more tests', { selector: 'button *' }),
+      ).not.toBeInTheDocument()
+    })
+
+    it('closes the suggestion dropdown on Escape without inserting anything', async () => {
+      const task = makeTask()
+      renderTaskDetail(task)
+      fireEvent.click(screen.getByText('Edit'))
+      const editor = screen.getByTestId('md-editor')
+
+      fireEvent.change(editor, { target: { value: 'Great :smile' } })
+      fireEvent.keyUp(editor, { key: 'e' })
+      expect(await screen.findByText(':smile')).toBeInTheDocument()
+
+      fireEvent.keyDown(editor, { key: 'Escape' })
+
+      expect(screen.queryByText(':smile')).not.toBeInTheDocument()
+      expect(editor).toHaveValue('Great :smile')
+    })
+
+    it('ArrowDown moves the highlighted suggestion so Enter inserts the second match, not the first', async () => {
+      const matches = EMOJI_LIST.filter(([name]) => name.includes('face')).slice(0, 8)
+      expect(matches.length).toBeGreaterThan(1)
+
+      const task = makeTask()
+      renderTaskDetail(task)
+      fireEvent.click(screen.getByText('Edit'))
+      const editor = screen.getByTestId('md-editor')
+
+      fireEvent.change(editor, { target: { value: ':face' } })
+      fireEvent.keyUp(editor, { key: 'e' })
+      await screen.findByText(`:${matches[0][0]}`)
+
+      fireEvent.keyDown(editor, { key: 'ArrowDown' })
+      fireEvent.keyDown(editor, { key: 'Enter' })
+
+      expect(editor).toHaveValue(matches[1][1])
     })
   })
 })

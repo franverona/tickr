@@ -43,8 +43,28 @@ export default function TaskContextMenu({
   }, [x, y])
 
   useEffect(() => {
+    const items = menuRef.current?.querySelectorAll<HTMLButtonElement>('button')
+    items?.[0]?.focus()
+  }, [])
+
+  useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
+      if (e.key === 'Escape') {
+        onClose()
+        return
+      }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+      const items = menuRef.current
+        ? Array.from(menuRef.current.querySelectorAll<HTMLButtonElement>('button'))
+        : []
+      if (items.length === 0) return
+      e.preventDefault()
+      const current = items.indexOf(document.activeElement as HTMLButtonElement)
+      const next =
+        e.key === 'ArrowDown'
+          ? (current + 1) % items.length
+          : (current - 1 + items.length) % items.length
+      items[next]?.focus()
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
@@ -67,36 +87,38 @@ export default function TaskContextMenu({
       />
       <div
         ref={menuRef}
+        role="menu"
+        aria-orientation="vertical"
         style={{ left: pos.x, top: pos.y }}
         className="border-surface-700 bg-surface-800 fixed z-40 w-44 rounded-lg border py-1 shadow-xl"
       >
         {tab === 'active' && (
-          <button onClick={onComplete} className={item}>
+          <button role="menuitem" onClick={onComplete} className={item}>
             Mark as Complete
           </button>
         )}
         {tab === 'done' && (
-          <button onClick={onReopen} className={item}>
+          <button role="menuitem" onClick={onReopen} className={item}>
             Reopen
           </button>
         )}
         {(tab === 'active' || tab === 'done') && (
-          <button onClick={onArchive} className={item}>
+          <button role="menuitem" onClick={onArchive} className={item}>
             Archive
           </button>
         )}
         {tab === 'archived' && (
-          <button onClick={onUnarchive} className={item}>
+          <button role="menuitem" onClick={onUnarchive} className={item}>
             Unarchive
           </button>
         )}
         <div className="border-surface-700 my-1 border-t" />
         {confirmDelete ? (
-          <button onClick={onDelete} className={danger}>
+          <button role="menuitem" onClick={onDelete} className={danger}>
             Confirm Delete?
           </button>
         ) : (
-          <button onClick={() => setConfirmDelete(true)} className={danger}>
+          <button role="menuitem" onClick={() => setConfirmDelete(true)} className={danger}>
             Delete
           </button>
         )}
