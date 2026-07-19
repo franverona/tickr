@@ -147,6 +147,11 @@ describe('TaskDetail', () => {
     updateTaskUrl.mockReset()
   })
 
+  it('has an accessible name for the icon-only panel close button', () => {
+    renderTaskDetail(makeTask())
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
   it('edits and saves the title', async () => {
     const task = makeTask()
     const updated = makeTask({ title: 'Fix it for real' })
@@ -352,7 +357,8 @@ describe('TaskDetail', () => {
     deleteTaskUrl.mockResolvedValueOnce(updated)
     const { props } = renderTaskDetail(task)
 
-    fireEvent.click(screen.getByTitle('Remove link'))
+    const removeLinkButton = screen.getByRole('button', { name: 'Remove link' })
+    fireEvent.click(removeLinkButton)
     expect(deleteTaskUrl).not.toHaveBeenCalled()
     const linkRow = screen.getByText('Delete?').closest('div')!.parentElement!
     fireEvent.click(within(linkRow).getByRole('button', { name: 'Delete' }))

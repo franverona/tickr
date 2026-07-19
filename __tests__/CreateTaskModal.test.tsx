@@ -55,6 +55,13 @@ describe('CreateTaskModal', () => {
     expect(screen.getByTestId('md-editor')).toBeInTheDocument()
   })
 
+  it('has an accessible name for the icon-only close button', () => {
+    render(
+      <CreateTaskModal tags={[]} onCreated={() => {}} onClose={() => {}} onTagCreated={() => {}} />,
+    )
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
   it('submits title and description (typed into the mocked editor) via createTask', async () => {
     const created = makeTask({ title: 'Write docs', description: 'Some **markdown**' })
     createTask.mockResolvedValueOnce(created)

@@ -31,6 +31,11 @@ describe('ImportModal', () => {
     expect(screen.getByRole('radio', { name: /Add to existing tasks/ })).toBeChecked()
   })
 
+  it('has an accessible name for the icon-only close button', () => {
+    render(<ImportModal file={makeFile()} onClose={() => {}} onImported={() => {}} />)
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
   it('disables Import in override mode until "DELETE" is typed exactly', () => {
     render(<ImportModal file={makeFile()} onClose={() => {}} onImported={() => {}} />)
     fireEvent.click(screen.getByRole('radio', { name: /Replace all existing data/ }))

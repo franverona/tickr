@@ -987,6 +987,7 @@ export default function TaskDetail({
         </div>
         <button
           onClick={onClose}
+          aria-label="Close"
           className="text-surface-400 hover:text-surface-100 shrink-0 text-xl leading-none transition-colors"
         >
           ×
@@ -1167,6 +1168,7 @@ export default function TaskDetail({
                             onClick={() => setConfirmDeleteUrlId(u.id)}
                             className="text-surface-600 hover:text-surface-300 text-lg leading-none transition-colors"
                             title="Remove link"
+                            aria-label="Remove link"
                           >
                             ×
                           </button>

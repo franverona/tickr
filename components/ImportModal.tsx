@@ -70,6 +70,7 @@ export default function ImportModal({ file, onClose, onImported }: ImportModalPr
           <button
             onClick={onClose}
             disabled={isPending}
+            aria-label="Close"
             className="text-surface-400 hover:text-surface-100 text-xl leading-none transition-colors disabled:opacity-50"
           >
             ×

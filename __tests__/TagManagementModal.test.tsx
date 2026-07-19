@@ -39,6 +39,18 @@ describe('TagManagementModal', () => {
     expect(screen.getByText('No tags yet')).toBeInTheDocument()
   })
 
+  it('has an accessible name for the icon-only close button', () => {
+    render(
+      <TagManagementModal
+        tags={[]}
+        onClose={() => {}}
+        onTagUpdated={() => {}}
+        onTagDeleted={() => {}}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument()
+  })
+
   it('renders a badge for each existing tag', () => {
     render(
       <TagManagementModal

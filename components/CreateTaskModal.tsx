@@ -127,6 +127,7 @@ export default function CreateTaskModal({
           </h2>
           <button
             onClick={requestClose}
+            aria-label="Close"
             className="text-surface-400 hover:text-surface-100 text-xl leading-none transition-colors"
           >
             ×
