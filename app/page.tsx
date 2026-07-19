@@ -82,6 +82,10 @@ export default function Page() {
       const isModalOpen = isCreateOpen || isTagsOpen || pendingImportFile !== null
 
       if (e.key === 'Escape') {
+        if (isMenuOpen) {
+          setIsMenuOpen(false)
+          return
+        }
         if (!isTyping && !isModalOpen && selectedTaskId) {
           setSelectedTaskId(null)
         }
@@ -100,7 +104,7 @@ export default function Page() {
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [isCreateOpen, isTagsOpen, pendingImportFile, selectedTaskId])
+  }, [isCreateOpen, isTagsOpen, pendingImportFile, selectedTaskId, isMenuOpen])
 
   async function handleExport(format: 'json' | 'csv') {
     setIsMenuOpen(false)
@@ -467,6 +471,8 @@ export default function Page() {
             <button
               onClick={() => setIsMenuOpen((o) => !o)}
               disabled={isExporting || pendingImportFile !== null}
+              aria-haspopup="menu"
+              aria-expanded={isMenuOpen}
               className="border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100 flex h-8 w-8 items-center justify-center rounded-lg border text-base font-bold tracking-widest transition-colors disabled:cursor-not-allowed disabled:opacity-50"
               title="More options"
             >
@@ -474,8 +480,12 @@ export default function Page() {
             </button>
 
             {isMenuOpen && (
-              <div className="border-surface-700 bg-surface-800 absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border py-1 shadow-xl">
+              <div
+                role="menu"
+                className="border-surface-700 bg-surface-800 absolute top-full right-0 z-20 mt-1 w-48 rounded-lg border py-1 shadow-xl"
+              >
                 <button
+                  role="menuitem"
                   onClick={() => {
                     setIsMenuOpen(false)
                     setIsTagsOpen(true)
@@ -501,6 +511,7 @@ export default function Page() {
                 <div className="border-surface-700 my-1 border-t" />
 
                 <button
+                  role="menuitem"
                   onClick={() => handleExport('json')}
                   className="text-surface-300 hover:bg-surface-700 hover:text-surface-100 flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors"
                 >
@@ -521,6 +532,7 @@ export default function Page() {
                   Export as JSON
                 </button>
                 <button
+                  role="menuitem"
                   onClick={() => handleExport('csv')}
                   className="text-surface-300 hover:bg-surface-700 hover:text-surface-100 flex w-full items-center gap-2.5 px-3 py-1.5 text-left text-sm transition-colors"
                 >
@@ -544,6 +556,7 @@ export default function Page() {
                 <div className="border-surface-700 my-1 border-t" />
 
                 <button
+                  role="menuitem"
                   onClick={() => {
                     setIsMenuOpen(false)
                     importInputRef.current?.click()

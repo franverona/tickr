@@ -103,4 +103,16 @@ describe('TaskCard', () => {
     )
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-checked', 'true')
   })
+
+  it('strips a markdown link down to its label, not a stray trailing "("', () => {
+    render(
+      <TaskCard
+        task={makeTask({ description: '[Docs](https://example.com/docs) has the details' })}
+        tags={[]}
+        isSelected={false}
+        onClick={() => {}}
+      />,
+    )
+    expect(screen.getByText('Docs has the details')).toBeInTheDocument()
+  })
 })
