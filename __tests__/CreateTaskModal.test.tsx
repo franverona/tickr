@@ -87,4 +87,29 @@ describe('CreateTaskModal', () => {
     expect(screen.getByText('Title is required')).toBeInTheDocument()
     expect(createTask).not.toHaveBeenCalled()
   })
+
+  it('does not close on Escape while focus is inside the title field', () => {
+    const onClose = vi.fn()
+    render(
+      <CreateTaskModal tags={[]} onCreated={() => {}} onClose={onClose} onTagCreated={() => {}} />,
+    )
+    // Title input is auto-focused on mount (useFocusTrap).
+    expect(screen.getByPlaceholderText('Task title')).toHaveFocus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('closes on Escape when focus is not inside a text input', () => {
+    const onClose = vi.fn()
+    render(
+      <CreateTaskModal tags={[]} onCreated={() => {}} onClose={onClose} onTagCreated={() => {}} />,
+    )
+    screen.getByRole('button', { name: 'Cancel' }).focus()
+
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    expect(onClose).toHaveBeenCalled()
+  })
 })

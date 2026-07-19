@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, render, screen, fireEvent } from '@testing-library/react'
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import TaskDetail from '../components/TaskDetail'
 import type { Tag, Task } from '../lib/types'
@@ -331,14 +331,29 @@ describe('TaskDetail', () => {
     })
     const updated = makeTask({ urls: [] })
     deleteTaskUrl.mockResolvedValueOnce(updated)
-    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true)
     const { props } = renderTaskDetail(task)
 
     fireEvent.click(screen.getByTitle('Remove link'))
+    expect(deleteTaskUrl).not.toHaveBeenCalled()
+    const linkRow = screen.getByText('Delete?').closest('div')!.parentElement!
+    fireEvent.click(within(linkRow).getByRole('button', { name: 'Delete' }))
 
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
     expect(deleteTaskUrl).toHaveBeenCalledWith('task-1', 'url-1')
-    confirmSpy.mockRestore()
+  })
+
+  it('cancels a link delete confirmation without calling deleteTaskUrl', () => {
+    const task = makeTask({
+      urls: [{ id: 'url-1', url: 'https://example.com', label: 'Example' }],
+    })
+    renderTaskDetail(task)
+
+    fireEvent.click(screen.getByTitle('Remove link'))
+    const linkRow = screen.getByText('Delete?').closest('div')!.parentElement!
+    fireEvent.click(within(linkRow).getByRole('button', { name: 'Cancel' }))
+
+    expect(deleteTaskUrl).not.toHaveBeenCalled()
+    expect(screen.getByTitle('Remove link')).toBeInTheDocument()
   })
 
   it('does not delete a link when the user cancels the confirmation', () => {

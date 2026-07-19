@@ -226,6 +226,15 @@ describe('keyboard shortcuts', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('heading', { name: 'Alpha' })).not.toBeInTheDocument()
   })
+
+  it('Escape closes the "···" options menu', async () => {
+    await renderReady([])
+    fireEvent.click(screen.getByTitle('More options'))
+    expect(screen.getByRole('menu')).toBeInTheDocument()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
 })
 
 describe('drag-and-drop reorder', () => {

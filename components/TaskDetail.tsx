@@ -234,6 +234,7 @@ export default function TaskDetail({
   const [urlDraft, setUrlDraft] = useState('')
   const [urlLabelDraft, setUrlLabelDraft] = useState('')
   const [editingUrlId, setEditingUrlId] = useState<string | null>(null)
+  const [confirmDeleteUrlId, setConfirmDeleteUrlId] = useState<string | null>(null)
   const [copiedUrlId, setCopiedUrlId] = useState<string | null>(null)
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null)
   const [editUrlDraft, setEditUrlDraft] = useState('')
@@ -810,7 +811,7 @@ export default function TaskDetail({
   }
 
   async function handleDeleteUrl(urlId: string) {
-    if (!window.confirm('Delete this link?')) return
+    setConfirmDeleteUrlId(null)
     setSavingSection('links')
     try {
       const updated = await deleteTaskUrl(task.id, urlId)
@@ -1121,38 +1122,56 @@ export default function TaskDetail({
                       >
                         {u.label}
                       </a>
-                      <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                        <button
-                          onClick={() => handleCopyLink(u)}
-                          className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
-                          title="Copy link"
-                        >
-                          {copiedLinkId === u.id ? 'Copied!' : 'Copy link'}
-                        </button>
-                        {isReviewLink(u.url) && (
+                      {confirmDeleteUrlId === u.id ? (
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <span className="text-surface-400 text-xs">Delete?</span>
                           <button
-                            onClick={() => handleCopyForSlack(u)}
-                            className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
-                            title="Copy Slack review message"
+                            onClick={() => handleDeleteUrl(u.id)}
+                            className="rounded bg-red-700 px-1.5 py-0.5 text-xs font-medium text-red-100 transition-colors hover:bg-red-600"
                           >
-                            {copiedUrlId === u.id ? 'Copied!' : 'Copy for Slack'}
+                            Delete
                           </button>
-                        )}
-                        <button
-                          onClick={() => startEditUrl(u.id, u.url, u.label)}
-                          className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
-                          title="Edit link"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUrl(u.id)}
-                          className="text-surface-600 hover:text-surface-300 text-lg leading-none transition-colors"
-                          title="Remove link"
-                        >
-                          ×
-                        </button>
-                      </div>
+                          <button
+                            onClick={() => setConfirmDeleteUrlId(null)}
+                            className="text-surface-400 hover:text-surface-200 text-xs transition-colors"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                          <button
+                            onClick={() => handleCopyLink(u)}
+                            className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
+                            title="Copy link"
+                          >
+                            {copiedLinkId === u.id ? 'Copied!' : 'Copy link'}
+                          </button>
+                          {isReviewLink(u.url) && (
+                            <button
+                              onClick={() => handleCopyForSlack(u)}
+                              className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
+                              title="Copy Slack review message"
+                            >
+                              {copiedUrlId === u.id ? 'Copied!' : 'Copy for Slack'}
+                            </button>
+                          )}
+                          <button
+                            onClick={() => startEditUrl(u.id, u.url, u.label)}
+                            className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
+                            title="Edit link"
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteUrlId(u.id)}
+                            className="text-surface-600 hover:text-surface-300 text-lg leading-none transition-colors"
+                            title="Remove link"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ),
                 )}

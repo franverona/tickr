@@ -26,6 +26,7 @@ export default function TaskCard({
   const preview = task.description
     .replace(/<[^>]*>/g, '')
     .replace(/```[\s\S]*?```/g, '')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
     .replace(/https?:\/\/\S+/g, '')
     .replace(/[#*`_~[\]>]/g, '')
     .replace(/\n+/g, ' ')

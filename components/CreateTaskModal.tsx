@@ -54,7 +54,14 @@ export default function CreateTaskModal({
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
+      if (e.key !== 'Escape') return
+      const activeEl = document.activeElement
+      const isTyping =
+        activeEl instanceof HTMLInputElement ||
+        activeEl instanceof HTMLTextAreaElement ||
+        (activeEl instanceof HTMLElement && activeEl.isContentEditable)
+      if (isTyping) return
+      onClose()
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
