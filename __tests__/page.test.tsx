@@ -279,8 +279,7 @@ describe('drag-and-drop reorder', () => {
       target: { value: 'Drag A' },
     })
 
-    const wrapper = screen.getByText('Drag A').closest('[draggable]')!
-    expect(wrapper).toHaveAttribute('draggable', 'false')
+    expect(screen.getByText('Drag A').closest('[draggable]')).toBeNull()
   })
 })
 

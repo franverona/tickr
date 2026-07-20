@@ -15,10 +15,22 @@ interface TaskCardProps {
   selectMode?: boolean
   checked?: boolean
   tabIndex?: number
+  showStatus?: boolean
 }
 
 const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
-  { task, tags, isSelected, onClick, onContextMenu, onKeyDown, selectMode, checked, tabIndex },
+  {
+    task,
+    tags,
+    isSelected,
+    onClick,
+    onContextMenu,
+    onKeyDown,
+    selectMode,
+    checked,
+    tabIndex,
+    showStatus,
+  },
   ref,
 ) {
   const preview = task.description
@@ -82,8 +94,15 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
         </div>
       </div>
 
-      {(task.tags.length > 0 || task.dueDate) && (
+      {(task.tags.length > 0 ||
+        task.dueDate ||
+        (showStatus && (task.archived || task.completed))) && (
         <div className="mt-1.5 flex flex-wrap items-center gap-1">
+          {showStatus && (task.archived || task.completed) && (
+            <span className="border-surface-600 bg-surface-700 text-surface-300 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[11px] font-medium">
+              {task.archived ? 'Archived' : 'Done'}
+            </span>
+          )}
           {task.tags.map((tagId) => {
             const tag = tags.find((t) => t.id === tagId)
             return tag ? <TagBadge key={tagId} tag={tag} size="sm" /> : null
