@@ -27,7 +27,11 @@ A local task management app for tracking work.
 - **Drag-and-drop reordering** of active tasks
 - **Due date indicators** — color-coded badges for overdue, due today, and due soon
 - **Image support** — drag-and-drop or paste images into descriptions (stored in `public/uploads/`)
-- **Task search** — filter tasks by title or description in real time
+- **Task search** — filter tasks by title or description in real time, across tabs
+- **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any task or action from the keyboard
+- **Keyboard shortcuts** — full set of shortcuts for navigation and actions; press `?` for the cheat sheet
+- **Bulk tagging** and **sortable task list**
+- **Due-date notifications** for tasks coming due
 - **Links section** — attach labeled URLs to any task; MR/PR links get a one-click "Copy for Slack" button
 - **Editor enhancements** — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete
 - **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv` plus any referenced images

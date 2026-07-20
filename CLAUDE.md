@@ -26,10 +26,13 @@ app/
 components/
   TaskCard.tsx         # task list item
   TaskDetail.tsx       # right-panel detail view
+  TaskContextMenu.tsx  # right-click / context menu for a task
   CreateTaskModal.tsx
   TagSelector.tsx      # inline tag picker with create flow
   TagManagementModal.tsx  # rename / recolor / delete tags
   TagBadge.tsx
+  CommandPalette.tsx   # Ctrl/Cmd+K command palette
+  ShortcutsModal.tsx   # keyboard shortcuts help overlay
   Logo.tsx
   MdEditor.tsx         # dynamic imports for react-md-editor
 lib/
@@ -38,30 +41,38 @@ lib/
     factory.ts          # getRepository() — reads DB_TYPE, dispatches to a backend
     types.ts             # Kysely DbSchema + TaskRepository interface + DbType union
     slug.ts               # slugify() — shared across backends
+    shared/
+      sql-repository.ts    # createSqlTaskRepository() — the Kysely CRUD logic shared by sqlite/postgres/mysql
     sqlite/
       connection.ts        # better-sqlite3 + Kysely singleton, globalThis-cached
       migrate.ts             # ensureSchema() — DDL, migrations, tag seeding
-      repository.ts            # SqliteTaskRepository implements TaskRepository
+      repository.ts            # SqliteTaskRepository — thin wrapper over createSqlTaskRepository
       index.ts                  # getSqliteRepository(), globalThis-cached
     postgres/
       schema.ts             # PgDbSchema — same tables as sqlite's, native BOOLEAN columns
       connection.ts           # pg.Pool + Kysely singleton, globalThis-cached, reads DATABASE_URL
       migrate.ts                # ensureSchema() — DDL (final shape, no migration history), tag seeding
-      repository.ts               # PostgresTaskRepository implements TaskRepository
+      repository.ts               # PostgresTaskRepository — thin wrapper over createSqlTaskRepository
       index.ts                     # getPostgresRepository(), globalThis-cached
     mysql/
       connection.ts           # mysql2 Pool + Kysely singleton, globalThis-cached, reads DATABASE_URL
       migrate.ts                # ensureSchema() — DDL (final shape, no migration history), tag seeding
-      repository.ts               # MysqlTaskRepository implements TaskRepository
+      repository.ts               # MysqlTaskRepository — thin wrapper over createSqlTaskRepository
       index.ts                     # getMysqlRepository(), globalThis-cached
     firestore/
       connection.ts        # Firestore client singleton, globalThis-cached, reads FIRESTORE_SERVICE_ACCOUNT_KEY
       seed.ts                 # ensureSeeded() — predefined-tag seeding only (no DDL to run)
       chunk.ts                  # chunk() — splits arrays for Firestore's 500-op batch limit
-      repository.ts               # FirestoreTaskRepository implements TaskRepository (no Kysely)
+      repository.ts               # FirestoreTaskRepository implements TaskRepository (no Kysely, no shared factory)
       index.ts                     # getFirestoreRepository(), globalThis-cached
   types.ts             # Task and Tag interfaces
   constants.ts         # PREDEFINED_TAGS and COLOR_PALETTE
+  dates.ts             # due-date badge logic (overdue / due today / due soon)
+  emojis.ts            # emoji autocomplete (`:name`) data + matching
+  snippets.ts          # snippet autocomplete (`/key`) data
+  suggestLabel.ts       # tag label suggestion helper
+  paste-utils.ts       # rich-paste-to-Markdown, URL-over-selection, CSV/TSV-to-table conversion
+  useFocusTrap.ts      # focus-trap hook shared by modals
   export.ts            # exportToJSON, exportToCSV, exportToZip (client-side)
   import.ts            # processImportZip — parse ZIP, upload images (client-side)
 data/
@@ -87,12 +98,13 @@ public/
 - Postgres and MySQL share a Kysely-based SQL layer with the SQLite adapter and read connection details from a single **`DATABASE_URL`** connection string (not discrete host/port/user/pass vars). Firestore is schemaless and reads a single **`FIRESTORE_SERVICE_ACCOUNT_KEY`** connection string instead (see "Firestore adapter" below)
 - **To add a new backend**: implement `TaskRepository` (`lib/db/types.ts`) in a new `lib/db/<backend>/` directory (mirror `lib/db/sqlite/` or `lib/db/postgres/`), then register it in the `switch` in `lib/db/factory.ts`
 - All DB access goes through `getRepository()` from `lib/db` — `app/actions.ts`'s Server Actions are thin wrappers over it and contain no backend-specific logic themselves
+- **SQL backends share one CRUD implementation**: `lib/db/shared/sql-repository.ts`'s `createSqlTaskRepository()` holds the actual Kysely query logic (task/tag CRUD, reordering, import) generic over the backend's boolean representation. `sqlite/repository.ts`, `postgres/repository.ts`, and `mysql/repository.ts` are now thin wrappers that just supply their backend's `ensureSchema`, `boolIn`/`boolOut` conversion, and tag-conflict strategy (`onConflict` vs MySQL's `ignore`) to that factory. Firestore's `repository.ts` is unrelated to this factory (no Kysely, no shared schema)
 
 ## SQLite adapter
 
 - SQLite at `./data/tasks.db`, created automatically on first run. Connection is a `better-sqlite3` instance wrapped in Kysely (`lib/db/sqlite/connection.ts`), `globalThis`-cached, with `PRAGMA foreign_keys = ON`
 - Schema: `tasks`, `tags`, `task_urls`, and `task_tags` tables
-- `tasks` columns: `id`, `title`, `description`, `completed`, `archived`, `due_date`, `created_at`, `updated_at`, `completed_at`, `archived_at`, `sort_order`. `completed`/`archived` are stored as `INTEGER` 0/1 — the better-sqlite3 driver doesn't auto-convert JS booleans, so `lib/db/sqlite/repository.ts` converts manually
+- `tasks` columns: `id`, `title`, `description`, `completed`, `archived`, `due_date`, `created_at`, `updated_at`, `completed_at`, `archived_at`, `sort_order`. `completed`/`archived` are stored as `INTEGER` 0/1 — the better-sqlite3 driver doesn't auto-convert JS booleans, so `sqlite/repository.ts` passes `boolIn`/`boolOut` converters (`b ? 1 : 0` / `v === 1`) into the shared `createSqlTaskRepository()` factory (`lib/db/shared/sql-repository.ts`)
 - `task_tags` is a join table (`task_id`, `tag_id`, `position`) — replaces the old JSON-array-in-TEXT `tasks.tags` column. `position` preserves tag display order (tag badges render in array order, so this isn't cosmetic). Both FKs cascade on delete
 - `task_urls` columns: `id`, `task_id`, `url`, `label`, `created_at` — backs the Links section in the task detail panel. `task_id` cascades on delete
 - Predefined tags seeded via Kysely `.onConflict().doNothing()` on every startup (user edits/deletes of predefined tags are never overwritten)
@@ -101,7 +113,7 @@ public/
 ## Postgres adapter
 
 - Configured via **`DATABASE_URL`** (e.g. `postgresql://user:pass@host:5432/dbname`) — `lib/db/postgres/connection.ts` throws a clear error if unset when `DB_TYPE=postgres`. Connection is a `pg.Pool` wrapped in Kysely (`PostgresDialect`), `globalThis`-cached (load-bearing, not just parity with SQLite — without it, dev-mode hot-reload would spawn a new `Pool`/new TCP connections on every module re-evaluation)
-- Same 4-table schema as SQLite (`tasks`, `tags`, `task_urls`, `task_tags`), but `completed`/`archived` are native `BOOLEAN` columns (the `pg` driver handles JS booleans natively, unlike better-sqlite3) — see `lib/db/postgres/schema.ts`'s `PgTasksTable`. Timestamps stay `TEXT` (ISO-8601 strings) on both backends for consistency
+- Same 4-table schema as SQLite (`tasks`, `tags`, `task_urls`, `task_tags`), but `completed`/`archived` are native `BOOLEAN` columns (the `pg` driver handles JS booleans natively, unlike better-sqlite3) — see `lib/db/postgres/schema.ts`'s `PgTasksTable`. Timestamps stay `TEXT` (ISO-8601 strings) on both backends for consistency. `postgres/repository.ts` passes identity `boolIn`/`boolOut` converters into the shared `createSqlTaskRepository()` factory, since `pg` already hands back real JS booleans
 - `lib/db/postgres/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder (`db.schema.createTable(...)`) — no incremental migration history to replay, unlike `sqlite/migrate.ts`, since Postgres starts fresh
 - **Local testing**: `docker-compose.yml` at the repo root runs a `postgres:16-alpine` container (`docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=postgres` and `DATABASE_URL`, then `pnpm dev`
 - To reset: `docker compose down -v` (drops the named volume) and restart
@@ -109,9 +121,9 @@ public/
 ## MySQL adapter
 
 - Configured via **`DATABASE_URL`** (e.g. `mysql://user:pass@host:3306/dbname`) — `lib/db/mysql/connection.ts` throws a clear error if unset when `DB_TYPE=mysql`. Connection is a `mysql2` (callback API, not `mysql2/promise`) `Pool` wrapped in Kysely (`MysqlDialect`), `globalThis`-cached for the same hot-reload reason as Postgres
-- Reuses SQLite's `DbSchema`/`TasksTable` from `lib/db/types.ts` directly rather than a dedicated schema file like Postgres's — `completed`/`archived` are declared `boolean` in the DDL (MySQL stores this as `TINYINT(1)`), but the `mysql2` driver reads it back as a JS number (0|1), same as `better-sqlite3` and unlike `pg`, so the number-based row type and manual `=== 1` conversion in `lib/db/mysql/repository.ts` is identical to `lib/db/sqlite/repository.ts`'s
+- Reuses SQLite's `DbSchema`/`TasksTable` from `lib/db/types.ts` directly rather than a dedicated schema file like Postgres's — `completed`/`archived` are declared `boolean` in the DDL (MySQL stores this as `TINYINT(1)`), but the `mysql2` driver reads it back as a JS number (0|1), same as `better-sqlite3` and unlike `pg`, so `mysql/repository.ts` passes the same `boolIn`/`boolOut` converters into the shared `createSqlTaskRepository()` factory as `sqlite/repository.ts` does
 - `id`/foreign-key columns (`tasks.id`, `tags.id`, `task_urls.id`, `task_urls.task_id`, `task_tags.task_id`, `task_tags.tag_id`) use `varchar(255)` rather than `text` — MySQL can't index a `TEXT`/`BLOB` column, including as a primary or foreign key, without an explicit key length. Non-indexed text columns (`title`, `description`, `url`, `label`, `color`, and the `TEXT`-stored ISO-8601 timestamp columns) stay `text`
-- MySQL has no `ON CONFLICT` — predefined-tag seeding (`lib/db/mysql/migrate.ts`) and imported-tag creation (`lib/db/mysql/repository.ts`) use Kysely's `.ignore()` (`INSERT IGNORE`) instead of the SQLite/Postgres adapters' `.onConflict((oc) => oc.doNothing())`
+- MySQL has no `ON CONFLICT` — predefined-tag seeding (`lib/db/mysql/migrate.ts`) uses Kysely's `.ignore()` (`INSERT IGNORE`), and `mysql/repository.ts` passes `tagConflictStrategy: 'ignore'` into the shared factory so imported-tag creation does the same, instead of the SQLite/Postgres adapters' `tagConflictStrategy: 'onConflict'` (`.onConflict((oc) => oc.doNothing())`)
 - `lib/db/mysql/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder — no incremental migration history to replay, same as Postgres
 - **Local testing**: `docker-compose.yml`'s `mysql` service (`mysql:8.4`, `docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=mysql` and its `DATABASE_URL`, then `pnpm dev`
 - To reset: `docker compose down -v` (drops the named volume) and restart
@@ -130,7 +142,7 @@ public/
 ## Testing
 
 - **Vitest** — run with `pnpm test` (or `pnpm test:watch`)
-- Tests live in `__tests__/`: `export.test.ts`, `import.test.ts`, `actions.test.ts`, `cross-backend-import-export.test.ts`
+- Tests live in `__tests__/`, mirroring `lib/`/`components/`/`app/` — e.g. `export.test.ts`, `import.test.ts`, `actions.test.ts`, `cross-backend-import-export.test.ts`, `migrate.test.ts`, `dates.test.ts`, `paste-utils.test.ts`, `page.test.tsx`, plus one `*.test.tsx` per interactive component (`TaskCard`, `TaskDetail`, `TaskContextMenu`, `TagSelector`, `CreateTaskModal`, `TagManagementModal`, `ImportModal`, …)
 - `actions.test.ts` mocks `lib/db`'s `getRepository` via `vi.hoisted` + `vi.mock`, backed by a `SqliteTaskRepository` built on an in-memory `better-sqlite3` DB — schema comes from the real `ensureSchema()` (`lib/db/sqlite/migrate.ts`) rather than a duplicated DDL copy, so the test fixture can't drift from production. `beforeEach` wipes all rows (including seeded tags) for isolation; tests that need specific tags insert them directly first
 - `parseCSVRows`, `parseJSONContent`, `parseCSVContent` in `lib/import.ts` are exported so they can be unit-tested directly
 - `cross-backend-import-export.test.ts` seeds a source `TaskRepository`, runs it through `exportToJSON`/`exportToCSV` → `parseJSONContent`/`parseCSVContent` → a destination repository's `importTasks`, and asserts the data survives modulo backend-regenerated ids/timestamps. The SQLite↔SQLite case (two independent in-memory DBs) always runs; the SQLite↔Postgres and SQLite↔MySQL cases each skip themselves (via a runtime reachability check, not a hardcoded env flag) when the corresponding `docker-compose.yml` service isn't running. Because two independent in-memory SQLite DBs are created in the same process, `makeSqliteRepo()` calls `vi.resetModules()` before each one — `lib/db/sqlite/migrate.ts` caches its migration promise at module scope (correct for production's single connection), so without a fresh module instance per DB, the second DB's tables would never actually get created
