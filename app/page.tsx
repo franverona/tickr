@@ -26,13 +26,6 @@ const TAB_STORAGE_KEY = 'tickr:tab'
 const SELECTED_TASK_STORAGE_KEY = 'tickr:selectedTaskId'
 const DUE_NOTIFY_STORAGE_KEY = 'tickr:last-due-notify'
 
-function compareDueDate(a: Task, b: Task): number {
-  if (!a.dueDate && !b.dueDate) return 0
-  if (!a.dueDate) return 1
-  if (!b.dueDate) return -1
-  return a.dueDate.localeCompare(b.dueDate)
-}
-
 function taskStatus(task: Task): 'active' | 'done' | 'archived' {
   if (task.archived) return 'archived'
   if (task.completed) return 'done'
@@ -65,7 +58,6 @@ export default function Page() {
   const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false)
   const [isBulkTagOpen, setIsBulkTagOpen] = useState(false)
   const bulkTagMenuRef = useRef<HTMLDivElement>(null)
-  const [activeSort, setActiveSort] = useState<'manual' | 'dueDate'>('manual')
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false)
   const [toast, setToast] = useState<{
     message: string
@@ -312,7 +304,6 @@ export default function Page() {
     })
     .sort((a, b) => {
       if (isSearching) return STATUS_ORDER[taskStatus(a)] - STATUS_ORDER[taskStatus(b)]
-      if (tab === 'active' && activeSort === 'dueDate') return compareDueDate(a, b)
       if (tab === 'done') return (b.completedAt ?? '').localeCompare(a.completedAt ?? '')
       if (tab === 'archived') return (b.archivedAt ?? '').localeCompare(a.archivedAt ?? '')
       return 0
@@ -940,17 +931,6 @@ export default function Page() {
                 ))}
               </div>
               <div className="ml-auto flex items-center gap-2.5">
-                {tab === 'active' && !isSearching && (
-                  <select
-                    value={activeSort}
-                    onChange={(e) => setActiveSort(e.target.value as 'manual' | 'dueDate')}
-                    title="Sort tasks"
-                    className="border-surface-600 bg-surface-800 text-surface-300 hover:border-surface-400 rounded-lg border px-1.5 py-1 text-xs focus:outline-none"
-                  >
-                    <option value="manual">Manual order</option>
-                    <option value="dueDate">Due date</option>
-                  </select>
-                )}
                 <span className="text-surface-500 text-xs">
                   {isLoading
                     ? ''
@@ -1025,18 +1005,14 @@ export default function Page() {
                         <div className="bg-accent-500 mb-2 h-0.5 rounded-full" />
                       )}
                     <div
-                      draggable={activeSort === 'manual'}
-                      onDragStart={
-                        activeSort !== 'manual'
-                          ? undefined
-                          : (e) => {
-                              e.dataTransfer.effectAllowed = 'move'
-                              handleDragStart(i)
-                            }
-                      }
-                      onDragOver={activeSort !== 'manual' ? undefined : (e) => handleDragOver(e, i)}
-                      onDrop={activeSort !== 'manual' ? undefined : handleDrop}
-                      onDragEnd={activeSort !== 'manual' ? undefined : handleDragEnd}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move'
+                        handleDragStart(i)
+                      }}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
                       className={dragSrcIdx === i ? 'opacity-40' : ''}
                     >
                       <TaskCard
@@ -1059,12 +1035,8 @@ export default function Page() {
                 ))}
                 <div
                   className="h-4"
-                  onDragOver={
-                    activeSort !== 'manual'
-                      ? undefined
-                      : (e) => handleDragOver(e, filteredTasks.length)
-                  }
-                  onDrop={activeSort !== 'manual' ? undefined : handleDrop}
+                  onDragOver={(e) => handleDragOver(e, filteredTasks.length)}
+                  onDrop={handleDrop}
                 >
                   {dragSrcIdx !== null &&
                     dragOverIdx === filteredTasks.length &&
