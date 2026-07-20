@@ -18,6 +18,7 @@ import TagManagementModal from '@/components/TagManagementModal'
 import TaskContextMenu from '@/components/TaskContextMenu'
 import ImportModal from '@/components/ImportModal'
 import ShortcutsModal from '@/components/ShortcutsModal'
+import CommandPalette from '@/components/CommandPalette'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
 import { getDueStatus } from '@/lib/dates'
@@ -59,6 +60,7 @@ export default function Page() {
   const [isBulkTagOpen, setIsBulkTagOpen] = useState(false)
   const bulkTagMenuRef = useRef<HTMLDivElement>(null)
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false)
+  const [isPaletteOpen, setIsPaletteOpen] = useState(false)
   const [toast, setToast] = useState<{
     message: string
     kind: 'loading' | 'success' | 'error'
@@ -193,8 +195,9 @@ export default function Page() {
         activeEl instanceof HTMLInputElement ||
         activeEl instanceof HTMLTextAreaElement ||
         (activeEl instanceof HTMLElement && activeEl.isContentEditable)
-      const isModalOpen =
+      const isOtherModalOpen =
         isCreateOpen || isTagsOpen || pendingImportFile !== null || isShortcutsOpen
+      const isModalOpen = isOtherModalOpen || isPaletteOpen
 
       if (e.key === 'Escape') {
         if (isMenuOpen) {
@@ -204,6 +207,16 @@ export default function Page() {
         if (!isTyping && !isModalOpen && selectedTaskId) {
           setSelectedTaskId(null)
         }
+        return
+      }
+
+      // ⌘K/Ctrl+K toggles the command palette from anywhere, including while
+      // typing — the one shortcut here that isn't gated on isTyping, matching
+      // the convention in every other app that has one.
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        if (isOtherModalOpen) return
+        e.preventDefault()
+        setIsPaletteOpen((o) => !o)
         return
       }
 
@@ -222,7 +235,15 @@ export default function Page() {
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [isCreateOpen, isTagsOpen, pendingImportFile, selectedTaskId, isMenuOpen, isShortcutsOpen])
+  }, [
+    isCreateOpen,
+    isTagsOpen,
+    pendingImportFile,
+    selectedTaskId,
+    isMenuOpen,
+    isShortcutsOpen,
+    isPaletteOpen,
+  ])
 
   async function handleExport(format: 'json' | 'csv') {
     setIsMenuOpen(false)
@@ -1129,6 +1150,20 @@ export default function Page() {
       )}
 
       {isShortcutsOpen && <ShortcutsModal onClose={() => setIsShortcutsOpen(false)} />}
+
+      {isPaletteOpen && (
+        <CommandPalette
+          tasks={tasks}
+          onClose={() => setIsPaletteOpen(false)}
+          onNewTask={() => setIsCreateOpen(true)}
+          onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenTags={() => setIsTagsOpen(true)}
+          onExport={handleExport}
+          onImport={() => importInputRef.current?.click()}
+          onOpenShortcuts={() => setIsShortcutsOpen(true)}
+          onSelectTask={setSelectedTaskId}
+        />
+      )}
 
       {toast && (
         <div
