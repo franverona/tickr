@@ -8,6 +8,7 @@ interface ShortcutsModalProps {
 }
 
 const SHORTCUTS: [string, string][] = [
+  ['⌘K / Ctrl+K', 'Open command palette'],
   ['N', 'New task'],
   ['/', 'Search'],
   ['↑ / ↓', 'Move between tasks'],
