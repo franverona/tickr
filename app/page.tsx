@@ -17,8 +17,22 @@ import CreateTaskModal from '@/components/CreateTaskModal'
 import TagManagementModal from '@/components/TagManagementModal'
 import TaskContextMenu from '@/components/TaskContextMenu'
 import ImportModal from '@/components/ImportModal'
+import ShortcutsModal from '@/components/ShortcutsModal'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
+import { getDueStatus } from '@/lib/dates'
+
+const TAB_STORAGE_KEY = 'tickr:tab'
+const SELECTED_TASK_STORAGE_KEY = 'tickr:selectedTaskId'
+const DUE_NOTIFY_STORAGE_KEY = 'tickr:last-due-notify'
+
+function taskStatus(task: Task): 'active' | 'done' | 'archived' {
+  if (task.archived) return 'archived'
+  if (task.completed) return 'done'
+  return 'active'
+}
+
+const STATUS_ORDER = { active: 0, done: 1, archived: 2 } as const
 
 export default function Page() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -42,6 +56,9 @@ export default function Page() {
   const [isSelectMode, setIsSelectMode] = useState(false)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkConfirmDelete, setBulkConfirmDelete] = useState(false)
+  const [isBulkTagOpen, setIsBulkTagOpen] = useState(false)
+  const bulkTagMenuRef = useRef<HTMLDivElement>(null)
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false)
   const [toast, setToast] = useState<{
     message: string
     kind: 'loading' | 'success' | 'error'
@@ -64,6 +81,68 @@ export default function Page() {
     })
   }, [])
 
+  // Restore last-viewed tab/task on mount rather than in useState initializers,
+  // so the client's first render still matches the server-rendered HTML
+  // (avoids a hydration mismatch) — this trades a one-frame flash of the
+  // defaults for correctness. That's exactly the case the disabled rule
+  // below warns about, but it's the React-docs-recommended fix for values
+  // that can only be known on the client (react.dev/reference/react/useEffect
+  // #displaying-different-content-on-the-server-and-client).
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    const savedTab = localStorage.getItem(TAB_STORAGE_KEY)
+    if (savedTab === 'active' || savedTab === 'done' || savedTab === 'archived') setTab(savedTab)
+    const savedTaskId = localStorage.getItem(SELECTED_TASK_STORAGE_KEY)
+    if (savedTaskId) setSelectedTaskId(savedTaskId)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem(TAB_STORAGE_KEY, tab)
+  }, [tab])
+
+  useEffect(() => {
+    if (selectedTaskId) localStorage.setItem(SELECTED_TASK_STORAGE_KEY, selectedTaskId)
+    else localStorage.removeItem(SELECTED_TASK_STORAGE_KEY)
+  }, [selectedTaskId])
+
+  // Notify at most once per calendar day (tracked in localStorage, not just
+  // sessionStorage, so reloading later the same day doesn't re-prompt) about
+  // tasks due today or overdue.
+  useEffect(() => {
+    if (isLoading || typeof Notification === 'undefined') return
+    const today = new Date().toISOString().slice(0, 10)
+    if (localStorage.getItem(DUE_NOTIFY_STORAGE_KEY) === today) return
+
+    const due = tasks.filter(
+      (t) =>
+        !t.completed &&
+        !t.archived &&
+        (getDueStatus(t.dueDate, t.completed) === 'overdue' ||
+          getDueStatus(t.dueDate, t.completed) === 'today'),
+    )
+    if (due.length === 0) return
+
+    function notify() {
+      const n = new Notification(`${due.length} task${due.length === 1 ? '' : 's'} due`, {
+        body: due
+          .slice(0, 5)
+          .map((t) => t.title)
+          .join('\n'),
+        tag: 'tickr-due-reminder',
+      })
+      n.onclick = () => window.focus()
+      localStorage.setItem(DUE_NOTIFY_STORAGE_KEY, today)
+    }
+
+    if (Notification.permission === 'granted') notify()
+    else if (Notification.permission === 'default') {
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') notify()
+      })
+    }
+  }, [isLoading, tasks])
+
   useEffect(() => {
     function onClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -73,6 +152,16 @@ export default function Page() {
     if (isMenuOpen) document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
   }, [isMenuOpen])
+
+  useEffect(() => {
+    function onClickOutside(e: MouseEvent) {
+      if (bulkTagMenuRef.current && !bulkTagMenuRef.current.contains(e.target as Node)) {
+        setIsBulkTagOpen(false)
+      }
+    }
+    if (isBulkTagOpen) document.addEventListener('mousedown', onClickOutside)
+    return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [isBulkTagOpen])
 
   useEffect(() => {
     if (!isMenuOpen) return
@@ -104,7 +193,8 @@ export default function Page() {
         activeEl instanceof HTMLInputElement ||
         activeEl instanceof HTMLTextAreaElement ||
         (activeEl instanceof HTMLElement && activeEl.isContentEditable)
-      const isModalOpen = isCreateOpen || isTagsOpen || pendingImportFile !== null
+      const isModalOpen =
+        isCreateOpen || isTagsOpen || pendingImportFile !== null || isShortcutsOpen
 
       if (e.key === 'Escape') {
         if (isMenuOpen) {
@@ -125,11 +215,14 @@ export default function Page() {
       } else if (e.key === '/') {
         e.preventDefault()
         setIsSearchOpen(true)
+      } else if (e.key === '?') {
+        e.preventDefault()
+        setIsShortcutsOpen(true)
       }
     }
     document.addEventListener('keydown', onKeyDown)
     return () => document.removeEventListener('keydown', onKeyDown)
-  }, [isCreateOpen, isTagsOpen, pendingImportFile, selectedTaskId, isMenuOpen])
+  }, [isCreateOpen, isTagsOpen, pendingImportFile, selectedTaskId, isMenuOpen, isShortcutsOpen])
 
   async function handleExport(format: 'json' | 'csv') {
     setIsMenuOpen(false)
@@ -188,25 +281,29 @@ export default function Page() {
 
   const query = searchQuery.trim().toLowerCase()
   const tagLabelById = new Map(tags.map((t) => [t.id, t.label.toLowerCase()]))
+  // A non-empty query searches across every tab (not just the current one) —
+  // otherwise a task you know exists can silently fail to show up just
+  // because it's archived while you're viewing Active.
+  const isSearching = query.length > 0
 
   const filteredTasks = tasks
     .filter((task) => {
-      const inTab =
-        tab === 'active'
-          ? !task.completed && !task.archived
-          : tab === 'done'
-            ? task.completed && !task.archived
-            : task.archived
-      if (!inTab) return false
-      if (!query) return true
-      return (
-        task.title.toLowerCase().includes(query) ||
-        task.description.toLowerCase().includes(query) ||
-        task.tags.some((id) => tagLabelById.get(id)?.includes(query)) ||
-        task.urls.some((url) => url.label.toLowerCase().includes(query))
-      )
+      if (isSearching) {
+        return (
+          task.title.toLowerCase().includes(query) ||
+          task.description.toLowerCase().includes(query) ||
+          task.tags.some((id) => tagLabelById.get(id)?.includes(query)) ||
+          task.urls.some((url) => url.label.toLowerCase().includes(query))
+        )
+      }
+      return tab === 'active'
+        ? !task.completed && !task.archived
+        : tab === 'done'
+          ? task.completed && !task.archived
+          : task.archived
     })
     .sort((a, b) => {
+      if (isSearching) return STATUS_ORDER[taskStatus(a)] - STATUS_ORDER[taskStatus(b)]
       if (tab === 'done') return (b.completedAt ?? '').localeCompare(a.completedAt ?? '')
       if (tab === 'archived') return (b.archivedAt ?? '').localeCompare(a.archivedAt ?? '')
       return 0
@@ -439,6 +536,33 @@ export default function Page() {
     }
   }
 
+  async function handleBulkAddTag(tagId: string) {
+    setIsBulkTagOpen(false)
+    const targets = tasks.filter((t) => selectedIds.has(t.id) && !t.tags.includes(tagId))
+    if (targets.length === 0) return
+    showToast(`Tagging ${targets.length} task${targets.length === 1 ? '' : 's'}…`, 'loading')
+    try {
+      const results = await Promise.allSettled(
+        targets.map((t) => updateTask(t.id, { tags: [...t.tags, tagId] })),
+      )
+      const succeeded = results
+        .filter((r): r is PromiseFulfilledResult<Task> => r.status === 'fulfilled')
+        .map((r) => r.value)
+      setTasks((prev) => prev.map((t) => succeeded.find((u) => u.id === t.id) ?? t))
+      const failedCount = targets.length - succeeded.length
+      if (failedCount === 0) {
+        showToast(`Tagged ${targets.length} task${targets.length === 1 ? '' : 's'}`, 'success')
+      } else {
+        showToast(
+          `Tagged ${succeeded.length} of ${targets.length} — ${failedCount} failed`,
+          'error',
+        )
+      }
+    } catch {
+      showToast('Failed to tag tasks', 'error')
+    }
+  }
+
   const hasNoTasks = !isLoading && tasks.length === 0
 
   return (
@@ -530,6 +654,14 @@ export default function Page() {
               </svg>
             </button>
           )}
+
+          <button
+            onClick={() => setIsShortcutsOpen(true)}
+            className="border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-100 hidden h-8 w-8 items-center justify-center rounded-lg border text-sm font-semibold transition-colors sm:flex"
+            title="Keyboard shortcuts (?)"
+          >
+            ?
+          </button>
 
           {/* ··· menu */}
           <div ref={menuRef} className="relative">
@@ -688,6 +820,40 @@ export default function Page() {
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
+                <div ref={bulkTagMenuRef} className="relative">
+                  <button
+                    onClick={() => setIsBulkTagOpen((o) => !o)}
+                    disabled={selectedIds.size === 0}
+                    aria-haspopup="menu"
+                    aria-expanded={isBulkTagOpen}
+                    className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Tag
+                  </button>
+                  {isBulkTagOpen && (
+                    <div
+                      role="menu"
+                      className="border-surface-700 bg-surface-800 absolute top-full left-0 z-20 mt-1 w-44 rounded-lg border p-1.5 shadow-xl"
+                    >
+                      {tags.length === 0 ? (
+                        <p className="text-surface-500 px-1.5 py-1 text-xs">No tags yet</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {tags.map((tag) => (
+                            <button
+                              key={tag.id}
+                              role="menuitem"
+                              onClick={() => handleBulkAddTag(tag.id)}
+                              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium transition-transform hover:scale-105 ${tag.color}`}
+                            >
+                              {tag.label}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 {tab === 'active' && (
                   <button
                     onClick={() => handleBulkAction('complete')}
@@ -768,7 +934,15 @@ export default function Page() {
                 <span className="text-surface-500 text-xs">
                   {isLoading
                     ? ''
-                    : `${filteredTasks.length} ${filteredTasks.length === 1 ? 'task' : 'tasks'}`}
+                    : `${filteredTasks.length} ${
+                        isSearching
+                          ? filteredTasks.length === 1
+                            ? 'result'
+                            : 'results'
+                          : filteredTasks.length === 1
+                            ? 'task'
+                            : 'tasks'
+                      }`}
                 </span>
                 {!isLoading && filteredTasks.length > 0 && (
                   <button
@@ -820,7 +994,7 @@ export default function Page() {
                         : 'No active tasks'}
                 </p>
               </div>
-            ) : tab === 'active' ? (
+            ) : tab === 'active' && !isSearching ? (
               <div className="flex flex-col gap-2">
                 {filteredTasks.map((task, i) => (
                   <div key={task.id}>
@@ -831,18 +1005,14 @@ export default function Page() {
                         <div className="bg-accent-500 mb-2 h-0.5 rounded-full" />
                       )}
                     <div
-                      draggable={!query}
-                      onDragStart={
-                        query
-                          ? undefined
-                          : (e) => {
-                              e.dataTransfer.effectAllowed = 'move'
-                              handleDragStart(i)
-                            }
-                      }
-                      onDragOver={query ? undefined : (e) => handleDragOver(e, i)}
-                      onDrop={query ? undefined : handleDrop}
-                      onDragEnd={query ? undefined : handleDragEnd}
+                      draggable
+                      onDragStart={(e) => {
+                        e.dataTransfer.effectAllowed = 'move'
+                        handleDragStart(i)
+                      }}
+                      onDragOver={(e) => handleDragOver(e, i)}
+                      onDrop={handleDrop}
+                      onDragEnd={handleDragEnd}
                       className={dragSrcIdx === i ? 'opacity-40' : ''}
                     >
                       <TaskCard
@@ -865,8 +1035,8 @@ export default function Page() {
                 ))}
                 <div
                   className="h-4"
-                  onDragOver={query ? undefined : (e) => handleDragOver(e, filteredTasks.length)}
-                  onDrop={query ? undefined : handleDrop}
+                  onDragOver={(e) => handleDragOver(e, filteredTasks.length)}
+                  onDrop={handleDrop}
                 >
                   {dragSrcIdx !== null &&
                     dragOverIdx === filteredTasks.length &&
@@ -893,6 +1063,7 @@ export default function Page() {
                     selectMode={isSelectMode}
                     checked={selectedIds.has(task.id)}
                     tabIndex={task.id === rovingCardId ? 0 : -1}
+                    showStatus={isSearching}
                   />
                 ))}
               </div>
@@ -956,6 +1127,8 @@ export default function Page() {
           onImported={handleImported}
         />
       )}
+
+      {isShortcutsOpen && <ShortcutsModal onClose={() => setIsShortcutsOpen(false)} />}
 
       {toast && (
         <div
