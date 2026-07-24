@@ -131,6 +131,8 @@ function renderTaskDetail(
     onTagCreated: vi.fn(),
     onSelectTask: vi.fn(),
     onError: vi.fn(),
+    isSidebarCollapsed: false,
+    onToggleSidebar: vi.fn(),
     ...overrides,
   }
   const result = render(<TaskDetail {...props} />)
