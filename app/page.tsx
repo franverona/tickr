@@ -25,6 +25,7 @@ import { getDueStatus } from '@/lib/dates'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
 const SELECTED_TASK_STORAGE_KEY = 'tickr:selectedTaskId'
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'tickr:sidebarCollapsed'
 const DUE_NOTIFY_STORAGE_KEY = 'tickr:last-due-notify'
 
 function taskStatus(task: Task): 'active' | 'done' | 'archived' {
@@ -40,6 +41,7 @@ export default function Page() {
   const [tags, setTags] = useState<Tag[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [tab, setTab] = useState<'active' | 'done' | 'archived'>('active')
   const [searchQuery, setSearchQuery] = useState('')
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -96,8 +98,13 @@ export default function Page() {
     if (savedTab === 'active' || savedTab === 'done' || savedTab === 'archived') setTab(savedTab)
     const savedTaskId = localStorage.getItem(SELECTED_TASK_STORAGE_KEY)
     if (savedTaskId) setSelectedTaskId(savedTaskId)
+    if (localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === '1') setIsSidebarCollapsed(true)
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
+
+  useEffect(() => {
+    localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, isSidebarCollapsed ? '1' : '0')
+  }, [isSidebarCollapsed])
 
   useEffect(() => {
     localStorage.setItem(TAB_STORAGE_KEY, tab)
@@ -816,7 +823,11 @@ export default function Page() {
         {/* Task list */}
         <div
           className={`border-surface-700 flex shrink-0 flex-col border-r ${
-            selectedTask ? 'hidden md:flex md:w-90' : 'flex w-full md:w-90'
+            selectedTask
+              ? isSidebarCollapsed
+                ? 'hidden'
+                : 'hidden md:flex md:w-90'
+              : 'flex w-full md:w-90'
           }`}
         >
           {isSelectMode ? (
@@ -1106,6 +1117,8 @@ export default function Page() {
               onTagCreated={handleTagCreated}
               onSelectTask={setSelectedTaskId}
               onError={(message) => showToast(message, 'error')}
+              isSidebarCollapsed={isSidebarCollapsed}
+              onToggleSidebar={() => setIsSidebarCollapsed((c) => !c)}
             />
           </div>
         ) : (
