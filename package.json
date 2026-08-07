@@ -27,7 +27,7 @@
     ]
   },
   "dependencies": {
-    "@google-cloud/firestore": "^8.6.0",
+    "@google-cloud/firestore": "^8.7.1",
     "@uiw/react-markdown-preview": "^5.2.1",
     "@uiw/react-md-editor": "^4.1.1",
     "better-sqlite3": "^13.0.3",
