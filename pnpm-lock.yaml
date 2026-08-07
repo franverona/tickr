@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@google-cloud/firestore':
-        specifier: ^8.6.0
-        version: 8.7.0(supports-color@7.2.0)
+        specifier: ^8.7.1
+        version: 8.7.1(supports-color@7.2.0)
       '@uiw/react-markdown-preview':
         specifier: ^5.2.1
         version: 5.2.1(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(supports-color@7.2.0)
@@ -396,8 +396,8 @@ packages:
       '@noble/hashes':
         optional: true
 
-  '@google-cloud/firestore@8.7.0':
-    resolution: {integrity: sha512-EvMpZQUXkTRdweSvOu6VL6EEQwHjHAgWz2UYZR+Mj6Ao52S+TWieHbSn15jiNnEw8F8RhbZj7IGXZ1PFB1eA+A==}
+  '@google-cloud/firestore@8.7.1':
+    resolution: {integrity: sha512-Hp/WI8sH569ANitsko6RNvCUkzTCYudHoINOkQjiJq2FBG6kKnofBAW7PtS823cu6RMxHqK2RxRcspdjrRpUFA==}
     engines: {node: '>=18'}
 
   '@grpc/grpc-js@1.14.4':
@@ -2031,6 +2031,10 @@ packages:
   google-logging-utils@1.1.3:
     resolution: {integrity: sha512-eAmLkjDjAFCVXg7A1unxHsLf961m6y17QFqXqAXGj/gVkKFrEICfStRfwUlGNfeCEjNRa32JEWOUTlYXPyyKvA==}
     engines: {node: '>=14'}
+
+  google-logging-utils@1.2.0:
+    resolution: {integrity: sha512-WE9av4wKDZgRjBwgVUabocx8T6/7o3Ca1Fat46FXDhXVAFibzNadedcOXrdgd1Kzmk8tsk/9ZH89Wyf/SqeZ3A==}
+    engines: {node: '>=18'}
 
   gopd@1.2.0:
     resolution: {integrity: sha512-ZUKRh6/kUFoAiTAtTYPZJ3hw9wNxx+BIBOijnlG9PnrJsCcSjs1wyyD6vJpaYtgnzDrKYRSqf3OO6Rfa93xsRg==}
@@ -4215,7 +4219,7 @@ snapshots:
 
   '@exodus/bytes@1.15.1': {}
 
-  '@google-cloud/firestore@8.7.0(supports-color@7.2.0)':
+  '@google-cloud/firestore@8.7.1(supports-color@7.2.0)':
     dependencies:
       '@opentelemetry/api': 1.9.1
       fast-deep-equal: 3.1.3
@@ -5882,7 +5886,7 @@ snapshots:
       ecdsa-sig-formatter: 1.0.11
       gaxios: 7.3.0(supports-color@7.2.0)
       gcp-metadata: 8.1.4(supports-color@7.2.0)
-      google-logging-utils: 1.1.3
+      google-logging-utils: 1.2.0
       gtoken: 8.0.0(supports-color@7.2.0)
       jws: 4.0.1
     transitivePeerDependencies:
@@ -5905,6 +5909,8 @@ snapshots:
       - supports-color
 
   google-logging-utils@1.1.3: {}
+
+  google-logging-utils@1.2.0: {}
 
   gopd@1.2.0: {}
 
