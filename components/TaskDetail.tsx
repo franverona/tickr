@@ -247,6 +247,8 @@ export default function TaskDetail({
   const [suggestionIndex, setSuggestionIndex] = useState(0)
   const [caretPos, setCaretPos] = useState<{ top: number; left: number } | null>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const urlInputRef = useRef<HTMLInputElement>(null)
+  const urlLabelInputRef = useRef<HTMLInputElement>(null)
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDescRef = useRef(task.description)
   const descriptionDraftRef = useRef(task.description)
@@ -1204,9 +1206,18 @@ export default function TaskDetail({
                 {showAddUrl && (
                   <div className="flex flex-col gap-1.5 pt-0.5">
                     <input
+                      ref={urlInputRef}
                       autoFocus
                       value={urlDraft}
                       onChange={(e) => setUrlDraft(e.target.value)}
+                      onPaste={() => {
+                        setTimeout(() => {
+                          const url = urlInputRef.current?.value.trim() ?? ''
+                          if (url) setUrlLabelDraft((prev) => prev || suggestLabel(url) || url)
+                          urlLabelInputRef.current?.focus()
+                          urlLabelInputRef.current?.select()
+                        }, 0)
+                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') handleAddUrl()
                         if (e.key === 'Escape') {
@@ -1219,6 +1230,7 @@ export default function TaskDetail({
                       className="border-surface-600 bg-surface-700 text-surface-100 placeholder:text-surface-500 focus:border-surface-400 w-full rounded-md border px-2.5 py-1 text-sm focus:outline-none"
                     />
                     <input
+                      ref={urlLabelInputRef}
                       value={urlLabelDraft}
                       onChange={(e) => setUrlLabelDraft(e.target.value)}
                       onKeyDown={(e) => {
