@@ -32,7 +32,7 @@
     "@uiw/react-md-editor": "^4.1.1",
     "better-sqlite3": "^13.0.3",
     "jszip": "^3.10.2",
-    "kysely": "^0.29.5",
+    "kysely": "^0.29.6",
     "mysql2": "^3.24.4",
     "next": "16.3.5",
     "pg": "^8.23.0",
