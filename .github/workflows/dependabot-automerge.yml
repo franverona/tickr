@@ -19,7 +19,14 @@ jobs:
         if: |
           steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
           steps.metadata.outputs.update-type == 'version-update:semver-minor'
-        run: gh pr merge --auto --squash "$PR_URL"
+        run: |
+          # Below 1.0 a minor bump can break the API (e.g. kysely 0.29 -> 0.30)
+          if jq -e 'any(.[]; (.prevVersion // "" | startswith("0.")) and .updateType == "version-update:semver-minor")' <<<"$DEPS" >/dev/null; then
+            echo "0.x minor update: leaving it for manual review"
+            exit 0
+          fi
+          gh pr merge --auto --squash "$PR_URL"
         env:
+          DEPS: ${{ steps.metadata.outputs.updated-dependencies-json }}
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
