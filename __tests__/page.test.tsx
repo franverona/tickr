@@ -116,6 +116,24 @@ describe('search', () => {
     expect(screen.queryByText('Beta')).not.toBeInTheDocument()
   })
 
+  it('matches a link URL even when its label and the task text do not', async () => {
+    const linked = makeTask({
+      id: 'a',
+      title: 'Alpha',
+      urls: [{ id: 'u1', url: 'https://jira.example.com/browse/NDC-7921', label: 'Ticket' }],
+    })
+    const unlinked = makeTask({ id: 'b', title: 'Beta' })
+    await renderReady([linked, unlinked])
+
+    fireEvent.click(screen.getByTitle('Search tasks'))
+    fireEvent.change(screen.getByPlaceholderText('Search tasks…'), {
+      target: { value: 'ndc-7921' },
+    })
+
+    expect(screen.getByText('Alpha')).toBeInTheDocument()
+    expect(screen.queryByText('Beta')).not.toBeInTheDocument()
+  })
+
   it('matches a link label even when the query is absent from title/description', async () => {
     const linked = makeTask({
       id: 'a',

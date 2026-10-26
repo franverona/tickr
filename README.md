@@ -27,7 +27,7 @@ A local task management app for tracking work.
 - **Drag-and-drop reordering** of active tasks
 - **Due date indicators** — color-coded badges for overdue, due today, and due soon
 - **Attachments** — drag-and-drop or paste files into descriptions: images show inline; PDF, text, Markdown, CSV, JSON and ZIP files are added as links (up to 10 MB each, stored in `public/uploads/`)
-- **Task search** — filter tasks by title, description, tag, or link label in real time, across tabs
+- **Task search** — filter tasks by title, description, tag, or link label or URL in real time, across tabs
 - **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any task or action from the keyboard
 - **Keyboard shortcuts** — full set of shortcuts for navigation and actions; press `?` for the cheat sheet
 - **Bulk actions** — select several tasks to complete, reopen, archive, unarchive, delete, or tag them at once

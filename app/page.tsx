@@ -325,7 +325,11 @@ export default function Page() {
           task.title.toLowerCase().includes(query) ||
           task.description.toLowerCase().includes(query) ||
           task.tags.some((id) => tagLabelById.get(id)?.includes(query)) ||
-          task.urls.some((url) => url.label.toLowerCase().includes(query))
+          // URLs too: Jira keys and MR numbers often only appear there
+          task.urls.some(
+            (url) =>
+              url.label.toLowerCase().includes(query) || url.url.toLowerCase().includes(query),
+          )
         )
       }
       return tab === 'active'
