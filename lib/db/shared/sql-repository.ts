@@ -157,6 +157,13 @@ export function createSqlTaskRepository<Bool>(
       const label = data.label?.trim() ?? current.label
       const color = data.color ?? current.color
 
+      // Import matches tags by lowercased label, so two tags must never share one
+      if (label.toLowerCase() !== current.label.toLowerCase()) {
+        const tags = await db.selectFrom('tags').select(['id', 'label']).execute()
+        if (tags.some((t) => t.id !== id && t.label.toLowerCase() === label.toLowerCase()))
+          throw new Error(`A tag named "${label}" already exists`)
+      }
+
       await db.updateTable('tags').set({ label, color }).where('id', '=', id).execute()
       return { id, label, color }
     },
@@ -215,10 +222,11 @@ export function createSqlTaskRepository<Bool>(
           } as never)
           .execute()
 
-        for (let i = 0; i < data.tags.length; i++) {
+        // Set: a repeated tag id would break the task_tags primary key
+        for (const [i, tagId] of [...new Set(data.tags)].entries()) {
           await trx
             .insertInto('task_tags')
-            .values({ task_id: id, tag_id: data.tags[i], position: i })
+            .values({ task_id: id, tag_id: tagId, position: i })
             .execute()
         }
 
@@ -288,10 +296,10 @@ export function createSqlTaskRepository<Bool>(
 
         if (data.tags !== undefined) {
           await trx.deleteFrom('task_tags').where('task_id', '=', id).execute()
-          for (let i = 0; i < data.tags.length; i++) {
+          for (const [i, tagId] of [...new Set(data.tags)].entries()) {
             await trx
               .insertInto('task_tags')
-              .values({ task_id: id, tag_id: data.tags[i], position: i })
+              .values({ task_id: id, tag_id: tagId, position: i })
               .execute()
           }
         }
@@ -481,9 +489,14 @@ export function createSqlTaskRepository<Bool>(
         }
         for (const item of items) {
           if (!item.title.trim()) continue
-          const tagIds = item.tags
-            .map(({ label }) => tagMap.get(label.toLowerCase()))
-            .filter((id): id is string => id !== undefined)
+          // Set: labels that differ only in case ("Bug; bug") map to one id
+          const tagIds = [
+            ...new Set(
+              item.tags
+                .map(({ label }) => tagMap.get(label.toLowerCase()))
+                .filter((id): id is string => id !== undefined),
+            ),
+          ]
 
           const taskId = randomUUID()
           await trx
