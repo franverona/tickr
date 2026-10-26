@@ -40,6 +40,7 @@ export default function Page() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [tags, setTags] = useState<Tag[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [tab, setTab] = useState<'active' | 'done' | 'archived'>('active')
@@ -78,11 +79,14 @@ export default function Page() {
   const cardRefs = useRef(new Map<string, HTMLButtonElement>())
 
   useEffect(() => {
-    Promise.all([getTasks(), getTags()]).then(([t, g]) => {
-      setTasks(t)
-      setTags(g)
-      setIsLoading(false)
-    })
+    Promise.all([getTasks(), getTags()])
+      .then(([t, g]) => {
+        setTasks(t)
+        setTags(g)
+        setIsLoading(false)
+      })
+      // isLoading stays true, so nothing treats the list as empty
+      .catch(() => setLoadError(true))
   }, [])
 
   // Restore last-viewed tab/task on mount rather than in useState initializers,
@@ -992,7 +996,20 @@ export default function Page() {
           )}
 
           <div className="flex-1 overflow-y-auto p-3">
-            {isLoading ? (
+            {loadError ? (
+              <div
+                role="alert"
+                className="text-surface-500 flex h-full flex-col items-center justify-center gap-3"
+              >
+                <p className="text-sm">Couldn&apos;t load tasks. Check the database connection.</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-accent-500 hover:text-accent-400 text-sm transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : isLoading ? (
               <div className="flex flex-col gap-2">
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div

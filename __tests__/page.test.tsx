@@ -89,6 +89,18 @@ afterEach(() => {
   createTask.mockReset()
 })
 
+describe('initial load', () => {
+  it('shows an error instead of loading forever when the first load fails', async () => {
+    getTasks.mockRejectedValue(new Error('database is down'))
+    getTags.mockResolvedValue([])
+    render(<Page />)
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load tasks")
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
+    expect(screen.queryByText('No tasks yet')).not.toBeInTheDocument()
+  })
+})
+
 describe('search', () => {
   it('matches a tag label even when the query is absent from title/description', async () => {
     const tagged = makeTask({ id: 'a', title: 'Alpha', tags: ['backend'] })
