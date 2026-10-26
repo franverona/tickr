@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { parseCSVContent, parseCSVRows, parseJSONContent } from '../lib/import'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { parseCSVContent, parseCSVRows, parseJSONContent, processImportZip } from '../lib/import'
 
 describe('parseCSVRows', () => {
   it('parses a simple two-column row', () => {
@@ -202,5 +202,38 @@ describe('parseCSVContent', () => {
   it('treats a missing Due Date column as no due date', () => {
     const result = parseCSVContent([HEADER, 'Task one,,Active,,,'].join('\n'))
     expect(result[0].dueDate).toBeNull()
+  })
+})
+
+describe('processImportZip', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('re-uploads non-image attachments and rewrites their links', async () => {
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+    zip.file(
+      'tasks.json',
+      JSON.stringify([{ title: 'T', description: '[spec](uploads/old.pdf) ![a](uploads/a.png)' }]),
+    )
+    zip.file('uploads/old.pdf', 'pdf bytes')
+    zip.file('uploads/a.png', 'png bytes')
+    const zipFile = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'backup.zip')
+
+    const uploadedTypes: string[] = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: { body: FormData }) => {
+        const file = init.body.get('file') as File
+        uploadedTypes.push(file.type)
+        return Response.json({ url: `/uploads/new-${file.name}` })
+      }),
+    )
+
+    const [task] = await processImportZip(zipFile)
+
+    expect(uploadedTypes.sort()).toEqual(['application/pdf', 'image/png'])
+    expect(task.description).toBe('[spec](/uploads/new-old.pdf) ![a](/uploads/new-a.png)')
   })
 })

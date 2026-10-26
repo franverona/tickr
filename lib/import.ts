@@ -1,3 +1,5 @@
+import { UPLOAD_EXT_TO_MIME } from './upload-types'
+
 export interface ImportedTag {
   label: string
   color: string
@@ -34,17 +36,9 @@ function parseTimestamp(value: unknown): string | undefined {
   return Number.isNaN(ms) ? undefined : new Date(ms).toISOString()
 }
 
-const EXT_TO_MIME: Record<string, string> = {
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  gif: 'image/gif',
-  webp: 'image/webp',
-}
-
-async function uploadImage(filename: string, data: ArrayBuffer): Promise<string | null> {
+async function uploadFile(filename: string, data: ArrayBuffer): Promise<string | null> {
   const ext = filename.split('.').pop()?.toLowerCase() ?? ''
-  const mimeType = EXT_TO_MIME[ext]
+  const mimeType = UPLOAD_EXT_TO_MIME[ext]
   if (!mimeType) return null
 
   const file = new File([data], filename, { type: mimeType })
@@ -239,7 +233,7 @@ export async function processImportZip(file: File): Promise<ImportedTask[]> {
   const JSZip = (await import('jszip')).default
   const zip = await JSZip.loadAsync(file)
 
-  // Upload images from uploads/ and build old-filename → new-url mapping
+  // Upload attachments from uploads/ and build old-filename → new-url mapping
   const imageMapping = new Map<string, string>()
   const uploadsFolder = zip.folder('uploads')
   if (uploadsFolder) {
@@ -248,7 +242,7 @@ export async function processImportZip(file: File): Promise<ImportedTask[]> {
       if (entry.dir) return
       jobs.push(
         entry.async('arraybuffer').then(async (data) => {
-          const newUrl = await uploadImage(relativePath, data)
+          const newUrl = await uploadFile(relativePath, data)
           if (newUrl) imageMapping.set(relativePath, newUrl)
         }),
       )
