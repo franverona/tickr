@@ -510,10 +510,10 @@ export function createSqlTaskRepository<Bool>(
               completed: boolIn(item.completed),
               archived: boolIn(item.archived),
               due_date: item.dueDate ?? null,
-              created_at: now,
-              updated_at: now,
-              completed_at: item.completed ? now : null,
-              archived_at: item.archived ? now : null,
+              created_at: item.createdAt ?? now,
+              updated_at: item.updatedAt ?? now,
+              completed_at: item.completed ? (item.completedAt ?? now) : null,
+              archived_at: item.archived ? (item.archivedAt ?? now) : null,
               sort_order: sortOrder,
             } as never)
             .execute()

@@ -18,9 +18,21 @@ export interface ImportedTask {
   archived: boolean
   dueDate: string | null
   links: ImportedLink[]
+  // Missing or unparseable timestamps fall back to the import time
+  createdAt?: string
+  updatedAt?: string
+  completedAt?: string
+  archivedAt?: string
 }
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+
+// Normalized with toISOString: the Done/Archived tabs sort these as strings
+function parseTimestamp(value: unknown): string | undefined {
+  if (typeof value !== 'string' || !value.trim()) return undefined
+  const ms = Date.parse(value)
+  return Number.isNaN(ms) ? undefined : new Date(ms).toISOString()
+}
 
 const EXT_TO_MIME: Record<string, string> = {
   png: 'image/png',
@@ -101,7 +113,7 @@ export function parseJSONContent(content: string): ImportedTask[] {
   if (!Array.isArray(data)) throw new Error('Expected a JSON array')
 
   return data
-    .map((item: unknown, i: number) => {
+    .map((item: unknown, i: number): ImportedTask | null => {
       if (typeof item !== 'object' || item === null) throw new Error(`Item ${i} is not an object`)
       const t = item as Record<string, unknown>
       const title = typeof t.title === 'string' ? t.title.trim() : ''
@@ -120,6 +132,10 @@ export function parseJSONContent(content: string): ImportedTask[] {
         links: Array.isArray(t.links)
           ? t.links.map(parseLinkEntry).filter((x): x is ImportedLink => x !== null)
           : [],
+        createdAt: parseTimestamp(t.createdAt),
+        updatedAt: parseTimestamp(t.updatedAt),
+        completedAt: parseTimestamp(t.completedAt),
+        archivedAt: parseTimestamp(t.archivedAt),
       }
     })
     .filter((t): t is ImportedTask => t !== null)
@@ -163,10 +179,15 @@ export function parseCSVContent(content: string): ImportedTask[] {
   const descIdx = col('description')
   const dueDateIdx = col('due date')
   const linksIdx = col('links')
+  const cell = (row: string[], idx: number) => (idx !== -1 ? row[idx] : undefined)
+  const createdIdx = col('created at')
+  const updatedIdx = col('updated at')
+  const completedAtIdx = col('completed at')
+  const archivedAtIdx = col('archived at')
 
   return rows
     .slice(1)
-    .map((row) => {
+    .map((row): ImportedTask | null => {
       const title = row[titleIdx]?.trim() ?? ''
       if (!title) return null
       const status = statusIdx !== -1 ? (row[statusIdx] ?? '').toLowerCase() : 'active'
@@ -180,6 +201,10 @@ export function parseCSVContent(content: string): ImportedTask[] {
         archived: status === 'archived',
         dueDate: ISO_DATE_RE.test(dueDate) ? dueDate : null,
         links: linksIdx !== -1 ? parseCSVList(row[linksIdx]).map(parseCSVLinkCell) : [],
+        createdAt: parseTimestamp(cell(row, createdIdx)),
+        updatedAt: parseTimestamp(cell(row, updatedIdx)),
+        completedAt: parseTimestamp(cell(row, completedAtIdx)),
+        archivedAt: parseTimestamp(cell(row, archivedAtIdx)),
       }
     })
     .filter((t): t is ImportedTask => t !== null)
