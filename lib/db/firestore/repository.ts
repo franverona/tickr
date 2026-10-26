@@ -5,6 +5,7 @@ import type { TaskRepository } from '../types'
 import type { Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
+import { planImportIds } from '../mentions'
 import { slugify } from '../slug'
 import { ensureSeeded } from './seed'
 import { chunk } from './chunk'
@@ -329,7 +330,8 @@ export class FirestoreTaskRepository implements TaskRepository {
     let imported = 0
 
     const taskWrites: Array<{ id: string; data: FirestoreTaskDoc }> = []
-    for (const item of items) {
+    const { newIds, remap } = planImportIds(items)
+    for (const [i, item] of items.entries()) {
       if (!item.title.trim()) continue
       const tagIds = [
         ...new Set(
@@ -340,10 +342,10 @@ export class FirestoreTaskRepository implements TaskRepository {
       ]
 
       taskWrites.push({
-        id: randomUUID(),
+        id: newIds[i],
         data: {
           title: item.title.trim(),
-          description: item.description,
+          description: remap(item.description),
           tags: tagIds,
           urls: item.links.map((link) => ({ id: randomUUID(), url: link.url, label: link.label })),
           completed: item.completed,

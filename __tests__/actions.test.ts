@@ -227,6 +227,26 @@ describe('importTasks', () => {
     expect(tasks.map((t) => t.id)).toEqual([existing.id])
     expect(tasks[0].tags).toEqual([SEED_TAG.id])
   })
+
+  it('re-links #id mentions to the regenerated task ids', async () => {
+    const base = { tags: [], completed: false, archived: false, dueDate: null, links: [] }
+    const { tasks } = await importTasks(
+      [
+        { ...base, id: 'old-a', title: 'A', description: '' },
+        {
+          ...base,
+          id: 'old-b',
+          title: 'B',
+          description: 'See [A](#old-a) and [gone](#missing)',
+        },
+      ],
+      false,
+    )
+    const a = tasks.find((t) => t.title === 'A')!
+    const b = tasks.find((t) => t.title === 'B')!
+    expect(a.id).not.toBe('old-a')
+    expect(b.description).toBe(`See [A](#${a.id}) and [gone](#missing)`)
+  })
 })
 
 describe('duplicate tags', () => {

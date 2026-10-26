@@ -9,6 +9,8 @@ export interface ImportedLink {
 }
 
 export interface ImportedTask {
+  /** Id in the exported data, only used to re-link `#id` mentions on import */
+  id?: string
   title: string
   description: string
   tags: ImportedTag[]
@@ -106,6 +108,7 @@ export function parseJSONContent(content: string): ImportedTask[] {
       if (!title) return null
 
       return {
+        ...(typeof t.id === 'string' && t.id ? { id: t.id } : {}),
         title,
         description: typeof t.description === 'string' ? t.description : '',
         tags: Array.isArray(t.tags)
