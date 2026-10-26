@@ -22,6 +22,11 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: stri
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000, immutable',
+        // Served from the app's origin: never let a browser sniff a file into
+        // HTML, and sandbox it so nothing in it can run as this app. PDFs are
+        // exempt because Chrome won't render a PDF under a sandbox CSP.
+        'X-Content-Type-Options': 'nosniff',
+        ...(contentType === 'application/pdf' ? {} : { 'Content-Security-Policy': 'sandbox' }),
       },
     })
   } catch {
