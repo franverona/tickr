@@ -275,6 +275,23 @@ describe('TaskDetail', () => {
     vi.useRealTimers()
   })
 
+  it('reports a failed description auto-save', async () => {
+    vi.useFakeTimers()
+    // The draft stays unsaved, so unmounting in cleanup flushes it once more
+    updateTask
+      .mockRejectedValueOnce(new Error('Body exceeded 1mb limit'))
+      .mockResolvedValue(makeTask())
+    const { props } = renderTaskDetail(makeTask())
+
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByTestId('md-editor'), { target: { value: 'Huge notes' } })
+
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(props.onError).toHaveBeenCalledWith('Failed to save description')
+    vi.useRealTimers()
+  })
+
   it('flushes a pending debounced save when unmounted before the debounce elapses', async () => {
     const task = makeTask()
     const updated = makeTask({ description: 'Switched away mid-edit' })

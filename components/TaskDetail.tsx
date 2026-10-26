@@ -737,6 +737,7 @@ export default function TaskDetail({
         setTimeout(() => setAutoSaveStatus((s) => (s === 'saved' ? 'idle' : s)), 2000)
       } catch {
         setAutoSaveStatus('idle')
+        onError('Failed to save description')
       }
     }, 1500)
 
