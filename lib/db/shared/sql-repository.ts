@@ -4,6 +4,7 @@ import type { TagsTable, TaskUrlsTable, TaskTagsTable, TasksTable, TaskRepositor
 import type { Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
+import { planImportIds } from '../mentions'
 import { slugify } from '../slug'
 
 // The 4-table shape shared by every SQL backend (SQLite/Postgres/MySQL),
@@ -487,7 +488,8 @@ export function createSqlTaskRepository<Bool>(
               : insert.onConflict((oc) => oc.doNothing())
           ).execute()
         }
-        for (const item of items) {
+        const { newIds, remap } = planImportIds(items)
+        for (const [i, item] of items.entries()) {
           if (!item.title.trim()) continue
           // Set: labels that differ only in case ("Bug; bug") map to one id
           const tagIds = [
@@ -498,13 +500,13 @@ export function createSqlTaskRepository<Bool>(
             ),
           ]
 
-          const taskId = randomUUID()
+          const taskId = newIds[i]
           await trx
             .insertInto('tasks')
             .values({
               id: taskId,
               title: item.title.trim(),
-              description: item.description,
+              description: remap(item.description),
               completed: boolIn(item.completed),
               archived: boolIn(item.archived),
               due_date: item.dueDate ?? null,

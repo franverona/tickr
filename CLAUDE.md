@@ -41,6 +41,7 @@ lib/
     factory.ts          # getRepository() — reads DB_TYPE, dispatches to a backend
     types.ts             # Kysely DbSchema + TaskRepository interface + DbType union
     slug.ts               # slugify() — shared across backends
+    mentions.ts           # planImportIds() — new ids + `#old-id` mention rewrite for imports, shared across backends
     shared/
       sql-repository.ts    # createSqlTaskRepository() — the Kysely CRUD logic shared by sqlite/postgres/mysql
     sqlite/
@@ -90,7 +91,7 @@ public/
 - **Migrations** run idempotently in `ensureSchema()` inside `lib/db/sqlite/migrate.ts` — add `ALTER TABLE … ADD COLUMN` wrapped in try/catch to extend the schema without breaking existing databases. There's no migration-version table; idempotency comes from try/catch on `ADD COLUMN` and existence checks (e.g. `pragma_table_info`) for anything that can't be safely retried the same way (like `DROP COLUMN`)
 - **Export format**: ZIP containing `tasks.json` or `tasks.csv` + `uploads/` folder. Image paths in the data file are rewritten from `/uploads/` to `uploads/` (relative) so the archive is self-contained. `lib/export.ts` is client-only.
 - **Import**: `lib/import.ts` is client-only — it parses the ZIP with JSZip, uploads images through `/api/upload`, rewrites paths, then calls the `importTasks` server action which resolves/creates tags and bulk-inserts tasks. Imported tags without a matching existing tag get a color cycled from `COLOR_PALETTE`.
-- **Export/import is backend-agnostic**: a ZIP exported while running on one `DB_TYPE` imports cleanly into any other. `ImportedTask` (`lib/import.ts`) carries no `id` or timestamp fields — every backend's `importTasks` re-links tags by `label.toLowerCase()` (not by id) and regenerates ids via `randomUUID()`/`slugify()` rather than relying on DB-native autoincrement, so there's no backend-specific ID format to round-trip. Verified by `__tests__/cross-backend-import-export.test.ts` (automated SQLite↔Postgres and SQLite↔MySQL) and manually against a live Firestore project (SQLite→Firestore), consistent with the Firestore adapter's no-automated-tests convention below.
+- **Export/import is backend-agnostic**: a ZIP exported while running on one `DB_TYPE` imports cleanly into any other. `ImportedTask` (`lib/import.ts`) carries no timestamp fields, and its optional `id` (from JSON exports) is never stored — every backend's `importTasks` re-links tags by `label.toLowerCase()` (not by id) and regenerates ids via `randomUUID()`/`slugify()` rather than relying on DB-native autoincrement, so there's no backend-specific ID format to round-trip. The old `id` is only used to rewrite `[title](#old-id)` mention links in descriptions to the new ids (`lib/db/mentions.ts`'s `planImportIds()`, shared by all backends); CSV exports have no id column, so mentions don't survive a CSV round trip. Verified by `__tests__/cross-backend-import-export.test.ts` (automated SQLite↔Postgres and SQLite↔MySQL) and manually against a live Firestore project (SQLite→Firestore), consistent with the Firestore adapter's no-automated-tests convention below.
 
 ## Database backend
 

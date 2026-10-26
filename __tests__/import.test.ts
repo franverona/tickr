@@ -44,6 +44,13 @@ describe('parseJSONContent', () => {
     expect(result[0].tags).toEqual([{ label: 'WIP', color: 'bg-blue-600' }])
   })
 
+  it('keeps the exported id so mentions can be re-linked, and omits it when absent', () => {
+    const json = JSON.stringify([{ id: 'abc', title: 'Task A' }, { title: 'Task B' }])
+    const result = parseJSONContent(json)
+    expect(result[0].id).toBe('abc')
+    expect(result[1]).not.toHaveProperty('id')
+  })
+
   it('parses links', () => {
     const json = JSON.stringify([
       { title: 'Task A', links: [{ url: 'https://example.com', label: 'Example' }] },
