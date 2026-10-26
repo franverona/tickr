@@ -26,16 +26,16 @@ A local task management app for tracking work.
 - **Mark complete / reopen / archive / unarchive / delete**
 - **Drag-and-drop reordering** of active tasks
 - **Due date indicators** — color-coded badges for overdue, due today, and due soon
-- **Image support** — drag-and-drop or paste images into descriptions (stored in `public/uploads/`)
-- **Task search** — filter tasks by title or description in real time, across tabs
+- **Attachments** — drag-and-drop or paste files into descriptions: images show inline; PDF, text, Markdown, CSV, JSON and ZIP files are added as links (up to 10 MB each, stored in `public/uploads/`)
+- **Task search** — filter tasks by title, description, tag, or link label in real time, across tabs
 - **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any task or action from the keyboard
 - **Keyboard shortcuts** — full set of shortcuts for navigation and actions; press `?` for the cheat sheet
-- **Bulk tagging** and **sortable task list**
-- **Due-date notifications** for tasks coming due
+- **Bulk actions** — select several tasks to complete, reopen, archive, unarchive, delete, or tag them at once
+- **Due-date notifications** — a browser notification once a day, while the app is open, listing tasks that are overdue or due today
 - **Links section** — attach labeled URLs to any task; MR/PR links get a one-click "Copy for Slack" button
 - **Editor enhancements** — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete
-- **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv` plus any referenced images
-- **Import** — restore from an exported ZIP; images are re-uploaded and tag labels are matched or created automatically
+- **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv` plus every uploaded file the descriptions reference
+- **Import** — restore from an exported ZIP (merge, or replace everything); attachments are re-uploaded, tag labels are matched or created automatically, and timestamps are kept. `@` mention links are re-linked from JSON exports
 
 ## Getting Started
 
@@ -48,7 +48,7 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-By default, Tickr uses SQLite — no config needed. Predefined tags (WIP, UAT, Pipeline, Blocked, Review) are seeded on startup regardless of backend. See [Database](#database) below to use Postgres, MySQL, or Firestore instead.
+By default, Tickr uses SQLite — no config needed. On every backend, a fresh database (no tasks and no tags) starts with predefined tags (WIP, UAT, Pipeline, Blocked, Review); you can rename or delete them, and they won't come back. See [Database](#database) below to use Postgres, MySQL, or Firestore instead.
 
 ## Database
 
@@ -119,4 +119,4 @@ pnpm format:check    # Prettier (check)
 
 ## Uploads
 
-Uploaded images are stored at `public/uploads/` (gitignored). They are included automatically when using the Export feature.
+Uploaded files are stored at `public/uploads/` (gitignored). Accepted types are images (PNG, JPEG, GIF, WebP), PDF, plain text, Markdown, CSV, JSON and ZIP, up to 10 MB each. Files referenced from task descriptions are included automatically when using the Export feature.
