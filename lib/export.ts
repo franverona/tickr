@@ -77,12 +77,21 @@ function downloadBlob(blob: Blob, filename: string): void {
   URL.revokeObjectURL(url)
 }
 
+// Only local paths: /uploads/ at the start of a line or after whitespace, (, a
+// quote, [ or <. Leaves other hosts' URLs (e.g. GitLab's /proj/uploads/…) alone.
+const LOCAL_UPLOAD_RE = /(?<=^|[\s("'[<])\/uploads\/([\w.-]+)/gm
+
+/** Rewrites local /uploads/ paths to relative uploads/ so the ZIP is self-contained */
+export function relativizeUploads(description: string): string {
+  return description.replace(LOCAL_UPLOAD_RE, 'uploads/$1')
+}
+
 function extractImagePaths(tasks: Task[]): string[] {
   const paths = new Set<string>()
-  const regex = /\/uploads\/[\w.-]+/g
   for (const task of tasks) {
-    const matches = task.description.match(regex)
-    if (matches) matches.forEach((p) => paths.add(p))
+    for (const [, filename] of task.description.matchAll(LOCAL_UPLOAD_RE)) {
+      paths.add(`/uploads/${filename}`)
+    }
   }
   return [...paths]
 }
@@ -95,9 +104,11 @@ export async function exportToZip(
   const JSZip = (await import('jszip')).default
   const zip = new JSZip()
 
-  // Rewrite absolute /uploads/ paths to relative uploads/ so the ZIP is self-contained
-  const rawContent = format === 'json' ? exportToJSON(tasks, tags) : exportToCSV(tasks, tags)
-  zip.file(`tasks.${format}`, rawContent.replace(/\/uploads\//g, 'uploads/'))
+  // Rewritten before serializing: in JSON a newline becomes a literal \n, which
+  // would hide the start-of-line boundary from LOCAL_UPLOAD_RE
+  const archived = tasks.map((t) => ({ ...t, description: relativizeUploads(t.description) }))
+  const content = format === 'json' ? exportToJSON(archived, tags) : exportToCSV(archived, tags)
+  zip.file(`tasks.${format}`, content)
 
   const imagePaths = extractImagePaths(tasks)
   if (imagePaths.length > 0) {
