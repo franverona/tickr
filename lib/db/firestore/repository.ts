@@ -108,11 +108,12 @@ export class FirestoreTaskRepository implements TaskRepository {
   }
 
   // No FK cascade in Firestore: deleting a tag also has to strip it out of
-  // every task that references it, fanned out across batched writes.
+  // every task that references it, fanned out across batched writes. The tag
+  // doc goes last: if a batch fails, the tag still exists and a retry finishes
+  // the job, instead of tasks keeping an id that a new tag with the same slug
+  // would silently reattach to.
   async deleteTag(id: string): Promise<void> {
     const db = await this.ready()
-    await this.tagsCol.doc(id).delete()
-
     const affected = await this.tasksCol.where('tags', 'array-contains', id).get()
     for (const group of chunk(affected.docs)) {
       const batch = db.batch()
@@ -121,6 +122,8 @@ export class FirestoreTaskRepository implements TaskRepository {
       }
       await batch.commit()
     }
+
+    await this.tagsCol.doc(id).delete()
   }
 
   // ── Tasks ────────────────────────────────────────────────────────────────
