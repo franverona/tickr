@@ -247,6 +247,35 @@ describe('importTasks', () => {
     expect(a.id).not.toBe('old-a')
     expect(b.description).toBe(`See [A](#${a.id}) and [gone](#missing)`)
   })
+
+  it('keeps imported timestamps and falls back to now when one is missing', async () => {
+    const base = { description: '', tags: [], dueDate: null, links: [] }
+    const before = new Date().toISOString()
+    const { tasks } = await importTasks(
+      [
+        {
+          ...base,
+          title: 'Old',
+          completed: true,
+          archived: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-02T00:00:00.000Z',
+          completedAt: '2024-01-03T00:00:00.000Z',
+        },
+        { ...base, title: 'Fresh', completed: true, archived: true },
+      ],
+      false,
+    )
+    const old = tasks.find((t) => t.title === 'Old')!
+    expect(old.createdAt).toBe('2024-01-01T00:00:00.000Z')
+    expect(old.updatedAt).toBe('2024-01-02T00:00:00.000Z')
+    expect(old.completedAt).toBe('2024-01-03T00:00:00.000Z')
+    expect(old.archivedAt).toBeNull()
+    const fresh = tasks.find((t) => t.title === 'Fresh')!
+    expect(fresh.createdAt >= before).toBe(true)
+    expect(fresh.completedAt! >= before).toBe(true)
+    expect(fresh.archivedAt! >= before).toBe(true)
+  })
 })
 
 describe('duplicate tags', () => {

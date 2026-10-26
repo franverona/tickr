@@ -128,14 +128,18 @@ async function assertRoundTrip(source: TaskRepository, destination: TaskReposito
     expect(imported!.completed).toBe(sourceTask.completed)
     expect(imported!.archived).toBe(sourceTask.archived)
     expect(imported!.dueDate).toBe(sourceTask.dueDate)
+    expect(imported!.createdAt).toBe(sourceTask.createdAt)
+    expect(imported!.updatedAt).toBe(sourceTask.updatedAt)
+    expect(imported!.completedAt).toBe(sourceTask.completedAt)
+    expect(imported!.archivedAt).toBe(sourceTask.archivedAt)
     expect(tagLabelsOf(imported!, destTags)).toEqual(tagLabelsOf(sourceTask, sourceTags))
     expect(imported!.urls.map((u) => ({ url: u.url, label: u.label }))).toEqual(
       sourceTask.urls.map((u) => ({ url: u.url, label: u.label })),
     )
   }
 
-  // CSV is a lossier format (drops timestamps), but tags/status/links/due
-  // date must still round-trip correctly across backends.
+  // CSV is a lossier format, but tags/status/links/due date/timestamps must
+  // still round-trip correctly across backends.
   const csvItems = parseCSVContent(exportToCSV(sourceTasks, sourceTags))
   expect(csvItems).toHaveLength(sourceTasks.length)
   const csvByTitle = new Map(csvItems.map((t) => [t.title, t]))
@@ -145,6 +149,7 @@ async function assertRoundTrip(source: TaskRepository, destination: TaskReposito
     expect(item!.completed).toBe(sourceTask.completed)
     expect(item!.archived).toBe(sourceTask.archived)
     expect(item!.dueDate).toBe(sourceTask.dueDate)
+    expect(item!.createdAt).toBe(sourceTask.createdAt)
     expect(item!.tags.map((t) => t.label).sort()).toEqual(tagLabelsOf(sourceTask, sourceTags))
   }
 }

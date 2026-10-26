@@ -28,6 +28,21 @@ describe('parseCSVRows', () => {
 })
 
 describe('parseJSONContent', () => {
+  it('keeps valid timestamps and drops unparseable ones', () => {
+    const json = JSON.stringify([
+      {
+        title: 'A',
+        createdAt: '2024-01-01T10:00:00.000Z',
+        updatedAt: 'not a date',
+        archivedAt: null,
+      },
+    ])
+    const [task] = parseJSONContent(json)
+    expect(task.createdAt).toBe('2024-01-01T10:00:00.000Z')
+    expect(task.updatedAt).toBeUndefined()
+    expect(task.archivedAt).toBeUndefined()
+  })
+
   it('parses a valid task array', () => {
     const json = JSON.stringify([{ title: 'Task A', description: 'desc', tags: ['WIP'] }])
     const result = parseJSONContent(json)
@@ -98,6 +113,18 @@ describe('parseJSONContent', () => {
 
 describe('parseCSVContent', () => {
   const HEADER = 'Title,Tags,Status,Description,Created At,Updated At'
+
+  it('keeps timestamps, normalized to ISO strings', () => {
+    const csv = [
+      'Title,Status,Created At,Updated At,Completed At,Archived At',
+      'Done,Completed,2024-01-01T10:00:00.000Z,2024-01-02,2024-01-03T00:00:00Z,',
+    ].join('\n')
+    const [task] = parseCSVContent(csv)
+    expect(task.createdAt).toBe('2024-01-01T10:00:00.000Z')
+    expect(task.updatedAt).toBe('2024-01-02T00:00:00.000Z')
+    expect(task.completedAt).toBe('2024-01-03T00:00:00.000Z')
+    expect(task.archivedAt).toBeUndefined()
+  })
 
   it('parses basic rows correctly', () => {
     const csv = [HEADER, 'Task one,WIP,Active,desc,2024-01-01,2024-01-01'].join('\n')
