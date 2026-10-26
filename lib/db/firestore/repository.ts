@@ -38,6 +38,17 @@ function docToTask(doc: DocumentSnapshot): Task {
   return { id: doc.id, ...data }
 }
 
+// Firestore caps a document at 1 MiB, and description is the only field that
+// gets near it. shortcut: checks the description alone, leaving ~48 KB for the
+// rest of the doc; measure the whole doc if links or titles ever grow that big.
+const MAX_DESCRIPTION_BYTES = 1_000_000
+
+function assertDescriptionFits(description: string): void {
+  if (Buffer.byteLength(description, 'utf8') > MAX_DESCRIPTION_BYTES) {
+    throw new Error('Description is too large for Firestore (over 1 MB)')
+  }
+}
+
 function docToTag(doc: DocumentSnapshot): Tag {
   const data = doc.data() as FirestoreTagDoc
   return { id: doc.id, label: data.label, color: data.color }
@@ -138,6 +149,7 @@ export class FirestoreTaskRepository implements TaskRepository {
     dueDate?: string | null
     urls?: { url: string; label: string }[]
   }): Promise<Task> {
+    assertDescriptionFits(data.description)
     const db = await this.ready()
     const id = randomUUID()
     const now = new Date().toISOString()
@@ -197,7 +209,10 @@ export class FirestoreTaskRepository implements TaskRepository {
 
     const update: Partial<FirestoreTaskDoc> = { updatedAt: now }
     if (data.title !== undefined) update.title = data.title
-    if (data.description !== undefined) update.description = data.description
+    if (data.description !== undefined) {
+      assertDescriptionFits(data.description)
+      update.description = data.description
+    }
     if (data.tags !== undefined) update.tags = [...new Set(data.tags)]
     if (data.dueDate !== undefined) update.dueDate = data.dueDate
     if (data.completed !== undefined) {
@@ -341,6 +356,8 @@ export class FirestoreTaskRepository implements TaskRepository {
         ),
       ]
 
+      // Before any write (and before an override wipe), not partway through
+      assertDescriptionFits(item.description)
       taskWrites.push({
         id: newIds[i],
         data: {
