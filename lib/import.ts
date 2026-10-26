@@ -178,6 +178,9 @@ export function parseCSVContent(content: string): ImportedTask[] {
   const updatedIdx = col('updated at')
   const completedAtIdx = col('completed at')
   const archivedAtIdx = col('archived at')
+  // Older exports only have Status, which can't say "completed and archived"
+  const completedIdx = col('completed')
+  const archivedIdx = col('archived')
 
   return rows
     .slice(1)
@@ -191,8 +194,14 @@ export function parseCSVContent(content: string): ImportedTask[] {
         title,
         description: descIdx !== -1 ? (row[descIdx] ?? '') : '',
         tags: tagsIdx !== -1 ? parseCSVList(row[tagsIdx]).map(parseCSVTagCell) : [],
-        completed: status === 'completed',
-        archived: status === 'archived',
+        completed:
+          completedIdx !== -1
+            ? row[completedIdx]?.trim().toLowerCase() === 'true'
+            : status === 'completed',
+        archived:
+          archivedIdx !== -1
+            ? row[archivedIdx]?.trim().toLowerCase() === 'true'
+            : status === 'archived',
         dueDate: ISO_DATE_RE.test(dueDate) ? dueDate : null,
         links: linksIdx !== -1 ? parseCSVList(row[linksIdx]).map(parseCSVLinkCell) : [],
         createdAt: parseTimestamp(cell(row, createdIdx)),
@@ -204,29 +213,50 @@ export function parseCSVContent(content: string): ImportedTask[] {
     .filter((t): t is ImportedTask => t !== null)
 }
 
+// Splits on `sep` wherever it isn't backslash-escaped (see exportToCSV);
+// escapes are kept for unescapeCSV to remove afterwards
+function splitUnescaped(s: string, sep: string): string[] {
+  const parts: string[] = []
+  let start = 0
+  for (let i = 0; i < s.length; i++) {
+    if (s[i] === '\\') {
+      i++
+    } else if (s.startsWith(sep, i)) {
+      parts.push(s.slice(start, i))
+      start = i + sep.length
+      i = start - 1
+    }
+  }
+  parts.push(s.slice(start))
+  return parts
+}
+
+const unescapeCSV = (s: string) => s.replace(/\\(.)/g, '$1')
+
 function parseCSVList(cell: string | undefined): string[] {
   return cell
-    ? cell
-        .split(';')
+    ? splitUnescaped(cell, ';')
         .map((t) => t.trim())
         .filter(Boolean)
     : []
 }
 
+// Splits "label::value" on the first unescaped "::" (a URL may contain more)
+function splitLabelValue(cell: string): [string, string] | null {
+  const [label, ...rest] = splitUnescaped(cell, '::')
+  return rest.length === 0 ? null : [unescapeCSV(label), unescapeCSV(rest.join('::'))]
+}
+
 // Cell format: "Label::color-classes" — legacy exports have no "::" and carry no color
 function parseCSVTagCell(cell: string): ImportedTag {
-  const idx = cell.indexOf('::')
-  return idx === -1
-    ? { label: cell, color: '' }
-    : { label: cell.slice(0, idx), color: cell.slice(idx + 2) }
+  const parts = splitLabelValue(cell)
+  return parts ? { label: parts[0], color: parts[1] } : { label: unescapeCSV(cell), color: '' }
 }
 
 // Cell format: "Label::url"
 function parseCSVLinkCell(cell: string): ImportedLink {
-  const idx = cell.indexOf('::')
-  return idx === -1
-    ? { url: cell, label: '' }
-    : { url: cell.slice(idx + 2), label: cell.slice(0, idx) }
+  const parts = splitLabelValue(cell)
+  return parts ? { url: parts[1], label: parts[0] } : { url: unescapeCSV(cell), label: '' }
 }
 
 export async function processImportZip(file: File): Promise<ImportedTask[]> {

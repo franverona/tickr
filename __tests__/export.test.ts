@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { exportToCSV, exportToJSON, relativizeUploads } from '../lib/export'
+import { parseCSVContent } from '../lib/import'
 import type { Tag, Task } from '../lib/types'
 
 const TAGS: Tag[] = [
@@ -72,7 +73,7 @@ describe('exportToCSV', () => {
   it('produces a header row followed by data rows', () => {
     const lines = exportToCSV([makeTask()], TAGS).split('\n')
     expect(lines[0]).toBe(
-      'Title,Tags,Status,Due Date,Description,Created At,Updated At,Completed At,Archived At,Links',
+      'Title,Tags,Status,Completed,Archived,Due Date,Description,Created At,Updated At,Completed At,Archived At,Links',
     )
     expect(lines).toHaveLength(2)
   })
@@ -110,6 +111,23 @@ describe('exportToCSV', () => {
   it('marks archived task as "Archived"', () => {
     const rows = exportToCSV([makeTask({ archived: true })], TAGS).split('\n')
     expect(rows[1]).toContain('Archived')
+  })
+
+  it('round-trips completed+archived and labels or URLs containing ; or ::', () => {
+    const tags: Tag[] = [{ id: 'odd', label: 'a;b::c\\d', color: 'bg-x' }]
+    const task = makeTask({
+      completed: true,
+      archived: true,
+      tags: ['odd'],
+      urls: [{ id: 'u1', url: 'https://example.com/?q=a;b&r=c::d', label: 'Spec: v2; draft' }],
+    })
+    const [item] = parseCSVContent(exportToCSV([task], tags))
+    expect(item.completed).toBe(true)
+    expect(item.archived).toBe(true)
+    expect(item.tags).toEqual([{ label: 'a;b::c\\d', color: 'bg-x' }])
+    expect(item.links).toEqual([
+      { url: 'https://example.com/?q=a;b&r=c::d', label: 'Spec: v2; draft' },
+    ])
   })
 
   it('quotes a field containing a comma', () => {

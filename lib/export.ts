@@ -27,12 +27,19 @@ function csvCell(value: string): string {
   return value
 }
 
+// List cells join entries with "; " and split each "label::value" on the
+// first "::", so backslash-escape those delimiters inside labels and values
+const escapeLabel = (s: string) => s.replace(/[\\;:]/g, '\\$&')
+const escapeValue = (s: string) => s.replace(/[\\;]/g, '\\$&')
+
 export function exportToCSV(tasks: Task[], tags: Tag[]): string {
   const tagMap = new Map(tags.map((t) => [t.id, t]))
   const headers = [
     'Title',
     'Tags',
     'Status',
+    'Completed',
+    'Archived',
     'Due Date',
     'Description',
     'Created At',
@@ -46,14 +53,18 @@ export function exportToCSV(tasks: Task[], tags: Tag[]): string {
     const tagCells = task.tags
       .map((id) => {
         const tag = tagMap.get(id)
-        return tag ? `${tag.label}::${tag.color}` : id
+        return tag ? `${escapeLabel(tag.label)}::${escapeValue(tag.color)}` : escapeLabel(id)
       })
       .join('; ')
-    const linkCells = task.urls.map((u) => `${u.label}::${u.url}`).join('; ')
+    const linkCells = task.urls
+      .map((u) => `${escapeLabel(u.label)}::${escapeValue(u.url)}`)
+      .join('; ')
     return [
       task.title,
       tagCells,
       status,
+      String(task.completed),
+      String(task.archived),
       task.dueDate ?? '',
       task.description,
       task.createdAt,
