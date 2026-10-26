@@ -292,6 +292,27 @@ describe('TaskDetail', () => {
     vi.useRealTimers()
   })
 
+  it('warns before unload only while the description has unsaved changes', async () => {
+    vi.useFakeTimers()
+    updateTask.mockResolvedValue(makeTask({ description: 'Unsaved' }))
+    renderTaskDetail(makeTask())
+    const unload = () => {
+      const event = new Event('beforeunload', { cancelable: true })
+      window.dispatchEvent(event)
+      return event.defaultPrevented
+    }
+
+    fireEvent.click(screen.getByText('Edit'))
+    expect(unload()).toBe(false)
+
+    fireEvent.change(screen.getByTestId('md-editor'), { target: { value: 'Unsaved' } })
+    expect(unload()).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(1500)
+    expect(unload()).toBe(false)
+    vi.useRealTimers()
+  })
+
   it('flushes a pending debounced save when unmounted before the debounce elapses', async () => {
     const task = makeTask()
     const updated = makeTask({ description: 'Switched away mid-edit' })

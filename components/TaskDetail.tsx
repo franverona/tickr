@@ -752,6 +752,16 @@ export default function TaskDetail({
   }, [descriptionDraft])
 
   useEffect(() => {
+    // A reload or tab close doesn't unmount, so the flush below never runs and
+    // a save started now would be cancelled with the page: warn instead.
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      if (descriptionDraftRef.current !== lastSavedDescRef.current) e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
+
+  useEffect(() => {
     // Flush a pending debounced description save on unmount instead of
     // silently discarding it. TaskDetail is remounted (key={task.id} in
     // page.tsx) whenever the user switches tasks or closes the panel, which
