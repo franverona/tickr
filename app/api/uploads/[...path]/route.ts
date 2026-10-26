@@ -1,22 +1,9 @@
 import { readFile } from 'fs/promises'
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
+import { UPLOAD_EXT_TO_MIME } from '@/lib/upload-types'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
-
-const MIME_TYPES: Record<string, string> = {
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  gif: 'image/gif',
-  webp: 'image/webp',
-  pdf: 'application/pdf',
-  txt: 'text/plain',
-  md: 'text/markdown',
-  csv: 'text/csv',
-  json: 'application/json',
-  zip: 'application/zip',
-}
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: string[] }> }) {
   const segments = (await ctx.params).path
@@ -29,7 +16,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: stri
   try {
     const data = await readFile(filePath)
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
-    const contentType = MIME_TYPES[ext] ?? 'application/octet-stream'
+    const contentType = UPLOAD_EXT_TO_MIME[ext] ?? 'application/octet-stream'
 
     return new NextResponse(data, {
       headers: {

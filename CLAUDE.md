@@ -75,7 +75,8 @@ lib/
   paste-utils.ts       # rich-paste-to-Markdown, URL-over-selection, CSV/TSV-to-table conversion
   useFocusTrap.ts      # focus-trap hook shared by modals
   export.ts            # exportToJSON, exportToCSV, exportToZip (client-side)
-  import.ts            # processImportZip — parse ZIP, upload images (client-side)
+  import.ts            # processImportZip — parse ZIP, re-upload attachments (client-side)
+  upload-types.ts      # UPLOAD_EXT_TO_MIME — accepted upload types, shared by import and /api/uploads
 data/
   tasks.db             # created at runtime, gitignored
 public/
