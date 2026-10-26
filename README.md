@@ -115,6 +115,18 @@ pnpm test:watch      # Run tests in watch mode
 pnpm lint            # ESLint
 pnpm format          # Prettier (write)
 pnpm format:check    # Prettier (check)
+pnpm backup          # Write a backup ZIP to backups/ (see Backups)
+```
+
+## Backups
+
+`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (gitignored) in the same format as the Export feature: `tasks.json` plus the uploaded files the tasks reference, so it restores with the regular Import. It uses the same backend as the app (it reads `.env.local`), keeps the 30 newest backups, and writes to `BACKUP_DIR` instead when that's set (e.g. a synced or external folder).
+
+To run it daily at 03:00 with pm2:
+
+```bash
+pm2 start "pnpm backup" --name tickr-backup --cron "0 3 * * *" --no-autorestart
+pm2 save
 ```
 
 ## Uploads

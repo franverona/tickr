@@ -1,5 +1,8 @@
 allowBuilds:
   better-sqlite3: true
+  # tsx's esbuild ships its binary as an optional platform package; its
+  # postinstall only re-checks it, so it doesn't need to run
+  esbuild: false
   protobufjs: true
   sharp: true
   unrs-resolver: true
