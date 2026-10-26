@@ -4,12 +4,6 @@ allowBuilds:
   sharp: true
   unrs-resolver: true
 
-# ponytail: prettier@3.9.5 (dependabot #57) merged before pnpm's 24h
-# minimumReleaseAge window elapsed. Remove this exclusion after
-# 2026-07-10T16:17Z, once the version has aged past the policy cutoff.
-minimumReleaseAgeExclude:
-  - prettier@3.9.5
-
 # Patched versions of vulnerable transitive dev dependencies (pnpm audit).
 # Drop an entry once its parent (eslint-config-next, vitest) pulls the fix itself.
 overrides:
