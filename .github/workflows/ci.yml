@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   pull_request:
+  # Merges made with GITHUB_TOKEN (Dependabot auto-merge) don't trigger the
+  # push run above, so main also gets a weekly run and a manual button
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
