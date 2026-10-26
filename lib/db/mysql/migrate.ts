@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import type { DbSchema } from '../types'
 import { PREDEFINED_TAGS } from '../../constants'
 
@@ -35,7 +35,8 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     .ifNotExists()
     .addColumn('id', 'varchar(255)', (c) => c.primaryKey())
     .addColumn('title', 'text', (c) => c.notNull())
-    .addColumn('description', 'text', (c) => c.notNull())
+    // mediumtext (16 MB): MySQL's text caps at 64 KB, too small for long Markdown
+    .addColumn('description', sql`mediumtext`, (c) => c.notNull())
     .addColumn('completed', 'boolean', (c) => c.notNull().defaultTo(false))
     .addColumn('archived', 'boolean', (c) => c.notNull().defaultTo(false))
     .addColumn('due_date', 'text')
@@ -45,6 +46,16 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     .addColumn('archived_at', 'text')
     .addColumn('sort_order', 'integer')
     .execute()
+
+  // Databases created before description was mediumtext. Checked first because
+  // MODIFY can rebuild the whole table.
+  const { rows } = await sql<{ DATA_TYPE: string }>`
+    SELECT DATA_TYPE FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tasks' AND COLUMN_NAME = 'description'
+  `.execute(db)
+  if (rows[0]?.DATA_TYPE === 'text') {
+    await sql`ALTER TABLE tasks MODIFY description MEDIUMTEXT NOT NULL`.execute(db)
+  }
 
   await db.schema
     .createTable('tags')
