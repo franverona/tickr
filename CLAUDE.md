@@ -21,20 +21,21 @@ app/
   layout.tsx
   globals.css
   api/
-    upload/route.ts         # image upload endpoint (POST /api/upload → public/uploads/)
-    uploads/[...path]/      # dynamic image server (GET /uploads/* → public/uploads/)
+    upload/route.ts         # attachment upload (POST /api/upload → public/uploads/); same-origin + size checked before parsing
+    uploads/[...path]/      # dynamic file server (GET /uploads/* → public/uploads/), nosniff + sandbox CSP
 components/
   TaskCard.tsx         # task list item
   TaskDetail.tsx       # right-panel detail view
   TaskContextMenu.tsx  # right-click / context menu for a task
   CreateTaskModal.tsx
+  ImportModal.tsx      # import dialog for a chosen backup ZIP: merge or override (typed DELETE confirm)
   TagSelector.tsx      # inline tag picker with create flow
   TagManagementModal.tsx  # rename / recolor / delete tags
   TagBadge.tsx
   CommandPalette.tsx   # Ctrl/Cmd+K command palette
   ShortcutsModal.tsx   # keyboard shortcuts help overlay
   Logo.tsx
-  MdEditor.tsx         # dynamic imports for react-md-editor
+  MdEditor.tsx         # react-md-editor/preview dynamic imports, remarkOutlineList plugin, paste/drop upload + rich-paste handlers
 lib/
   db/
     index.ts            # barrel: export { getRepository }
@@ -80,18 +81,18 @@ lib/
 data/
   tasks.db             # created at runtime, gitignored
 public/
-  uploads/             # uploaded images, gitignored
+  uploads/             # uploaded attachments, gitignored
 ```
 
 ## Key conventions
 
-- **Server Actions** for all DB reads and writes — no API routes, except `/api/upload` (image upload) and `/api/uploads/[...path]` (image serving, see below)
-- **Uploaded image serving**: In production, Next.js indexes `public/` once at startup, so newly uploaded files 404 if served as static assets. A `beforeFiles` rewrite in `next.config.ts` redirects all `GET /uploads/*` requests to `/api/uploads/*`, which reads files from `public/uploads/` dynamically on every request
+- **Server Actions** for all DB reads and writes — no API routes, except `/api/upload` (attachment upload) and `/api/uploads/[...path]` (file serving, see below). Route handlers get no built-in CSRF check, so `/api/upload` rejects a mismatched `Origin` and checks `Content-Length` against its 10 MB cap before parsing the body
+- **Uploaded file serving**: In production, Next.js indexes `public/` once at startup, so newly uploaded files 404 if served as static assets. A `beforeFiles` rewrite in `next.config.ts` redirects all `GET /uploads/*` requests to `/api/uploads/*`, which reads files from `public/uploads/` dynamically on every request. Responses carry `X-Content-Type-Options: nosniff` and, except for PDFs, `Content-Security-Policy: sandbox`, since the files are served from the app's own origin
 - **Tag colors** are stored as full Tailwind class strings (e.g. `"bg-blue-600 text-blue-100 border-blue-500"`). All color options must appear as literals in `COLOR_PALETTE` in `lib/constants.ts` so Tailwind v4 bundles them
 - `better-sqlite3` is excluded from webpack bundling via `serverExternalPackages` in `next.config.ts`
 - **Migrations** run idempotently in `ensureSchema()` inside `lib/db/sqlite/migrate.ts` — add `ALTER TABLE … ADD COLUMN` wrapped in try/catch to extend the schema without breaking existing databases. There's no migration-version table; idempotency comes from try/catch on `ADD COLUMN` and existence checks (e.g. `pragma_table_info`) for anything that can't be safely retried the same way (like `DROP COLUMN`)
-- **Export format**: ZIP containing `tasks.json` or `tasks.csv` + `uploads/` folder. Image paths in the data file are rewritten from `/uploads/` to `uploads/` (relative) so the archive is self-contained. `lib/export.ts` is client-only.
-- **Import**: `lib/import.ts` is client-only — it parses the ZIP with JSZip, uploads images through `/api/upload`, rewrites paths, then calls the `importTasks` server action which resolves/creates tags and bulk-inserts tasks. Imported tags without a matching existing tag get a color cycled from `COLOR_PALETTE`.
+- **Export format**: ZIP containing `tasks.json` or `tasks.csv` + `uploads/` folder. Local `/uploads/` paths in task descriptions are rewritten to relative `uploads/` (`relativizeUploads()`) so the archive is self-contained; `/uploads/` inside other hosts' URLs is left alone. `lib/export.ts` is client-only.
+- **Import**: `lib/import.ts` is client-only — it parses the ZIP with JSZip, re-uploads every attachment type `/api/upload` accepts (`lib/upload-types.ts`), rewrites paths, then calls the `importTasks` server action which resolves/creates tags and bulk-inserts tasks. Imported tags without a matching existing tag get a color cycled from `COLOR_PALETTE`.
 - **Export/import is backend-agnostic**: a ZIP exported while running on one `DB_TYPE` imports cleanly into any other. `ImportedTask` (`lib/import.ts`) keeps its optional timestamps (normalized to ISO strings, falling back to the import time when missing), and its optional `id` (from JSON exports) is never stored — every backend's `importTasks` re-links tags by `label.toLowerCase()` (not by id) and regenerates ids via `randomUUID()`/`slugify()` rather than relying on DB-native autoincrement, so there's no backend-specific ID format to round-trip. The old `id` is only used to rewrite `[title](#old-id)` mention links in descriptions to the new ids (`lib/db/mentions.ts`'s `planImportIds()`, shared by all backends); CSV exports have no id column, so mentions don't survive a CSV round trip. Verified by `__tests__/cross-backend-import-export.test.ts` (automated SQLite↔Postgres and SQLite↔MySQL) and manually against a live Firestore project (SQLite→Firestore), consistent with the Firestore adapter's no-automated-tests convention below.
 
 ## Database backend
@@ -144,7 +145,7 @@ public/
 ## Testing
 
 - **Vitest** — run with `pnpm test` (or `pnpm test:watch`)
-- Tests live in `__tests__/`, mirroring `lib/`/`components/`/`app/` — e.g. `export.test.ts`, `import.test.ts`, `actions.test.ts`, `cross-backend-import-export.test.ts`, `migrate.test.ts`, `dates.test.ts`, `paste-utils.test.ts`, `page.test.tsx`, plus one `*.test.tsx` per interactive component (`TaskCard`, `TaskDetail`, `TaskContextMenu`, `TagSelector`, `CreateTaskModal`, `TagManagementModal`, `ImportModal`, …)
+- Tests live in `__tests__/`, mirroring `lib/`/`components/`/`app/` — e.g. `export.test.ts`, `import.test.ts`, `actions.test.ts`, `cross-backend-import-export.test.ts`, `migrate.test.ts`, `dates.test.ts`, `paste-utils.test.ts`, `page.test.tsx`, `upload-route.test.ts` / `uploads-serve-route.test.ts` (the two API routes), plus one `*.test.tsx` per interactive component (`TaskCard`, `TaskDetail`, `TaskContextMenu`, `TagSelector`, `CreateTaskModal`, `TagManagementModal`, `ImportModal`, …)
 - `actions.test.ts` mocks `lib/db`'s `getRepository` via `vi.hoisted` + `vi.mock`, backed by a `SqliteTaskRepository` built on an in-memory `better-sqlite3` DB — schema comes from the real `ensureSchema()` (`lib/db/sqlite/migrate.ts`) rather than a duplicated DDL copy, so the test fixture can't drift from production. `beforeEach` wipes all rows (including seeded tags) for isolation; tests that need specific tags insert them directly first
 - `parseCSVRows`, `parseJSONContent`, `parseCSVContent` in `lib/import.ts` are exported so they can be unit-tested directly
 - `cross-backend-import-export.test.ts` seeds a source `TaskRepository`, runs it through `exportToJSON`/`exportToCSV` → `parseJSONContent`/`parseCSVContent` → a destination repository's `importTasks`, and asserts the data survives modulo backend-regenerated ids/timestamps. The SQLite↔SQLite case (two independent in-memory DBs) always runs; the SQLite↔Postgres and SQLite↔MySQL cases each skip themselves (via a runtime reachability check, not a hardcoded env flag) when the corresponding `docker-compose.yml` service isn't running. They connect via the test-only **`POSTGRES_TEST_URL`** / **`MYSQL_TEST_URL`** (defaulting to the docker-compose services), never the app's `DATABASE_URL`, because they wipe every task and tag in that database. In CI (`CI` env var set), `ci.yml` always starts both as service containers, so there an unreachable database fails the run instead of skipping. Because two independent in-memory SQLite DBs are created in the same process, `makeSqliteRepo()` calls `vi.resetModules()` before each one — `lib/db/sqlite/migrate.ts` caches its migration promise at module scope (correct for production's single connection), so without a fresh module instance per DB, the second DB's tables would never actually get created
