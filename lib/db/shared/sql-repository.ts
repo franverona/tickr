@@ -312,7 +312,9 @@ export function createSqlTaskRepository<Bool>(
       // sequential-loop version was fine on local SQLite but meant one
       // network round trip per task on Postgres/MySQL, so reordering a
       // list of a few hundred tasks was a few hundred sequential awaits.
-      const whenClauses = orderedIds.map((id, i) => sql`WHEN ${id} THEN ${i * 1000}`)
+      // sql.lit inlines the (server-computed) integers: as untyped params, Postgres
+      // resolves the CASE as text and refuses to assign it to the integer column.
+      const whenClauses = orderedIds.map((id, i) => sql`WHEN ${id} THEN ${sql.lit(i * 1000)}`)
       await sql`
         UPDATE tasks
         SET sort_order = CASE id ${sql.join(whenClauses, sql` `)} END

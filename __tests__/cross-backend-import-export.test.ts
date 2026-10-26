@@ -186,3 +186,36 @@ describe('cross-backend import/export round trip', () => {
     await assertRoundTrip(makeMysqlRepo(), await makeSqliteRepo())
   })
 })
+
+async function assertReorder(repo: TaskRepository): Promise<void> {
+  await repo.importTasks([], true)
+  const a = await repo.createTask({ title: 'A', description: '', tags: [] })
+  const b = await repo.createTask({ title: 'B', description: '', tags: [] })
+  const c = await repo.createTask({ title: 'C', description: '', tags: [] })
+
+  await repo.reorderTasks([c.id, a.id, b.id])
+
+  expect((await repo.getTasks()).map((t) => t.id)).toEqual([c.id, a.id, b.id])
+}
+
+describe('reorderTasks per backend', () => {
+  it('sqlite', async () => {
+    await assertReorder(await makeSqliteRepo())
+  })
+
+  it('postgres', async (ctx) => {
+    if (!(await isPostgresAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertReorder(makePostgresRepo())
+  })
+
+  it('mysql', async (ctx) => {
+    if (!(await isMysqlAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertReorder(makeMysqlRepo())
+  })
+})
