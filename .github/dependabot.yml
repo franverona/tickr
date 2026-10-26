@@ -14,11 +14,23 @@ updates:
     ignore:
       - dependency-name: 'eslint'
         update-types: ['version-update:semver-major']
+    # Packages that must move together arrive as one PR (react without
+    # react-dom is how main went red in #191)
+    groups:
+      react:
+        patterns: ['react', 'react-dom', '@types/react', '@types/react-dom']
+      next:
+        patterns: ['next', 'eslint-config-next']
+      commitlint:
+        patterns: ['@commitlint/*']
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    # Actions run with write tokens, so give a bad release time to be caught
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: chore
       include: scope
