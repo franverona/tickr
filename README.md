@@ -77,7 +77,7 @@ Tickr runs on port **9876** in production mode so it doesn't collide with other 
 ```bash
 npm install -g pm2
 pnpm build
-pm2 start "pnpm start -- -p 9876" --name tickr
+pm2 start "pnpm start -p 9876" --name tickr
 pm2 save
 pm2 startup   # follow the printed command to register with launchd
 ```
