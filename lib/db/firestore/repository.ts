@@ -217,12 +217,17 @@ export class FirestoreTaskRepository implements TaskRepository {
   async reorderTasks(orderedIds: string[]): Promise<void> {
     const db = await this.ready()
     const entries = orderedIds.map((id, i) => ({ id, sortOrder: i * 1000 }))
+    // Skip ids deleted meanwhile (e.g. from another tab), like the SQL
+    // backends do: update() on a missing doc fails the whole batch, and
+    // set(merge) would recreate it as a sortOrder-only doc. Read and write in
+    // one transaction so a delete can't slip in between.
     for (const group of chunk(entries)) {
-      const batch = db.batch()
-      for (const { id, sortOrder } of group) {
-        batch.update(this.tasksCol.doc(id), { sortOrder })
-      }
-      await batch.commit()
+      await db.runTransaction(async (tx) => {
+        const snaps = await tx.getAll(...group.map(({ id }) => this.tasksCol.doc(id)))
+        snaps.forEach((snap, i) => {
+          if (snap.exists) tx.update(snap.ref, { sortOrder: group[i].sortOrder })
+        })
+      })
     }
   }
 
