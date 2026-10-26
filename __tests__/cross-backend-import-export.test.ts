@@ -47,7 +47,8 @@ async function isPostgresAvailable(): Promise<boolean> {
   try {
     await pool.query('select 1')
     return true
-  } catch {
+  } catch (err) {
+    if (process.env.CI) throw err // CI always starts the service; never skip there
     return false
   } finally {
     await pool.end()
@@ -69,7 +70,8 @@ async function isMysqlAvailable(): Promise<boolean> {
     await conn.query('select 1')
     await conn.end()
     return true
-  } catch {
+  } catch (err) {
+    if (process.env.CI) throw err // CI always starts the service; never skip there
     return false
   }
 }
