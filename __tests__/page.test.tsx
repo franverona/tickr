@@ -79,6 +79,8 @@ async function renderReady(tasks: Task[], tags: Tag[] = []) {
 
 afterEach(() => {
   cleanup()
+  // The page persists the selected tab and task; don't leak them between tests
+  localStorage.clear()
   getTasks.mockReset()
   getTags.mockReset()
   reorderTasks.mockReset()
@@ -98,6 +100,29 @@ describe('initial load', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load tasks")
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument()
     expect(screen.queryByText('No tasks yet')).not.toBeInTheDocument()
+  })
+})
+
+describe('copy last 7 days', () => {
+  it('copies recently completed tasks from the Done tab', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const done = makeTask({
+      id: 'a',
+      title: 'Shipped it',
+      completed: true,
+      completedAt: new Date().toISOString(),
+    })
+    await renderReady([done])
+
+    expect(screen.queryByRole('button', { name: 'Copy last 7 days' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Copy last 7 days' }))
+
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith('Done in the last 7 days:\n- Shipped it'),
+    )
+    expect(await screen.findByRole('button', { name: 'Copied!' })).toBeInTheDocument()
   })
 })
 

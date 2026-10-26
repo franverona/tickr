@@ -72,6 +72,7 @@ lib/
   types.ts             # Task and Tag interfaces
   constants.ts         # PREDEFINED_TAGS and COLOR_PALETTE
   dates.ts             # due-date badge logic (overdue / due today / due soon)
+  standup.ts           # isReviewLink() (MR/PR URLs) + doneLastWeekSummary() for the Done tab's copy button
   emojis.ts            # emoji autocomplete (`:name`) data + matching
   snippets.ts          # snippet autocomplete (`/key`) data
   suggestLabel.ts       # tag label suggestion helper

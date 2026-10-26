@@ -33,6 +33,7 @@ A local task management app for tracking work.
 - **Bulk actions** — select several tasks to complete, reopen, archive, unarchive, delete, or tag them at once
 - **Due-date notifications** — a browser notification once a day, while the app is open, listing tasks that are overdue or due today
 - **Links section** — attach labeled URLs to any task; MR/PR links get a one-click "Copy for Slack" button
+- **Standup summary** — on the Done tab, copy the tasks completed in the last 7 days, with their MR/PR links, as a Markdown list
 - **Editor enhancements** — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete
 - **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv` plus every uploaded file the descriptions reference
 - **Import** — restore from an exported ZIP (merge, or replace everything); attachments are re-uploaded, tag labels are matched or created automatically, and timestamps are kept. `@` mention links are re-linked from JSON exports
