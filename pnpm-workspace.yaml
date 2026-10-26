@@ -9,3 +9,10 @@ allowBuilds:
 # 2026-07-10T16:17Z, once the version has aged past the policy cutoff.
 minimumReleaseAgeExclude:
   - prettier@3.9.5
+
+# Patched versions of vulnerable transitive dev dependencies (pnpm audit).
+# Drop an entry once its parent (eslint-config-next, vitest) pulls the fix itself.
+overrides:
+  'brace-expansion@>=4.0.0 <5.0.12': ^5.0.12
+  'source-map-js@<1.2.2': ^1.2.2
+  'vite@>=8.2.0 <=8.2.3': ^8.2.4
