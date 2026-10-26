@@ -224,3 +224,35 @@ describe('reorderTasks per backend', () => {
     await assertReorder(makeMysqlRepo())
   })
 })
+
+async function assertLongDescription(repo: TaskRepository): Promise<void> {
+  await repo.importTasks([], true)
+  // Over MySQL's 64 KB TEXT cap
+  const description = 'x'.repeat(100_000)
+  const task = await repo.createTask({ title: 'Long', description, tags: [] })
+  const [stored] = await repo.getTasks()
+  expect(stored.id).toBe(task.id)
+  expect(stored.description).toHaveLength(description.length)
+}
+
+describe('descriptions over 64 KB per backend', () => {
+  it('sqlite', async () => {
+    await assertLongDescription(await makeSqliteRepo())
+  })
+
+  it('postgres', async (ctx) => {
+    if (!(await isPostgresAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertLongDescription(makePostgresRepo())
+  })
+
+  it('mysql', async (ctx) => {
+    if (!(await isMysqlAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertLongDescription(makeMysqlRepo())
+  })
+})
