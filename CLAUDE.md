@@ -78,9 +78,12 @@ lib/
   suggestLabel.ts       # tag label suggestion helper
   paste-utils.ts       # rich-paste-to-Markdown, URL-over-selection, CSV/TSV-to-table conversion
   useFocusTrap.ts      # focus-trap hook shared by modals
-  export.ts            # exportToJSON, exportToCSV, exportToZip (client-side)
+  export.ts            # exportToJSON, exportToCSV, exportToZip (client-side), referencedUploads
   import.ts            # processImportZip — parse ZIP, re-upload attachments (client-side)
   upload-types.ts      # UPLOAD_EXT_TO_MIME — accepted upload types, shared by import and /api/uploads
+  backup.ts            # createBackup() — server-side ZIP in the export format, with retention (Node only)
+scripts/
+  backup.ts            # `pnpm backup` entry point (run via tsx): loads .env.local, calls createBackup()
 data/
   tasks.db             # created at runtime, gitignored
 public/

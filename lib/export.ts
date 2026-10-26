@@ -97,7 +97,8 @@ export function relativizeUploads(description: string): string {
   return description.replace(LOCAL_UPLOAD_RE, 'uploads/$1')
 }
 
-function extractImagePaths(tasks: Task[]): string[] {
+/** `/uploads/<file>` paths the task descriptions link to (what the ZIP bundles) */
+export function referencedUploads(tasks: Task[]): string[] {
   const paths = new Set<string>()
   for (const task of tasks) {
     for (const [, filename] of task.description.matchAll(LOCAL_UPLOAD_RE)) {
@@ -121,7 +122,7 @@ export async function exportToZip(
   const content = format === 'json' ? exportToJSON(archived, tags) : exportToCSV(archived, tags)
   zip.file(`tasks.${format}`, content)
 
-  const imagePaths = extractImagePaths(tasks)
+  const imagePaths = referencedUploads(tasks)
   if (imagePaths.length > 0) {
     const uploadsFolder = zip.folder('uploads')!
     await Promise.all(

@@ -11,6 +11,7 @@
     "build": "next build",
     "start": "next start",
     "test": "vitest run",
+    "backup": "tsx scripts/backup.ts",
     "test:watch": "vitest",
     "lint": "eslint",
     "format": "prettier --write .",
@@ -63,6 +64,7 @@
     "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^6",
     "vitest": "^5.0.5"
   }

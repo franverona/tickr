@@ -40,3 +40,6 @@ next-env.d.ts
 
 # Uploaded images
 /public/uploads/
+
+# pnpm backup output
+/backups/
