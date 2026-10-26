@@ -89,6 +89,19 @@ export class FirestoreTaskRepository implements TaskRepository {
     const label = data.label?.trim() ?? currentData.label
     const color = data.color ?? currentData.color
 
+    // Import matches tags by lowercased label, so two tags must never share one
+    if (label.toLowerCase() !== currentData.label.toLowerCase()) {
+      const tags = await this.tagsCol.get()
+      if (
+        tags.docs.some(
+          (d) =>
+            d.id !== id &&
+            (d.data() as FirestoreTagDoc).label.toLowerCase() === label.toLowerCase(),
+        )
+      )
+        throw new Error(`A tag named "${label}" already exists`)
+    }
+
     await this.tagsCol.doc(id).update({ label, color })
     return { id, label, color }
   }
@@ -136,7 +149,7 @@ export class FirestoreTaskRepository implements TaskRepository {
     const docData: FirestoreTaskDoc = {
       title: data.title,
       description: data.description,
-      tags: data.tags,
+      tags: [...new Set(data.tags)],
       urls,
       completed: false,
       archived: false,
@@ -184,7 +197,7 @@ export class FirestoreTaskRepository implements TaskRepository {
     const update: Partial<FirestoreTaskDoc> = { updatedAt: now }
     if (data.title !== undefined) update.title = data.title
     if (data.description !== undefined) update.description = data.description
-    if (data.tags !== undefined) update.tags = data.tags
+    if (data.tags !== undefined) update.tags = [...new Set(data.tags)]
     if (data.dueDate !== undefined) update.dueDate = data.dueDate
     if (data.completed !== undefined) {
       update.completed = data.completed
@@ -318,9 +331,13 @@ export class FirestoreTaskRepository implements TaskRepository {
     const taskWrites: Array<{ id: string; data: FirestoreTaskDoc }> = []
     for (const item of items) {
       if (!item.title.trim()) continue
-      const tagIds = item.tags
-        .map(({ label }) => tagMap.get(label.toLowerCase()))
-        .filter((tagId): tagId is string => tagId !== undefined)
+      const tagIds = [
+        ...new Set(
+          item.tags
+            .map(({ label }) => tagMap.get(label.toLowerCase()))
+            .filter((tagId): tagId is string => tagId !== undefined),
+        ),
+      ]
 
       taskWrites.push({
         id: randomUUID(),

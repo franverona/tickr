@@ -31,6 +31,7 @@ import {
   getTasks,
   importTasks,
   reorderTasks,
+  updateTag,
   updateTask,
   updateTasks,
 } from '../app/actions'
@@ -225,5 +226,44 @@ describe('importTasks', () => {
     const tasks = await getTasks()
     expect(tasks.map((t) => t.id)).toEqual([existing.id])
     expect(tasks[0].tags).toEqual([SEED_TAG.id])
+  })
+})
+
+describe('duplicate tags', () => {
+  it("rejects renaming a tag to another tag's label, ignoring case", async () => {
+    seedTag(SEED_TAG)
+    seedTag(BLOCKED_TAG)
+    await expect(updateTag(BLOCKED_TAG.id, { label: 'wip' })).rejects.toThrow('already exists')
+    await expect(updateTag(SEED_TAG.id, { label: 'wip' })).resolves.toMatchObject({ label: 'wip' })
+  })
+
+  it('stores a repeated tag id once on create and update', async () => {
+    seedTag()
+    const task = await createTask({ title: 'T', description: '', tags: ['wip', 'wip'] })
+    expect(task.tags).toEqual(['wip'])
+    const updated = await updateTask(task.id, { tags: ['wip', 'wip'] })
+    expect(updated.tags).toEqual(['wip'])
+  })
+
+  it('imports labels that differ only in case as one tag', async () => {
+    const color = SEED_TAG.color
+    const { tasks } = await importTasks(
+      [
+        {
+          title: 'T',
+          description: '',
+          tags: [
+            { label: 'Bug', color },
+            { label: 'bug', color },
+          ],
+          completed: false,
+          archived: false,
+          dueDate: null,
+          links: [],
+        },
+      ],
+      false,
+    )
+    expect(tasks[0].tags).toEqual(['bug'])
   })
 })
