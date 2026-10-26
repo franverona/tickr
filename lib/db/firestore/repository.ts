@@ -72,12 +72,19 @@ export class FirestoreTaskRepository implements TaskRepository {
     const id = slugify(data.label)
     if (!id) throw new Error('Invalid tag name')
 
-    const existing = await this.tagsCol.doc(id).get()
-    if (existing.exists) throw new Error(`A tag named "${data.label}" already exists`)
-
     const now = new Date().toISOString()
     const label = data.label.trim()
-    await this.tagsCol.doc(id).set({ label, color: data.color, createdAt: now })
+    // create() fails atomically if the doc exists, so two concurrent creates
+    // with the same slug can't both pass a get() check and overwrite each other
+    try {
+      await this.tagsCol.doc(id).create({ label, color: data.color, createdAt: now })
+    } catch (err) {
+      if ((err as { code?: number }).code === 6) {
+        // ALREADY_EXISTS
+        throw new Error(`A tag named "${data.label}" already exists`)
+      }
+      throw err
+    }
     return { id, label, color: data.color }
   }
 
