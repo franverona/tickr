@@ -15,6 +15,7 @@ import {
 import { searchEmojis } from '@/lib/emojis'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
 import { daysBetween, formatTimestamp, getDueStatus } from '@/lib/dates'
+import { isReviewLink } from '@/lib/standup'
 import { suggestLabel } from '@/lib/suggestLabel'
 
 interface TaskDetailProps {
@@ -165,15 +166,6 @@ function ProviderIcon({ url }: { url: string }) {
       <path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z" />
     </svg>
   )
-}
-
-function isReviewLink(url: string): boolean {
-  try {
-    const pathname = new URL(url).pathname
-    return /\/merge_requests\/\d+/.test(pathname) || /\/pull\/\d+/.test(pathname)
-  } catch {
-    return false
-  }
 }
 
 function toggleChecklistItem(source: string, index: number): string {

@@ -22,6 +22,7 @@ import CommandPalette from '@/components/CommandPalette'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
 import { getDueStatus, localDateKey } from '@/lib/dates'
+import { doneLastWeekSummary } from '@/lib/standup'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
 const SELECTED_TASK_STORAGE_KEY = 'tickr:selectedTaskId'
@@ -53,6 +54,7 @@ export default function Page() {
   const [isExporting, setIsExporting] = useState(false)
   const [pendingImportFile, setPendingImportFile] = useState<File | null>(null)
   const [menuFeedback, setMenuFeedback] = useState<string | null>(null)
+  const [standupCopied, setStandupCopied] = useState(false)
   const importInputRef = useRef<HTMLInputElement>(null)
   const [contextMenu, setContextMenu] = useState<{ taskId: string; x: number; y: number } | null>(
     null,
@@ -317,6 +319,18 @@ export default function Page() {
   // otherwise a task you know exists can silently fail to show up just
   // because it's archived while you're viewing Active.
   const isSearching = query.length > 0
+  const standupSummary = tab === 'done' && !isSearching ? doneLastWeekSummary(tasks) : null
+
+  async function handleCopyStandup() {
+    if (!standupSummary) return
+    try {
+      await navigator.clipboard.writeText(standupSummary)
+      setStandupCopied(true)
+      setTimeout(() => setStandupCopied(false), 2000)
+    } catch {
+      showToast('Failed to copy', 'error')
+    }
+  }
 
   const filteredTasks = tasks
     .filter((task) => {
@@ -984,6 +998,15 @@ export default function Page() {
                             : 'tasks'
                       }`}
                 </span>
+                {standupSummary && (
+                  <button
+                    onClick={handleCopyStandup}
+                    title="Copy tasks completed in the last 7 days, with their MR/PR links, as Markdown"
+                    className="text-surface-400 hover:text-surface-100 text-xs transition-colors"
+                  >
+                    {standupCopied ? 'Copied!' : 'Copy last 7 days'}
+                  </button>
+                )}
                 {!isLoading && filteredTasks.length > 0 && (
                   <button
                     onClick={() => {
