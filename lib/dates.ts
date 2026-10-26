@@ -18,6 +18,12 @@ export function getDueStatus(dueDate: string | null, completed: boolean): DueSta
   return null
 }
 
+// "YYYY-MM-DD" for the local calendar day (toISOString would give the UTC day)
+export function localDateKey(date: Date = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
 export function formatDueDate(dueDate: string): string {
   const due = new Date(`${dueDate}T00:00:00`)
   return due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })

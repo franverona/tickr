@@ -21,7 +21,7 @@ import ShortcutsModal from '@/components/ShortcutsModal'
 import CommandPalette from '@/components/CommandPalette'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
-import { getDueStatus } from '@/lib/dates'
+import { getDueStatus, localDateKey } from '@/lib/dates'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
 const SELECTED_TASK_STORAGE_KEY = 'tickr:selectedTaskId'
@@ -124,7 +124,7 @@ export default function Page() {
   // tasks due today or overdue.
   useEffect(() => {
     if (isLoading || typeof Notification === 'undefined') return
-    const today = new Date().toISOString().slice(0, 10)
+    const today = localDateKey()
     if (localStorage.getItem(DUE_NOTIFY_STORAGE_KEY) === today) return
 
     const due = tasks.filter(
