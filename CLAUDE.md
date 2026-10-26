@@ -4,6 +4,8 @@
 
 This project uses **Next.js 16**. Read `node_modules/next/dist/docs/` before writing any Next.js code — APIs and conventions differ from older versions. Heed deprecation notices.
 
+`agentRules: false` in `next.config.ts` stops `next dev` from generating an `AGENTS.md` with this same guidance, so don't add one back.
+
 ## Stack
 
 - **Next.js 16** App Router with Server Actions (`'use server'` file directive)
