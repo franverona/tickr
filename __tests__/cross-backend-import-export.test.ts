@@ -32,8 +32,10 @@ async function makeSqliteRepo(): Promise<TaskRepository> {
   return new SqliteTaskRepository(kysely)
 }
 
+// Test-only variables, never the app's DATABASE_URL: these tests wipe every
+// task and tag in the database they point at
 const POSTGRES_URL =
-  process.env.DATABASE_URL ?? 'postgresql://postgres:postgres@localhost:5432/tickr'
+  process.env.POSTGRES_TEST_URL ?? 'postgresql://postgres:postgres@localhost:5432/tickr'
 
 function makePostgresRepo(): TaskRepository {
   const kysely = new Kysely<PgDbSchema>({
@@ -55,7 +57,7 @@ async function isPostgresAvailable(): Promise<boolean> {
   }
 }
 
-const MYSQL_URL = process.env.MYSQL_DATABASE_URL ?? 'mysql://root:mysql@localhost:3306/tickr'
+const MYSQL_URL = process.env.MYSQL_TEST_URL ?? 'mysql://root:mysql@localhost:3306/tickr'
 
 function makeMysqlRepo(): TaskRepository {
   const kysely = new Kysely<DbSchema>({
