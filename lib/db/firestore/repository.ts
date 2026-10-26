@@ -271,24 +271,12 @@ export class FirestoreTaskRepository implements TaskRepository {
     const db = await this.ready()
     const now = new Date().toISOString()
 
-    if (overrideAll) {
-      const [taskRefs, tagRefs] = await Promise.all([
-        this.tasksCol.listDocuments(),
-        this.tagsCol.listDocuments(),
-      ])
-      for (const group of chunk([...taskRefs, ...tagRefs])) {
-        const batch = db.batch()
-        for (const ref of group) batch.delete(ref)
-        await batch.commit()
-      }
-    }
-
-    // Resolve existing tags by label
-    const existingTagsSnap = await this.tagsCol.get()
-    let colorIndex = existingTagsSnap.size
+    // Resolve existing tags by label (none survive an override)
+    const existingTagDocs = overrideAll ? [] : (await this.tagsCol.get()).docs
+    let colorIndex = existingTagDocs.length
     const tagMap = new Map<string, string>() // label.toLowerCase() → id
     const existingIds = new Set<string>()
-    for (const doc of existingTagsSnap.docs) {
+    for (const doc of existingTagDocs) {
       const data = doc.data() as FirestoreTagDoc
       tagMap.set(data.label.toLowerCase(), doc.id)
       existingIds.add(doc.id)
@@ -319,10 +307,11 @@ export class FirestoreTaskRepository implements TaskRepository {
       }
     }
 
-    const maxSnap = await this.tasksCol.orderBy('sortOrder', 'desc').limit(1).get()
-    const maxSortOrder = maxSnap.empty
+    const maxSnap = overrideAll
       ? null
-      : (maxSnap.docs[0].data() as FirestoreTaskDoc).sortOrder
+      : await this.tasksCol.orderBy('sortOrder', 'desc').limit(1).get()
+    const maxSortOrder =
+      !maxSnap || maxSnap.empty ? null : (maxSnap.docs[0].data() as FirestoreTaskDoc).sortOrder
     let sortOrder = (maxSortOrder ?? -1000) + 1000
     let imported = 0
 
@@ -358,6 +347,19 @@ export class FirestoreTaskRepository implements TaskRepository {
     // share the same 500-write cap as batches, so a large import must batch
     // regardless. Each chunk commits independently; a failure partway
     // through leaves partial data. Accepted trade-off for imports >500 rows.
+    // The override wipe runs only now, after every write above was built, so
+    // a bad item fails before anything is deleted.
+    if (overrideAll) {
+      const [taskRefs, tagRefs] = await Promise.all([
+        this.tasksCol.listDocuments(),
+        this.tagsCol.listDocuments(),
+      ])
+      for (const group of chunk([...taskRefs, ...tagRefs])) {
+        const batch = db.batch()
+        for (const ref of group) batch.delete(ref)
+        await batch.commit()
+      }
+    }
     for (const group of chunk(tagsToCreate)) {
       const batch = db.batch()
       for (const tag of group) {

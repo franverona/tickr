@@ -29,6 +29,7 @@ import {
   deleteTask,
   deleteTasks,
   getTasks,
+  importTasks,
   reorderTasks,
   updateTask,
   updateTasks,
@@ -201,5 +202,28 @@ describe('deleteTag', () => {
     await deleteTag(SEED_TAG.id)
     const [task] = await getTasks()
     expect(task.tags).toEqual([])
+  })
+})
+
+describe('importTasks', () => {
+  it('rolls back the override wipe when an insert fails', async () => {
+    seedTag()
+    const existing = await createTask({ title: 'Keep me', description: '', tags: [SEED_TAG.id] })
+
+    // A null url violates task_urls.url NOT NULL partway through the inserts
+    const bad = {
+      title: 'Bad',
+      description: '',
+      tags: [],
+      completed: false,
+      archived: false,
+      dueDate: null,
+      links: [{ url: null as unknown as string, label: 'x' }],
+    }
+    await expect(importTasks([bad], true)).rejects.toThrow()
+
+    const tasks = await getTasks()
+    expect(tasks.map((t) => t.id)).toEqual([existing.id])
+    expect(tasks[0].tags).toEqual([SEED_TAG.id])
   })
 })

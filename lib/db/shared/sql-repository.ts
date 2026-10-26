@@ -392,80 +392,81 @@ export function createSqlTaskRepository<Bool>(
       const db = await ready()
       const now = new Date().toISOString()
 
-      if (overrideAll) {
-        await db.transaction().execute(async (trx) => {
+      let imported = 0
+
+      // One transaction for the wipe and the inserts, so a failed override
+      // import rolls back to the previous data instead of leaving it empty.
+      await db.transaction().execute(async (trx) => {
+        if (overrideAll) {
           await trx.deleteFrom('task_urls').execute()
           await trx.deleteFrom('task_tags').execute()
           await trx.deleteFrom('tasks').execute()
           await trx.deleteFrom('tags').execute()
-        })
-      }
-
-      // Resolve existing tags by label
-      const existingTags = await db
-        .selectFrom('tags')
-        .select(['id', 'label', 'color'])
-        .orderBy('created_at', 'asc')
-        .execute()
-      let colorIndex = existingTags.length
-      const tagMap = new Map<string, string>() // label.toLowerCase() → id
-      for (const tag of existingTags) {
-        tagMap.set(tag.label.toLowerCase(), tag.id)
-      }
-
-      // Batch-resolve which candidate tag ids already exist (avoids an N+1
-      // SELECT per tag).
-      const candidateIds = new Set<string>()
-      for (const item of items) {
-        for (const { label } of item.tags) {
-          if (tagMap.has(label.toLowerCase())) continue
-          const id = slugify(label)
-          if (id) candidateIds.add(id)
         }
-      }
-      const existingById =
-        candidateIds.size > 0
-          ? await db
-              .selectFrom('tags')
-              .select('id')
-              .where('id', 'in', [...candidateIds])
-              .execute()
-          : []
-      const existingByIdSet = new Set(existingById.map((r) => r.id))
 
-      // Determine which tags need to be created
-      const validColors = new Set<string>(COLOR_PALETTE.map((c) => c.classes))
-      const tagsToCreate: Array<{ id: string; label: string; color: string }> = []
-      for (const item of items) {
-        for (const { label, color: importedColor } of item.tags) {
-          const key = label.toLowerCase()
-          if (tagMap.has(key)) continue
-          const id = slugify(label)
-          if (!id) continue
-          if (existingByIdSet.has(id)) {
+        // Resolve existing tags by label
+        const existingTags = await trx
+          .selectFrom('tags')
+          .select(['id', 'label', 'color'])
+          .orderBy('created_at', 'asc')
+          .execute()
+        let colorIndex = existingTags.length
+        const tagMap = new Map<string, string>() // label.toLowerCase() → id
+        for (const tag of existingTags) {
+          tagMap.set(tag.label.toLowerCase(), tag.id)
+        }
+
+        // Batch-resolve which candidate tag ids already exist (avoids an N+1
+        // SELECT per tag).
+        const candidateIds = new Set<string>()
+        for (const item of items) {
+          for (const { label } of item.tags) {
+            if (tagMap.has(label.toLowerCase())) continue
+            const id = slugify(label)
+            if (id) candidateIds.add(id)
+          }
+        }
+        const existingById =
+          candidateIds.size > 0
+            ? await trx
+                .selectFrom('tags')
+                .select('id')
+                .where('id', 'in', [...candidateIds])
+                .execute()
+            : []
+        const existingByIdSet = new Set(existingById.map((r) => r.id))
+
+        // Determine which tags need to be created
+        const validColors = new Set<string>(COLOR_PALETTE.map((c) => c.classes))
+        const tagsToCreate: Array<{ id: string; label: string; color: string }> = []
+        for (const item of items) {
+          for (const { label, color: importedColor } of item.tags) {
+            const key = label.toLowerCase()
+            if (tagMap.has(key)) continue
+            const id = slugify(label)
+            if (!id) continue
+            if (existingByIdSet.has(id)) {
+              tagMap.set(key, id)
+              continue
+            }
+            let color: string
+            if (validColors.has(importedColor)) {
+              color = importedColor
+            } else {
+              color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
+              colorIndex++
+            }
+            tagsToCreate.push({ id, label: label.trim(), color })
             tagMap.set(key, id)
-            continue
           }
-          let color: string
-          if (validColors.has(importedColor)) {
-            color = importedColor
-          } else {
-            color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
-            colorIndex++
-          }
-          tagsToCreate.push({ id, label: label.trim(), color })
-          tagMap.set(key, id)
         }
-      }
 
-      const maxRow = await db
-        .selectFrom('tasks')
-        .select((eb) => eb.fn.max('sort_order').as('max'))
-        .executeTakeFirstOrThrow()
-      let sortOrder = (maxRow.max ?? -1000) + 1000
-      let imported = 0
+        const maxRow = await trx
+          .selectFrom('tasks')
+          .select((eb) => eb.fn.max('sort_order').as('max'))
+          .executeTakeFirstOrThrow()
+        let sortOrder = (maxRow.max ?? -1000) + 1000
 
-      await db.transaction().execute(async (trx) => {
         for (const tag of tagsToCreate) {
           const insert = trx
             .insertInto('tags')
