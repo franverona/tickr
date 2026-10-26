@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exportToCSV, exportToJSON } from '../lib/export'
+import { exportToCSV, exportToJSON, relativizeUploads } from '../lib/export'
 import type { Tag, Task } from '../lib/types'
 
 const TAGS: Tag[] = [
@@ -134,5 +134,20 @@ describe('exportToCSV', () => {
     const task = makeTask({ title: 'Simple title' })
     const rows = exportToCSV([task], TAGS).split('\n')
     expect(rows[1]).toMatch(/^Simple title,/)
+  })
+})
+
+describe('relativizeUploads', () => {
+  it('rewrites local /uploads/ paths in Markdown, HTML and at line starts', () => {
+    expect(
+      relativizeUploads(
+        '![a](/uploads/a.png)\n/uploads/b.pdf\n<img src="/uploads/c.png"> [d] /uploads/d.txt',
+      ),
+    ).toBe('![a](uploads/a.png)\nuploads/b.pdf\n<img src="uploads/c.png"> [d] uploads/d.txt')
+  })
+
+  it('leaves /uploads/ inside URLs on other hosts alone', () => {
+    const external = '![x](https://gitlab.example.com/group/proj/uploads/abc123/x.png)'
+    expect(relativizeUploads(external)).toBe(external)
   })
 })
