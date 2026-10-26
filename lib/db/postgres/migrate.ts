@@ -68,10 +68,15 @@ async function runMigrations(db: Kysely<PgDbSchema>): Promise<void> {
     .addPrimaryKeyConstraint('task_tags_pk', ['task_id', 'tag_id'])
     .execute()
 
-  // Seed predefined tags (onConflict doNothing so user edits/deletes of these
-  // tags are never overwritten), with a fixed placeholder timestamp so
-  // predefined tags always sort first (ascending created_at).
+  // Seed predefined tags only into a fresh database (no tags, no tasks), so a
+  // predefined tag the user deleted doesn't come back on the next start.
+  // onConflict doNothing still guards concurrent first starts. Fixed
+  // placeholder timestamp so predefined tags always sort first (ascending
+  // created_at).
   await db.transaction().execute(async (trx) => {
+    const anyTag = await trx.selectFrom('tags').select('id').limit(1).executeTakeFirst()
+    const anyTask = await trx.selectFrom('tasks').select('id').limit(1).executeTakeFirst()
+    if (anyTag || anyTask) return
     for (const tag of PREDEFINED_TAGS) {
       await trx
         .insertInto('tags')

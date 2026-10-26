@@ -1,8 +1,9 @@
 import Database from 'better-sqlite3'
 import { Kysely, SqliteDialect } from 'kysely'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import type { DbSchema } from '../lib/db/types'
 import { ensureSchema } from '../lib/db/sqlite/migrate'
+import { PREDEFINED_TAGS } from '../lib/constants'
 
 describe('ensureSchema', () => {
   it('self-heals a task_urls_new left behind by a previously interrupted migration, drops orphaned task_urls rows, and dedupes concurrent calls', async () => {
@@ -90,5 +91,26 @@ describe('ensureSchema', () => {
     expect(urls).toEqual([
       { id: 'u1', task_id: 't1', url: 'https://example.com', label: 'Example' },
     ])
+  })
+
+  it('seeds predefined tags into a fresh database only, so deleted ones stay deleted', async () => {
+    const raw = new Database(':memory:')
+    raw.pragma('foreign_keys = ON')
+    const db = new Kysely<DbSchema>({ dialect: new SqliteDialect({ database: raw }) })
+    // ensureSchema caches its run per module; a fresh module simulates a restart
+    const restart = async () => {
+      vi.resetModules()
+      await (await import('../lib/db/sqlite/migrate')).ensureSchema(db)
+    }
+    const tagIds = () =>
+      (raw.prepare('SELECT id FROM tags ORDER BY id').all() as { id: string }[]).map((r) => r.id)
+
+    await restart()
+    expect(tagIds()).toEqual(PREDEFINED_TAGS.map((t) => t.id).sort())
+
+    const [deleted] = PREDEFINED_TAGS
+    raw.prepare('DELETE FROM tags WHERE id = ?').run(deleted.id)
+    await restart()
+    expect(tagIds()).not.toContain(deleted.id)
   })
 })

@@ -80,10 +80,14 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     .addPrimaryKeyConstraint('task_tags_pk', ['task_id', 'tag_id'])
     .execute()
 
-  // Seed predefined tags. MySQL has no `ON CONFLICT` — `.ignore()` compiles
-  // to `INSERT IGNORE`, the closest equivalent, so user edits/deletes of
-  // these tags are never overwritten. Fixed placeholder timestamp so
-  // predefined tags always sort first (ascending created_at).
+  // Seed predefined tags only into a fresh database (no tags, no tasks), so a
+  // predefined tag the user deleted doesn't come back on the next start.
+  // MySQL has no `ON CONFLICT` — `.ignore()` compiles to `INSERT IGNORE`,
+  // which still guards concurrent first starts. Fixed placeholder timestamp
+  // so predefined tags always sort first (ascending created_at).
+  const anyTag = await db.selectFrom('tags').select('id').limit(1).executeTakeFirst()
+  const anyTask = await db.selectFrom('tasks').select('id').limit(1).executeTakeFirst()
+  if (anyTag || anyTask) return
   for (const tag of PREDEFINED_TAGS) {
     await db
       .insertInto('tags')
