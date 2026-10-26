@@ -28,3 +28,23 @@ export function formatDueDate(dueDate: string): string {
   const due = new Date(`${dueDate}T00:00:00`)
   return due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
 }
+
+// Whole local calendar days from one ISO timestamp to another
+export function daysBetween(from: string, to: string): number {
+  const start = new Date(from)
+  const end = new Date(to)
+  start.setHours(0, 0, 0, 0)
+  end.setHours(0, 0, 0, 0)
+  return Math.round((end.getTime() - start.getTime()) / 86400000)
+}
+
+// "Mar 4", or "Mar 4, 2025" outside the current year
+export function formatTimestamp(iso: string): string {
+  const date = new Date(iso)
+  const otherYear = date.getFullYear() !== new Date().getFullYear()
+  return date.toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    ...(otherYear ? { year: 'numeric' } : {}),
+  })
+}

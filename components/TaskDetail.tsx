@@ -14,7 +14,7 @@ import {
 } from './MdEditor'
 import { searchEmojis } from '@/lib/emojis'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
-import { getDueStatus } from '@/lib/dates'
+import { daysBetween, formatTimestamp, getDueStatus } from '@/lib/dates'
 import { suggestLabel } from '@/lib/suggestLabel'
 
 interface TaskDetailProps {
@@ -254,6 +254,17 @@ export default function TaskDetail({
   const descriptionDraftRef = useRef(task.description)
   const editorWrapperRef = useRef<HTMLDivElement>(null)
   const dueStatus = getDueStatus(task.dueDate, task.completed)
+  const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`
+  const historyEvents = (
+    [
+      ['Created', task.createdAt],
+      ['Completed', task.completedAt],
+      ['Archived', task.archivedAt],
+    ] satisfies [string, string | null][]
+  ).filter((e): e is [string, string] => e[1] !== null)
+  const historySummary = task.completedAt
+    ? `done in ${days(daysBetween(task.createdAt, task.completedAt))}`
+    : `open for ${days(daysBetween(task.createdAt, new Date().toISOString()))}`
   const imageHandlers = makeImageHandlers(setDescriptionDraft)
 
   // setDescriptionDraft is stable (from useState) — safe to capture with empty deps
@@ -1077,6 +1088,21 @@ export default function TaskDetail({
                 </button>
               )}
             </div>
+          </div>
+
+          {/* History */}
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+            <span className="text-surface-500 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
+              History
+            </span>
+            <p className="text-surface-400 min-w-0 flex-1 text-xs">
+              {historyEvents.map(([label, at]) => (
+                <span key={label} title={new Date(at).toLocaleString()}>
+                  {label} {formatTimestamp(at)} ·{' '}
+                </span>
+              ))}
+              {historySummary}
+            </p>
           </div>
 
           {/* Links */}

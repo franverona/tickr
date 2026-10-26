@@ -4,6 +4,7 @@ import { cleanup, render, screen, fireEvent, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TaskDetail from '../components/TaskDetail'
 import type { Tag, Task } from '../lib/types'
+import { formatTimestamp } from '../lib/dates'
 import { EMOJI_LIST } from '../lib/emojis'
 
 const { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } = vi.hoisted(() => ({
@@ -147,6 +148,27 @@ describe('TaskDetail', () => {
     addTaskUrl.mockReset()
     deleteTaskUrl.mockReset()
     updateTaskUrl.mockReset()
+  })
+
+  it('shows when a completed task was created and completed, and how long it took', () => {
+    const task = makeTask({
+      createdAt: '2026-01-01T12:00:00.000Z',
+      completed: true,
+      completedAt: '2026-01-04T12:00:00.000Z',
+    })
+    renderTaskDetail(task)
+    expect(screen.getByText(`Created ${formatTimestamp(task.createdAt)} ·`)).toBeInTheDocument()
+    expect(
+      screen.getByText(`Completed ${formatTimestamp(task.completedAt!)} ·`),
+    ).toBeInTheDocument()
+    expect(screen.getByText('done in 3 days')).toBeInTheDocument()
+    expect(screen.queryByText(/^Archived/)).not.toBeInTheDocument()
+  })
+
+  it('shows how long an open task has been open', () => {
+    const createdAt = new Date(Date.now() - 2 * 86400000).toISOString()
+    renderTaskDetail(makeTask({ createdAt }))
+    expect(screen.getByText('open for 2 days')).toBeInTheDocument()
   })
 
   it('has an accessible name for the icon-only panel close button', () => {
