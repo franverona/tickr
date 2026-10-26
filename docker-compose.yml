@@ -1,4 +1,4 @@
-# Local Postgres/MySQL for testing DB_TYPE=postgres / DB_TYPE=mysql. Dev-only:
+# Local Postgres/MySQL/Firestore emulator for testing DB_TYPE=postgres / mysql / firestore. Dev-only:
 # fixed weak credentials are fine since these are bound to localhost.
 services:
   postgres:
@@ -35,6 +35,21 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  # Firestore emulator for DB_TYPE=firestore without a live project. In-memory:
+  # data is gone when the container stops.
+  firestore:
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:590.0.1-emulators
+    container_name: tickr-firestore
+    restart: unless-stopped
+    command: gcloud emulators firestore start --host-port=0.0.0.0:8080
+    ports:
+      - '127.0.0.1:8080:8080'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -sf http://localhost:8080 || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
 volumes:
   tickr-postgres-data:

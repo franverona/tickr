@@ -2,12 +2,14 @@ import Database from 'better-sqlite3'
 import { Kysely, MysqlDialect, PostgresDialect, SqliteDialect } from 'kysely'
 import { createPool } from 'mysql2'
 import { createConnection } from 'mysql2/promise'
+import { Firestore } from '@google-cloud/firestore'
 import { Pool } from 'pg'
 import { describe, expect, it, vi } from 'vitest'
 import type { DbSchema, TaskRepository } from '../lib/db/types'
 import type { PgDbSchema } from '../lib/db/postgres/schema'
 import { PostgresTaskRepository } from '../lib/db/postgres/repository'
 import { MysqlTaskRepository } from '../lib/db/mysql/repository'
+import { FirestoreTaskRepository } from '../lib/db/firestore/repository'
 import { exportToCSV, exportToJSON } from '../lib/export'
 import { parseCSVContent, parseJSONContent } from '../lib/import'
 import type { Tag, Task } from '../lib/types'
@@ -74,6 +76,24 @@ async function isMysqlAvailable(): Promise<boolean> {
     return true
   } catch (err) {
     if (process.env.CI) throw err // CI always starts the service; never skip there
+    return false
+  }
+}
+
+// Emulator only: explicit host + ssl:false can't reach a live project
+const FIRESTORE_HOST = process.env.FIRESTORE_TEST_HOST ?? 'localhost:8080'
+
+function makeFirestoreRepo(): TaskRepository {
+  return new FirestoreTaskRepository(
+    new Firestore({ projectId: 'tickr-test', host: FIRESTORE_HOST, ssl: false }),
+  )
+}
+
+async function isFirestoreAvailable(): Promise<boolean> {
+  try {
+    return (await fetch(`http://${FIRESTORE_HOST}`, { signal: AbortSignal.timeout(1000) })).ok
+  } catch (err) {
+    if (process.env.CI) throw err // CI always starts the emulator; never skip there
     return false
   }
 }
@@ -194,6 +214,22 @@ describe('cross-backend import/export round trip', () => {
     }
     await assertRoundTrip(makeMysqlRepo(), await makeSqliteRepo())
   })
+
+  it('sqlite -> firestore', async (ctx) => {
+    if (!(await isFirestoreAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertRoundTrip(await makeSqliteRepo(), makeFirestoreRepo())
+  })
+
+  it('firestore -> sqlite', async (ctx) => {
+    if (!(await isFirestoreAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertRoundTrip(makeFirestoreRepo(), await makeSqliteRepo())
+  })
 })
 
 async function assertReorder(repo: TaskRepository): Promise<void> {
@@ -227,6 +263,14 @@ describe('reorderTasks per backend', () => {
     }
     await assertReorder(makeMysqlRepo())
   })
+
+  it('firestore', async (ctx) => {
+    if (!(await isFirestoreAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertReorder(makeFirestoreRepo())
+  })
 })
 
 async function assertLongDescription(repo: TaskRepository): Promise<void> {
@@ -258,5 +302,13 @@ describe('descriptions over 64 KB per backend', () => {
       return
     }
     await assertLongDescription(makeMysqlRepo())
+  })
+
+  it('firestore', async (ctx) => {
+    if (!(await isFirestoreAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertLongDescription(makeFirestoreRepo())
   })
 })
