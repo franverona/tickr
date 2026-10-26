@@ -44,12 +44,19 @@ function getServiceAccount(): ServiceAccount {
 }
 
 export function getFirestoreClient(): Firestore {
+  // The SDK sends every request to FIRESTORE_EMULATOR_HOST when it's set, with
+  // no credentials, so the service-account key isn't needed (or used) then
+  const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST
+  if (!globalForDb.firestoreClient && emulatorHost) {
+    console.warn(`[tickr] DB_TYPE=firestore — using the Firestore emulator at ${emulatorHost}.`)
+    globalForDb.firestoreClient = new Firestore({ projectId: 'tickr-local' })
+  }
   if (!globalForDb.firestoreClient) {
     const sa = getServiceAccount()
     if (!globalForDb.firestoreWarned) {
       console.warn(
         `[tickr] DB_TYPE=firestore — connecting to the LIVE remote Firestore project "${sa.project_id}". ` +
-          'There is no local/emulator mode; all reads and writes hit real data.',
+          'All reads and writes hit real data; set FIRESTORE_EMULATOR_HOST to use the local emulator.',
       )
       globalForDb.firestoreWarned = true
     }

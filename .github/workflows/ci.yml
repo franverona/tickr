@@ -48,6 +48,14 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Not a service: services can't take the start command the image needs.
+      # Started early so it boots while dependencies install.
+      - name: Start Firestore emulator
+        run: >-
+          docker run -d --name firestore -p 127.0.0.1:8080:8080
+          gcr.io/google.com/cloudsdktool/google-cloud-cli:590.0.1-emulators
+          gcloud emulators firestore start --host-port=0.0.0.0:8080
+
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -62,6 +70,9 @@ jobs:
       - run: pnpm format:check
 
       - run: pnpm exec tsc --noEmit
+
+      - name: Wait for Firestore emulator
+        run: timeout 120 bash -c 'until curl -sf http://127.0.0.1:8080; do sleep 2; done'
 
       - run: pnpm test
 

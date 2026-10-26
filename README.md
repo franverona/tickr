@@ -69,7 +69,7 @@ Set `DB_TYPE=mysql` and `DATABASE_URL` (e.g. `mysql://user:pass@host:3306/dbname
 
 ### Firestore
 
-Set `DB_TYPE=firestore` and `FIRESTORE_SERVICE_ACCOUNT_KEY` (the full service-account JSON from Firebase Console → Project Settings → Service Accounts → Generate new private key, as a single-line string). There's no local/emulator mode — this always connects to the real remote Firestore project, even in dev, so use a project you don't mind writing test data to. The first `createTask` call will throw an error containing a Firebase Console link to create a required composite index — click through it once. To reset, clear the `tasks`/`tags` collections directly in the Firebase Console.
+Set `DB_TYPE=firestore` and `FIRESTORE_SERVICE_ACCOUNT_KEY` (the full service-account JSON from Firebase Console → Project Settings → Service Accounts → Generate new private key, as a single-line string). This connects to the real remote Firestore project, so use a project you don't mind writing test data to, or use the local emulator instead: `docker compose up -d firestore`, then set `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` (no service-account key needed; data is in-memory and gone when the container stops). The first `createTask` call will throw an error containing a Firebase Console link to create a required composite index — click through it once. To reset, clear the `tasks`/`tags` collections directly in the Firebase Console.
 
 ## Running as a background service (pm2)
 
