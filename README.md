@@ -75,6 +75,8 @@ Set `DB_TYPE=firestore` and `FIRESTORE_SERVICE_ACCOUNT_KEY` (the full service-ac
 
 Tickr runs on port **9876** in production mode so it doesn't collide with other dev projects on 3000.
 
+`pnpm dev` and `pnpm start` only listen on `127.0.0.1`, because Tickr has no login: anyone who can reach it can read and delete every task. To use it from another device on a network you trust, run `pnpm exec next start -H 0.0.0.0 -p 9876` instead.
+
 **First-time setup:**
 
 ```bash
