@@ -24,6 +24,7 @@ vi.mock('../lib/db', async () => {
 })
 
 import {
+  createTag,
   createTask,
   deleteTag,
   deleteTask,
@@ -117,6 +118,40 @@ describe('updateTask', () => {
     const [fromDb] = await getTasks()
     expect(fromDb.title).toBe('New title')
     expect(fromDb.completed).toBe(true)
+  })
+})
+
+describe('tag names', () => {
+  const color = 'bg-red-600 text-red-100 border-red-500'
+
+  it.each(['日本語', 'Рефакторинг', 'Déjà vu', '🔥'])(
+    'creates and round-trips %s',
+    async (label) => {
+      const tag = await createTag({ label, color })
+      expect(tag).toMatchObject({ label })
+
+      const task = await createTask({ title: 'T', description: '', tags: [tag.id] })
+      expect(task.tags).toEqual([tag.id])
+      const { tasks } = await importTasks(
+        [
+          {
+            title: 'T',
+            description: '',
+            dueDate: null,
+            links: [],
+            completed: false,
+            archived: false,
+            tags: [{ label, color }],
+          },
+        ],
+        true,
+      )
+      expect(tasks[0].tags).toHaveLength(1)
+    },
+  )
+
+  it('still rejects a blank name', async () => {
+    await expect(createTag({ label: '   ', color })).rejects.toThrow('Invalid tag name')
   })
 })
 
