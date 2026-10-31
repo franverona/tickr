@@ -1415,7 +1415,9 @@ export default function TaskDetail({
                   e.preventDefault()
                   const href = anchor.getAttribute('href') ?? ''
                   if (href.startsWith('#')) {
-                    onSelectTask(href.slice(1))
+                    // Heading anchors and mentions of deleted tasks also start with #
+                    const id = href.slice(1)
+                    if (allTasks.some((t) => t.id === id)) onSelectTask(id)
                   } else {
                     window.open(href, '_blank', 'noopener,noreferrer')
                   }
