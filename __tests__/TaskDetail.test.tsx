@@ -55,17 +55,31 @@ vi.mock('@/components/MdEditor', () => ({
   MDPreview: ({
     source,
     components,
+    remarkPlugins,
   }: {
     source: string
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     components?: { input?: (props: any) => React.ReactNode }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    remarkPlugins?: any[]
   }) => {
-    const items: { mark: string; text: string }[] = []
+    const items: { mark: string; text: string; line: number }[] = []
     let match: RegExpExecArray | null
     CHECKLIST_LINE_RE.lastIndex = 0
     while ((match = CHECKLIST_LINE_RE.exec(source))) {
-      items.push({ mark: match[2], text: match[3] })
+      const line = source.slice(0, match.index).split('\n').length
+      items.push({ mark: match[2], text: match[3], line })
     }
+    // Stands in for the parsed tree, so remark plugins see the same items
+    const tree = {
+      type: 'root',
+      children: items.map((item) => ({
+        type: 'listItem',
+        checked: item.mark !== ' ',
+        position: { start: { line: item.line } },
+      })),
+    }
+    remarkPlugins?.forEach((plugin) => plugin()?.(tree))
     const InputComponent = components?.input
     return (
       <div data-testid="md-preview">

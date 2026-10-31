@@ -12,6 +12,7 @@ import {
   replaceImageWidth,
   remarkOutlineList,
 } from './MdEditor'
+import { remarkChecklistLines, toggleChecklistLine } from '@/lib/checklist'
 import { searchEmojis } from '@/lib/emojis'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
 import { daysBetween, formatTimestamp, getDueStatus } from '@/lib/dates'
@@ -31,8 +32,6 @@ interface TaskDetailProps {
   isSidebarCollapsed: boolean
   onToggleSidebar: () => void
 }
-
-const CHECKLIST_ITEM_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/gm
 
 function createResizableImg(onResize: (src: string, w: number) => void) {
   return function ResizableImg({ src, alt, width }: React.ComponentPropsWithoutRef<'img'>) {
@@ -168,14 +167,6 @@ function ProviderIcon({ url }: { url: string }) {
   )
 }
 
-function toggleChecklistItem(source: string, index: number): string {
-  let count = 0
-  return source.replace(CHECKLIST_ITEM_RE, (match, prefix, mark) => {
-    if (count++ !== index) return match
-    return `${prefix}[${mark === ' ' ? 'x' : ' '}]`
-  })
-}
-
 function ScrollableTable({ children, ...props }: React.ComponentPropsWithoutRef<'table'>) {
   return (
     <div className="overflow-x-auto">
@@ -220,6 +211,7 @@ export default function TaskDetail({
   const [titleDraft, setTitleDraft] = useState(task.title)
   const [isEditingDescription, setIsEditingDescription] = useState(false)
   const [descriptionDraft, setDescriptionDraft] = useState(task.description)
+  const [checklistLines] = useState<number[]>([])
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'pending' | 'saving' | 'saved'>(
     'idle',
@@ -804,7 +796,7 @@ export default function TaskDetail({
   async function handleToggleChecklist(index: number) {
     try {
       const updated = await updateTask(task.id, {
-        description: toggleChecklistItem(task.description, index),
+        description: toggleChecklistLine(task.description, checklistLines[index]),
       })
       onUpdate(updated)
     } catch {
@@ -1436,7 +1428,7 @@ export default function TaskDetail({
                         source={task.description}
                         style={{ background: 'transparent' }}
                         skipHtml={false}
-                        remarkPlugins={[remarkOutlineList]}
+                        remarkPlugins={[remarkOutlineList, remarkChecklistLines(checklistLines)]}
                         components={{
                           table: ScrollableTable,
                           a: MarkdownLink,
