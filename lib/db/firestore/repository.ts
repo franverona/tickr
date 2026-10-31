@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto'
 import { FieldValue } from '@google-cloud/firestore'
-import type { DocumentSnapshot, Firestore } from '@google-cloud/firestore'
+import type { DocumentSnapshot, Firestore, WriteBatch } from '@google-cloud/firestore'
 import type { TaskRepository } from '../types'
 import type { Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTag, ImportedTask } from '../../import'
@@ -394,33 +394,31 @@ export class FirestoreTaskRepository implements TaskRepository {
       imported++
     }
 
-    // Not a single atomic transaction across chunks — Firestore transactions
-    // share the same 500-write cap as batches, so a large import must batch
-    // regardless. Each chunk commits independently; a failure partway
-    // through leaves partial data. Accepted trade-off for imports >500 rows.
-    // The override wipe runs only now, after every write above was built, so
-    // a bad item fails before anything is deleted.
+    // The wipe and the writes share one list, so an import within Firestore's
+    // 500-write cap commits as a single atomic batch. Over the cap, each chunk
+    // commits independently and a failure partway leaves partial data: an
+    // accepted trade-off, since transactions share the same cap. The wipe runs
+    // only now, after every write above was built, so a bad item fails before
+    // anything is deleted.
+    const writes: Array<(batch: WriteBatch) => void> = []
     if (overrideAll) {
       const [taskRefs, tagRefs] = await Promise.all([
         this.tasksCol.listDocuments(),
         this.tagsCol.listDocuments(),
       ])
-      for (const group of chunk([...taskRefs, ...tagRefs])) {
-        const batch = db.batch()
-        for (const ref of group) batch.delete(ref)
-        await batch.commit()
-      }
+      for (const ref of [...taskRefs, ...tagRefs]) writes.push((batch) => batch.delete(ref))
     }
-    for (const group of chunk(tagsToCreate)) {
-      const batch = db.batch()
-      for (const tag of group) {
-        batch.set(this.tagsCol.doc(tag.id), { label: tag.label, color: tag.color, createdAt: now })
-      }
-      await batch.commit()
+    for (const tag of tagsToCreate) {
+      writes.push((batch) =>
+        batch.set(this.tagsCol.doc(tag.id), { label: tag.label, color: tag.color, createdAt: now }),
+      )
     }
-    for (const group of chunk(taskWrites)) {
+    for (const w of taskWrites) {
+      writes.push((batch) => batch.set(this.tasksCol.doc(w.id), w.data))
+    }
+    for (const group of chunk(writes)) {
       const batch = db.batch()
-      for (const w of group) batch.set(this.tasksCol.doc(w.id), w.data)
+      for (const write of group) write(batch)
       await batch.commit()
     }
 
