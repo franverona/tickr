@@ -13,6 +13,7 @@ import {
   remarkOutlineList,
 } from './MdEditor'
 import { remarkChecklistLines, toggleChecklistLine } from '@/lib/checklist'
+import { sanitizeMarkdown } from '@/lib/markdown-sanitize'
 import { searchEmojis } from '@/lib/emojis'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
 import { daysBetween, formatTimestamp, getDueStatus } from '@/lib/dates'
@@ -1348,6 +1349,7 @@ export default function TaskDetail({
                     previewOptions={{
                       skipHtml: false,
                       remarkPlugins: [remarkOutlineList],
+                      rehypePlugins: [sanitizeMarkdown],
                       components: { img: EditModeImg, table: ScrollableTable, a: MarkdownLink },
                     }}
                   />
@@ -1434,6 +1436,7 @@ export default function TaskDetail({
                         style={{ background: 'transparent' }}
                         skipHtml={false}
                         remarkPlugins={[remarkOutlineList, remarkChecklistLines(checklistLines)]}
+                        rehypePlugins={[sanitizeMarkdown]}
                         components={{
                           table: ScrollableTable,
                           a: MarkdownLink,

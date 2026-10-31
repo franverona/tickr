@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useId } from 'react'
 import { createTask } from '@/app/actions'
 import type { Tag, Task } from '@/lib/types'
 import TagSelector from './TagSelector'
+import { sanitizeMarkdown } from '@/lib/markdown-sanitize'
 import { MDEditor, MarkdownLink } from './MdEditor'
 import { suggestLabel } from '@/lib/suggestLabel'
 import { useFocusTrap } from '@/lib/useFocusTrap'
@@ -249,6 +250,7 @@ export default function CreateTaskModal({
                   height={240}
                   preview="edit"
                   previewOptions={{
+                    rehypePlugins: [sanitizeMarkdown],
                     components: { a: MarkdownLink },
                   }}
                 />
