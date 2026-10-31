@@ -108,11 +108,12 @@ export function referencedUploads(tasks: Task[]): string[] {
   return [...paths]
 }
 
+// Returns the attachments that couldn't be included
 export async function exportToZip(
   tasks: Task[],
   tags: Tag[],
   format: 'json' | 'csv',
-): Promise<void> {
+): Promise<string[]> {
   const JSZip = (await import('jszip')).default
   const zip = new JSZip()
 
@@ -122,18 +123,19 @@ export async function exportToZip(
   const content = format === 'json' ? exportToJSON(archived, tags) : exportToCSV(archived, tags)
   zip.file(`tasks.${format}`, content)
 
+  const skipped: string[] = []
   const imagePaths = referencedUploads(tasks)
   if (imagePaths.length > 0) {
     const uploadsFolder = zip.folder('uploads')!
     await Promise.all(
       imagePaths.map(async (imagePath) => {
+        const name = imagePath.split('/').pop()!
         try {
           const res = await fetch(imagePath)
-          if (res.ok) {
-            uploadsFolder.file(imagePath.split('/').pop()!, await res.arrayBuffer())
-          }
+          if (!res.ok) throw new Error(`Fetch failed with status ${res.status}`)
+          uploadsFolder.file(name, await res.arrayBuffer())
         } catch {
-          // skip images that can't be fetched
+          skipped.push(name)
         }
       }),
     )
@@ -147,4 +149,5 @@ export async function exportToZip(
 
   const date = new Date().toISOString().split('T')[0]
   downloadBlob(blob, `tickr-tasks-${date}.zip`)
+  return skipped
 }

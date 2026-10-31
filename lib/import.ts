@@ -36,6 +36,9 @@ function parseTimestamp(value: unknown): string | undefined {
   return Number.isNaN(ms) ? undefined : new Date(ms).toISOString()
 }
 
+// Message is shown to the user as-is
+export class ImportUploadError extends Error {}
+
 async function uploadFile(filename: string, data: ArrayBuffer): Promise<string | null> {
   const ext = filename.split('.').pop()?.toLowerCase() ?? ''
   const mimeType = UPLOAD_EXT_TO_MIME[ext]
@@ -45,14 +48,10 @@ async function uploadFile(filename: string, data: ArrayBuffer): Promise<string |
   const body = new FormData()
   body.append('file', file)
 
-  try {
-    const res = await fetch('/api/upload', { method: 'POST', body })
-    if (!res.ok) return null
-    const { url } = await res.json()
-    return url as string
-  } catch {
-    return null
-  }
+  const res = await fetch('/api/upload', { method: 'POST', body })
+  if (!res.ok) throw new Error(`Upload failed with status ${res.status}`)
+  const { url } = await res.json()
+  return url as string
 }
 
 // Minimal RFC 4180 CSV parser
@@ -267,17 +266,29 @@ export async function processImportZip(file: File): Promise<ImportedTask[]> {
   const imageMapping = new Map<string, string>()
   const uploadsFolder = zip.folder('uploads')
   if (uploadsFolder) {
+    const failed: string[] = []
     const jobs: Promise<void>[] = []
     uploadsFolder.forEach((relativePath, entry) => {
       if (entry.dir) return
       jobs.push(
         entry.async('arraybuffer').then(async (data) => {
-          const newUrl = await uploadFile(relativePath, data)
-          if (newUrl) imageMapping.set(relativePath, newUrl)
+          try {
+            const newUrl = await uploadFile(relativePath, data)
+            if (newUrl) imageMapping.set(relativePath, newUrl)
+          } catch {
+            failed.push(relativePath)
+          }
         }),
       )
     })
     await Promise.all(jobs)
+    // Checked before anything is imported: an override would otherwise replace
+    // the data with tasks whose attachments are gone
+    if (failed.length > 0) {
+      throw new ImportUploadError(
+        `Couldn't upload ${failed.length} attachment${failed.length === 1 ? '' : 's'} (${failed.join(', ')}). Nothing was imported.`,
+      )
+    }
   }
 
   // Parse the data file

@@ -263,7 +263,15 @@ export default function Page() {
     setIsExporting(true)
     setMenuFeedback('Exporting…')
     try {
-      await exportToZip(tasks, tags, format)
+      const skipped = await exportToZip(tasks, tags, format)
+      if (skipped.length > 0) {
+        showToast(
+          `Exported without ${skipped.length} attachment${skipped.length === 1 ? '' : 's'}: ${skipped.join(', ')}`,
+          'error',
+        )
+      }
+    } catch {
+      showToast('Export failed', 'error')
     } finally {
       setIsExporting(false)
       setMenuFeedback(null)
