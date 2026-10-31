@@ -137,7 +137,7 @@ public/
 - `id`/foreign-key columns (`tasks.id`, `tags.id`, `task_urls.id`, `task_urls.task_id`, `task_tags.task_id`, `task_tags.tag_id`) use `varchar(255)` rather than `text` — MySQL can't index a `TEXT`/`BLOB` column, including as a primary or foreign key, without an explicit key length. Non-indexed text columns (`title`, `url`, `label`, `color`, and the `TEXT`-stored ISO-8601 timestamp columns) stay `text`. `description` is `mediumtext` (16 MB) because MySQL's `text` caps at 64 KB; `ensureSchema()` upgrades a database created with `text` via a one-time `ALTER TABLE … MODIFY`, guarded by an `information_schema` type check
 - MySQL has no `ON CONFLICT` — predefined-tag seeding (`lib/db/mysql/migrate.ts`) uses Kysely's `.ignore()` (`INSERT IGNORE`), and `mysql/repository.ts` passes `tagConflictStrategy: 'ignore'` into the shared factory so imported-tag creation does the same, instead of the SQLite/Postgres adapters' `tagConflictStrategy: 'onConflict'` (`.onConflict((oc) => oc.doNothing())`)
 - `lib/db/mysql/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder — no incremental migration history to replay, same as Postgres
-- **Local testing**: `docker-compose.yml`'s `mysql` service (`mysql:8.4`, `docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=mysql` and its `DATABASE_URL`, then `pnpm dev`
+- **Local testing**: `docker-compose.yml`'s `mysql` service (`mysql:26.7`, `docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=mysql` and its `DATABASE_URL`, then `pnpm dev`
 - To reset: `docker compose down -v` (drops the named volume) and restart
 
 ## Firestore adapter

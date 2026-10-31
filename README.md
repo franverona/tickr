@@ -67,6 +67,18 @@ Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:543
 
 Set `DB_TYPE=mysql` and `DATABASE_URL` (e.g. `mysql://user:pass@host:3306/dbname`). For a local MySQL to test against: `docker compose up -d mysql` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset: `docker compose down -v` (drops the local container's volume), or clear the tables directly for a remote instance.
 
+The local container runs MySQL 26.7, which refuses to start on a volume created by MySQL 8.4 (`Cannot upgrade from 80410 to 260700`; the data isn't touched). To keep that data, start it once on 9.7 first:
+
+```bash
+docker compose stop mysql
+docker run -d --name tickr-mysql-hop -v tickr_tickr-mysql-data:/var/lib/mysql mysql:9.7
+docker logs -f tickr-mysql-hop   # Ctrl+C once it says "ready for connections"
+docker stop -t 60 tickr-mysql-hop && docker rm tickr-mysql-hop
+docker compose up -d mysql
+```
+
+If the data doesn't matter, `docker compose down -v` is simpler.
+
 ### Firestore
 
 Set `DB_TYPE=firestore` and `FIRESTORE_SERVICE_ACCOUNT_KEY` (the full service-account JSON from Firebase Console → Project Settings → Service Accounts → Generate new private key, as a single-line string). This connects to the real remote Firestore project, so use a project you don't mind writing test data to, or use the local emulator instead: `docker compose up -d firestore`, then set `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` (no service-account key needed; data is in-memory and gone when the container stops). On a real project, the first task you create fails with "Failed to create task": the error in the server logs (`pm2 logs tickr`, or the `pnpm dev` output) contains a Firebase Console link to create a required composite index. Open it once. The emulator doesn't need this. To reset, clear the `tasks`/`tags` collections directly in the Firebase Console.
