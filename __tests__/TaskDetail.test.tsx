@@ -486,6 +486,19 @@ describe('TaskDetail', () => {
     })
   })
 
+  it('opens the editor with a ticked checklist item already applied', async () => {
+    const task = makeTask({ description: '- [ ] First item' })
+    const updated = makeTask({ description: '- [x] First item' })
+    updateTask.mockResolvedValueOnce(updated)
+    const { props } = renderTaskDetail(task)
+
+    fireEvent.click(screen.getByRole('checkbox'))
+    await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
+    fireEvent.click(screen.getByText('Edit'))
+
+    expect(screen.getByTestId('md-editor')).toHaveValue('- [x] First item')
+  })
+
   describe('description autocomplete', () => {
     beforeEach(() => {
       // Editing the description in these tests leaves it "dirty" relative
