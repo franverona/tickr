@@ -853,7 +853,7 @@ export default function Page() {
           }`}
         >
           {isSelectMode ? (
-            <div className="border-surface-700 flex h-12 flex-col justify-center gap-1 border-b px-3 sm:px-4">
+            <div className="border-surface-700 flex min-h-12 flex-col justify-center gap-1.5 border-b px-3 py-2 sm:px-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-surface-300 text-xs font-medium">
@@ -874,7 +874,7 @@ export default function Page() {
                 </button>
               </div>
               <div className="flex flex-wrap items-center gap-3">
-                <div ref={bulkTagMenuRef} className="relative">
+                <div ref={bulkTagMenuRef} className="relative flex">
                   <button
                     onClick={() => setIsBulkTagOpen((o) => !o)}
                     disabled={selectedIds.size === 0}
