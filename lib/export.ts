@@ -32,7 +32,10 @@ export function exportTagsToJSON(tags: Tag[]): string {
   )
 }
 
-function csvCell(value: string): string {
+function csvCell(raw: string): string {
+  // Spreadsheets run cells starting with these as formulas; parseCSVContent
+  // removes the guard. A leading ' is guarded too, so that round trip is exact.
+  const value = /^[=+\-@\t\r']/.test(raw) ? `'${raw}` : raw
   if (/[",\n\r]/.test(value)) return '"' + value.replace(/"/g, '""') + '"'
   return value
 }

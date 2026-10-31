@@ -70,6 +70,20 @@ describe('exportToJSON', () => {
 })
 
 describe('exportToCSV', () => {
+  it('guards formula cells and restores them on import', () => {
+    const title = '=HYPERLINK("https://evil.test")'
+    const description = "- [ ] item\n'quoted"
+    const csv = exportToCSV([makeTask({ title, description })], TAGS)
+
+    expect(csv.split('\n')[1].startsWith(`"'=HYPERLINK`)).toBe(true)
+    expect(parseCSVContent(csv)[0]).toMatchObject({ title, description })
+  })
+
+  it('round-trips a value that really starts with a quote and =', () => {
+    const csv = exportToCSV([makeTask({ title: "'=not a formula" })], TAGS)
+    expect(parseCSVContent(csv)[0].title).toBe("'=not a formula")
+  })
+
   it('produces a header row followed by data rows', () => {
     const lines = exportToCSV([makeTask()], TAGS).split('\n')
     expect(lines[0]).toBe(
