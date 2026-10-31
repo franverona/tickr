@@ -806,6 +806,11 @@ export default function TaskDetail({
       const updated = await updateTask(task.id, {
         description: toggleChecklistItem(task.description, index),
       })
+      // The draft only initializes at mount, so without this the next edit
+      // starts from the old text and autosaves over this change.
+      lastSavedDescRef.current = updated.description
+      descriptionDraftRef.current = updated.description
+      setDescriptionDraft(updated.description)
       onUpdate(updated)
     } catch {
       onError('Failed to update checklist item')
