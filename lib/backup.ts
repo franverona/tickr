@@ -43,6 +43,13 @@ export async function createBackup({
   const file = path.join(outDir, `tickr-${localDateKey(now)}-${time}.zip`)
   await writeFile(file, await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }))
 
+  // An empty backup usually means the wrong backend, so it must not push out
+  // the real ones
+  if (tasks.length === 0) {
+    console.warn('Backup has no tasks: keeping every older backup')
+    return file
+  }
+
   // Names sort chronologically, so everything before the last `keep` is older
   const old = (await readdir(outDir))
     .filter((f) => /^tickr-\d{4}-\d{2}-\d{2}-\d{6}\.zip$/.test(f))

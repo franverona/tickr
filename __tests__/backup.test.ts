@@ -60,9 +60,24 @@ describe('createBackup', () => {
     )
   })
 
+  it('keeps older backups when there are no tasks', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'tickr-backup-'))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const repo = await makeSqliteRepo()
+    const old = path.join(dir, 'tickr-2020-01-01-000000.zip')
+    await writeFile(old, 'real backup')
+
+    await createBackup({ repo, uploadsDir: path.join(dir, 'uploads'), outDir: dir, keep: 1 })
+
+    expect(await readFile(old, 'utf8')).toBe('real backup')
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
   it('keeps only the newest backups', async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'tickr-backup-'))
     const repo = await makeSqliteRepo()
+    await repo.createTask({ title: 'T', description: '', tags: [] })
     const opts = { repo, uploadsDir: path.join(dir, 'uploads'), outDir: dir, keep: 2 }
 
     for (const day of [1, 2, 3]) await createBackup({ ...opts, now: new Date(2026, 0, day) })
