@@ -103,6 +103,42 @@ describe('initial load', () => {
   })
 })
 
+describe('detail panel', () => {
+  async function openDoneTaskFromSearch() {
+    const done = makeTask({ id: 'a', title: 'Alpha', completed: true, dueDate: '2026-01-01' })
+    await renderReady([done])
+    fireEvent.keyDown(document, { key: '/' })
+    fireEvent.change(await screen.findByPlaceholderText('Search tasks…'), {
+      target: { value: 'alpha' },
+    })
+    fireEvent.click(await screen.findByRole('button', { name: /Alpha/ }))
+    expect(await screen.findByRole('heading', { name: 'Alpha' })).toBeInTheDocument()
+    return done
+  }
+
+  it('stays open when saving a task from another tab', async () => {
+    const done = await openDoneTaskFromSearch()
+    updateTask.mockResolvedValueOnce({ ...done, dueDate: null })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }))
+
+    await waitFor(() => expect(updateTask).toHaveBeenCalled())
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Clear' })).toBeNull())
+    expect(screen.getByRole('heading', { name: 'Alpha' })).toBeInTheDocument()
+  })
+
+  it('closes when the task leaves the current tab', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    await renderReady([a])
+    fireEvent.click(await screen.findByRole('button', { name: 'Alpha' }))
+    updateTask.mockResolvedValueOnce({ ...a, archived: true })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Archive' }))
+
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Alpha' })).toBeNull())
+  })
+})
+
 describe('copy last 7 days', () => {
   it('copies recently completed tasks from the Done tab', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)

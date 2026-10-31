@@ -369,7 +369,12 @@ export default function Page() {
 
   function handleTaskUpdated(updated: Task) {
     setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
-    if (updated.id === selectedTaskId) {
+    // Search, the palette and mentions open tasks from any tab, so only a change
+    // of status (not any save) means the task has left the list being viewed.
+    const previous = tasks.find((t) => t.id === updated.id)
+    const statusChanged =
+      previous?.completed !== updated.completed || previous?.archived !== updated.archived
+    if (updated.id === selectedTaskId && previous && statusChanged && !isSearching) {
       const stillInTab =
         tab === 'active'
           ? !updated.completed && !updated.archived
