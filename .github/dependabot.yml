@@ -27,6 +27,17 @@ updates:
       commitlint:
         patterns: ['@commitlint/*']
 
+  # ci.yml's service images aren't covered: sync them by hand when this updates
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
