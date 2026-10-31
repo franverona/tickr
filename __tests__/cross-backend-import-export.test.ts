@@ -91,7 +91,9 @@ function makeFirestoreRepo(): TaskRepository {
 
 async function isFirestoreAvailable(): Promise<boolean> {
   try {
-    return (await fetch(`http://${FIRESTORE_HOST}`, { signal: AbortSignal.timeout(1000) })).ok
+    const res = await fetch(`http://${FIRESTORE_HOST}`, { signal: AbortSignal.timeout(1000) })
+    if (!res.ok) throw new Error(`Firestore emulator responded ${res.status}`)
+    return true
   } catch (err) {
     if (process.env.CI) throw err // CI always starts the emulator; never skip there
     return false
