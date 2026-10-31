@@ -35,9 +35,10 @@ async function makeSqliteRepo(): Promise<TaskRepository> {
 }
 
 // Test-only variables, never the app's DATABASE_URL: these tests wipe every
-// task and tag in the database they point at
+// task and tag in the database they point at. The defaults use a dedicated
+// tickr_test database, created on demand, so the dev `tickr` database is safe.
 const POSTGRES_URL =
-  process.env.POSTGRES_TEST_URL ?? 'postgresql://postgres:postgres@localhost:5432/tickr'
+  process.env.POSTGRES_TEST_URL ?? 'postgresql://postgres:postgres@localhost:5432/tickr_test'
 
 function makePostgresRepo(): TaskRepository {
   const kysely = new Kysely<PgDbSchema>({
@@ -47,9 +48,16 @@ function makePostgresRepo(): TaskRepository {
 }
 
 async function isPostgresAvailable(): Promise<boolean> {
-  const pool = new Pool({ connectionString: POSTGRES_URL, connectionTimeoutMillis: 1000 })
+  const url = process.env.POSTGRES_TEST_URL ?? POSTGRES_URL.replace(/tickr_test$/, 'postgres')
+  const pool = new Pool({ connectionString: url, connectionTimeoutMillis: 1000 })
   try {
     await pool.query('select 1')
+    if (!process.env.POSTGRES_TEST_URL) {
+      const { rowCount } = await pool.query(
+        `select 1 from pg_database where datname = 'tickr_test'`,
+      )
+      if (!rowCount) await pool.query('create database tickr_test')
+    }
     return true
   } catch (err) {
     if (process.env.CI) throw err // CI always starts the service; never skip there
@@ -59,7 +67,7 @@ async function isPostgresAvailable(): Promise<boolean> {
   }
 }
 
-const MYSQL_URL = process.env.MYSQL_TEST_URL ?? 'mysql://root:mysql@localhost:3306/tickr'
+const MYSQL_URL = process.env.MYSQL_TEST_URL ?? 'mysql://root:mysql@localhost:3306/tickr_test'
 
 function makeMysqlRepo(): TaskRepository {
   const kysely = new Kysely<DbSchema>({
@@ -70,8 +78,11 @@ function makeMysqlRepo(): TaskRepository {
 
 async function isMysqlAvailable(): Promise<boolean> {
   try {
-    const conn = await createConnection(MYSQL_URL)
+    const conn = await createConnection(
+      process.env.MYSQL_TEST_URL ?? MYSQL_URL.replace(/\/tickr_test$/, ''),
+    )
     await conn.query('select 1')
+    if (!process.env.MYSQL_TEST_URL) await conn.query('create database if not exists tickr_test')
     await conn.end()
     return true
   } catch (err) {
