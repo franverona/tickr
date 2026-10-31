@@ -184,6 +184,7 @@ export function parseCSVContent(content: string): ImportedTask[] {
 
   return rows
     .slice(1)
+    .map((row) => row.map((value) => value.replace(/^'(?=[=+\-@\t\r'])/, '')))
     .map((row): ImportedTask | null => {
       const title = row[titleIdx]?.trim() ?? ''
       if (!title) return null
