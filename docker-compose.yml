@@ -39,7 +39,7 @@ services:
   # Firestore emulator for DB_TYPE=firestore without a live project. In-memory:
   # data is gone when the container stops.
   firestore:
-    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:590.0.1-emulators
+    image: gcr.io/google.com/cloudsdktool/google-cloud-cli:591.0.0-emulators
     container_name: tickr-firestore
     restart: unless-stopped
     command: gcloud emulators firestore start --host-port=0.0.0.0:8080

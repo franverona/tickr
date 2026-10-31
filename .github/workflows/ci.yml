@@ -53,7 +53,7 @@ jobs:
       - name: Start Firestore emulator
         run: >-
           docker run -d --name firestore -p 127.0.0.1:8080:8080
-          gcr.io/google.com/cloudsdktool/google-cloud-cli:590.0.1-emulators
+          gcr.io/google.com/cloudsdktool/google-cloud-cli:591.0.0-emulators
           gcloud emulators firestore start --host-port=0.0.0.0:8080
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
