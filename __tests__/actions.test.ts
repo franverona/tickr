@@ -155,6 +155,26 @@ describe('tag names', () => {
   })
 })
 
+describe('status timestamps', () => {
+  it('keeps completedAt and archivedAt when the flag is set to its current value', async () => {
+    const task = await createTask({ title: 'T', description: '', tags: [] })
+    const done = await updateTask(task.id, { completed: true, archived: true })
+    await new Promise((r) => setTimeout(r, 2))
+
+    const again = await updateTask(task.id, { completed: true, archived: true })
+
+    expect(again.completedAt).toBe(done.completedAt)
+    expect(again.archivedAt).toBe(done.archivedAt)
+  })
+
+  it('clears the timestamp when the flag is turned off', async () => {
+    const task = await createTask({ title: 'T', description: '', tags: [] })
+    await updateTask(task.id, { completed: true })
+
+    expect((await updateTask(task.id, { completed: false })).completedAt).toBeNull()
+  })
+})
+
 describe('reorderTasks', () => {
   it('applies the new order', async () => {
     const a = await createTask({ title: 'A', description: '', tags: [] })

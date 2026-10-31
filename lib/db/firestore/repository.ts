@@ -225,13 +225,15 @@ export class FirestoreTaskRepository implements TaskRepository {
     }
     if (data.tags !== undefined) update.tags = [...new Set(data.tags)]
     if (data.dueDate !== undefined) update.dueDate = data.dueDate
+    // Timestamps record when a flag flipped, not every time it's set
     if (data.completed !== undefined) {
       update.completed = data.completed
-      update.completedAt = data.completed ? now : null
+      if (current.get('completed') !== data.completed)
+        update.completedAt = data.completed ? now : null
     }
     if (data.archived !== undefined) {
       update.archived = data.archived
-      update.archivedAt = data.archived ? now : null
+      if (current.get('archived') !== data.archived) update.archivedAt = data.archived ? now : null
     }
 
     await ref.update(update)
