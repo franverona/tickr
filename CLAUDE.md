@@ -93,6 +93,7 @@ public/
 ## Key conventions
 
 - **Server Actions** for all DB reads and writes — no API routes, except `/api/upload` (attachment upload) and `/api/uploads/[...path]` (file serving, see below). Route handlers get no built-in CSRF check, so `/api/upload` rejects a mismatched `Origin` and checks `Content-Length` against its 10 MB cap before parsing the body
+- **Host check**: `proxy.ts` rejects any `Host` outside localhost and `ALLOWED_HOSTS`, because same-origin checks can't catch DNS rebinding (Origin and Host match there)
 - **Uploaded file serving**: In production, Next.js indexes `public/` once at startup, so newly uploaded files 404 if served as static assets. A `beforeFiles` rewrite in `next.config.ts` redirects all `GET /uploads/*` requests to `/api/uploads/*`, which reads files from `public/uploads/` dynamically on every request. Responses carry `X-Content-Type-Options: nosniff` and, except for PDFs, `Content-Security-Policy: sandbox`, since the files are served from the app's own origin
 - **Tag colors** are stored as full Tailwind class strings (e.g. `"bg-blue-600 text-blue-100 border-blue-500"`). All color options must appear as literals in `COLOR_PALETTE` in `lib/constants.ts` so Tailwind v4 bundles them
 - `better-sqlite3` is excluded from webpack bundling via `serverExternalPackages` in `next.config.ts`

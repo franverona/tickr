@@ -77,6 +77,8 @@ Tickr runs on port **9876** in production mode so it doesn't collide with other 
 
 `pnpm dev` and `pnpm start` only listen on `127.0.0.1`, because Tickr has no login: anyone who can reach it can read and delete every task. To use it from another device on a network you trust, run `pnpm exec next start -H 0.0.0.0 -p 9876` instead.
 
+Requests are only served for `localhost`, `127.0.0.1` and `[::1]`, which blocks DNS rebinding attacks. To reach Tickr by another name, list it in `ALLOWED_HOSTS` (comma-separated) in `.env.local`.
+
 **First-time setup:**
 
 ```bash
