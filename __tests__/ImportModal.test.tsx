@@ -5,8 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import ImportModal from '../components/ImportModal'
 import type { ImportedTask } from '../lib/import'
 
-const { processImportZip } = vi.hoisted(() => ({ processImportZip: vi.fn() }))
-vi.mock('@/lib/import', () => ({ processImportZip }))
+const { processImportZip, ImportUploadError } = vi.hoisted(() => ({
+  processImportZip: vi.fn(),
+  ImportUploadError: class extends Error {},
+}))
+vi.mock('@/lib/import', () => ({ processImportZip, ImportUploadError }))
 
 const { importTasks } = vi.hoisted(() => ({ importTasks: vi.fn() }))
 vi.mock('@/app/actions', () => ({ importTasks }))
@@ -88,6 +91,16 @@ describe('ImportModal', () => {
 
     await screen.findByText('Import failed. Check the file and try again.')
     expect(screen.getByRole('button', { name: 'Import' })).not.toBeDisabled()
+  })
+
+  it('names failed attachments and imports nothing', async () => {
+    processImportZip.mockRejectedValueOnce(new ImportUploadError("Couldn't upload a.png"))
+
+    render(<ImportModal file={makeFile()} onClose={() => {}} onImported={() => {}} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }))
+
+    await screen.findByText("Couldn't upload a.png")
+    expect(importTasks).not.toHaveBeenCalled()
   })
 
   it('calls onClose when Escape is pressed and not pending', () => {

@@ -210,6 +210,20 @@ describe('processImportZip', () => {
     vi.unstubAllGlobals()
   })
 
+  it('rejects when an attachment fails to upload', async () => {
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+    zip.file('tasks.json', JSON.stringify([{ title: 'T' }]))
+    zip.file('uploads/a.png', 'png bytes')
+    const zipFile = new File([await zip.generateAsync({ type: 'arraybuffer' })], 'backup.zip')
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('', { status: 500 })),
+    )
+
+    await expect(processImportZip(zipFile)).rejects.toThrow("Couldn't upload 1 attachment (a.png)")
+  })
+
   it('re-uploads non-image attachments and rewrites their links', async () => {
     const JSZip = (await import('jszip')).default
     const zip = new JSZip()
