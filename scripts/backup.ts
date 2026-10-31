@@ -5,10 +5,14 @@ import path from 'path'
 import { createBackup } from '../lib/backup'
 
 async function main() {
-  try {
-    process.loadEnvFile('.env.local') // same DB_TYPE/DATABASE_URL as the app
-  } catch {
-    // no .env.local: SQLite defaults
+  // Same files as `next start`, highest priority first: a variable that's
+  // already set is kept, so the first file to define it wins
+  for (const file of ['.env.production.local', '.env.local', '.env.production', '.env']) {
+    try {
+      process.loadEnvFile(file)
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
+    }
   }
   const { getRepository } = await import('../lib/db')
   const file = await createBackup({
