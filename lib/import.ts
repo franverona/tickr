@@ -1,3 +1,4 @@
+import type { JSZipObject } from 'jszip'
 import { UPLOAD_EXT_TO_MIME } from './upload-types'
 
 export interface ImportedTag {
@@ -264,20 +265,53 @@ export function parseTagsContent(content: string): ImportedTag[] {
   return data.map(parseTagEntry).filter((x): x is ImportedTag => x !== null)
 }
 
+// Well above a real backup, low enough to stop a crafted ZIP before it inflates
+const MAX_ZIP_ATTACHMENTS = 5000
+const MAX_ZIP_ATTACHMENT_BYTES = 5 * 1024 * 1024 * 1024
+
 export async function processImportZip(
   file: File,
 ): Promise<{ tasks: ImportedTask[]; tags: ImportedTag[] }> {
   const JSZip = (await import('jszip')).default
   const zip = await JSZip.loadAsync(file)
 
+  // Parsed before anything is uploaded, so a bad file leaves no orphans behind
+  const jsonFile = zip.file('tasks.json')
+  const csvFile = zip.file('tasks.csv')
+  if (!jsonFile && !csvFile) throw new Error('ZIP does not contain tasks.json or tasks.csv')
+
+  let tasks: ImportedTask[]
+  if (jsonFile) {
+    tasks = parseJSONContent(await jsonFile.async('string'))
+  } else {
+    tasks = parseCSVContent(await csvFile!.async('string'))
+  }
+
   // Upload attachments from uploads/ and build old-filename → new-url mapping
   const imageMapping = new Map<string, string>()
   const uploadsFolder = zip.folder('uploads')
   if (uploadsFolder) {
+    const entries: [string, JSZipObject][] = []
+    uploadsFolder.forEach((relativePath, entry) => {
+      const ext = relativePath.split('.').pop()?.toLowerCase() ?? ''
+      if (!entry.dir && UPLOAD_EXT_TO_MIME[ext]) entries.push([relativePath, entry])
+    })
+    // Checked before inflating, which is where a crafted ZIP would hurt.
+    // shortcut: _data is JSZip's private entry metadata, upgrade if it adds a public size.
+    const declaredBytes = entries.reduce(
+      (sum, [, entry]) =>
+        sum +
+        ((entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ??
+          0),
+      0,
+    )
+    if (entries.length > MAX_ZIP_ATTACHMENTS || declaredBytes > MAX_ZIP_ATTACHMENT_BYTES) {
+      throw new Error('ZIP has too many attachments, or they are too large')
+    }
+
     const failed: string[] = []
     const jobs: Promise<void>[] = []
-    uploadsFolder.forEach((relativePath, entry) => {
-      if (entry.dir) return
+    for (const [relativePath, entry] of entries) {
       jobs.push(
         entry.async('arraybuffer').then(async (data) => {
           try {
@@ -288,7 +322,7 @@ export async function processImportZip(
           }
         }),
       )
-    })
+    }
     await Promise.all(jobs)
     // Checked before anything is imported: an override would otherwise replace
     // the data with tasks whose attachments are gone
@@ -297,18 +331,6 @@ export async function processImportZip(
         `Couldn't upload ${failed.length} attachment${failed.length === 1 ? '' : 's'} (${failed.join(', ')}). Nothing was imported.`,
       )
     }
-  }
-
-  // Parse the data file
-  const jsonFile = zip.file('tasks.json')
-  const csvFile = zip.file('tasks.csv')
-  if (!jsonFile && !csvFile) throw new Error('ZIP does not contain tasks.json or tasks.csv')
-
-  let tasks: ImportedTask[]
-  if (jsonFile) {
-    tasks = parseJSONContent(await jsonFile.async('string'))
-  } else {
-    tasks = parseCSVContent(await csvFile!.async('string'))
   }
 
   // Rewrite image paths: uploads/filename.ext → /uploads/new-uuid.ext

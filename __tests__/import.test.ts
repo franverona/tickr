@@ -224,6 +224,41 @@ describe('processImportZip', () => {
     await expect(processImportZip(zipFile)).rejects.toThrow("Couldn't upload 1 attachment (a.png)")
   })
 
+  async function zipOf(files: Record<string, string>) {
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+    for (const [name, content] of Object.entries(files)) zip.file(name, content)
+    return new File([await zip.generateAsync({ type: 'arraybuffer' })], 'backup.zip')
+  }
+
+  it('uploads nothing when the task file is invalid', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const file = await zipOf({ 'tasks.json': 'not json', 'uploads/a.png': 'png' })
+
+    await expect(processImportZip(file)).rejects.toThrow()
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a ZIP with too many attachments before uploading', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const files: Record<string, string> = { 'tasks.json': '[]' }
+    for (let i = 0; i <= 5000; i++) files[`uploads/${i}.png`] = ''
+
+    await expect(processImportZip(await zipOf(files))).rejects.toThrow('too many attachments')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('skips entries of unsupported types', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const file = await zipOf({ 'tasks.json': '[]', 'uploads/evil.exe': 'x' })
+
+    await expect(processImportZip(file)).resolves.toEqual({ tasks: [], tags: [] })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('re-uploads non-image attachments and rewrites their links', async () => {
     const JSZip = (await import('jszip')).default
     const zip = new JSZip()
