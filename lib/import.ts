@@ -259,7 +259,15 @@ function parseCSVLinkCell(cell: string): ImportedLink {
   return parts ? { url: parts[1], label: parts[0] } : { url: unescapeCSV(cell), label: '' }
 }
 
-export async function processImportZip(file: File): Promise<ImportedTask[]> {
+export function parseTagsContent(content: string): ImportedTag[] {
+  const data = JSON.parse(content)
+  if (!Array.isArray(data)) throw new Error('Expected a JSON array')
+  return data.map(parseTagEntry).filter((x): x is ImportedTag => x !== null)
+}
+
+export async function processImportZip(
+  file: File,
+): Promise<{ tasks: ImportedTask[]; tags: ImportedTag[] }> {
   const JSZip = (await import('jszip')).default
   const zip = await JSZip.loadAsync(file)
 
@@ -302,5 +310,9 @@ export async function processImportZip(file: File): Promise<ImportedTask[]> {
     }))
   }
 
-  return tasks
+  // Absent from ZIPs made before tags.json existed
+  const tagsFile = zip.file('tags.json')
+  const tags = tagsFile ? parseTagsContent(await tagsFile.async('string')) : []
+
+  return { tasks, tags }
 }

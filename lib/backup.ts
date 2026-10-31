@@ -3,7 +3,7 @@ import path from 'path'
 import JSZip from 'jszip'
 import type { TaskRepository } from './db/types'
 import { localDateKey } from './dates'
-import { exportToJSON, referencedUploads, relativizeUploads } from './export'
+import { exportTagsToJSON, exportToJSON, referencedUploads, relativizeUploads } from './export'
 
 // Writes a ZIP in the same format as the browser export (tasks.json plus the
 // uploads/ its descriptions reference), so it restores with the regular
@@ -26,6 +26,7 @@ export async function createBackup({
   const zip = new JSZip()
   const archived = tasks.map((t) => ({ ...t, description: relativizeUploads(t.description) }))
   zip.file('tasks.json', exportToJSON(archived, tags))
+  zip.file('tags.json', exportTagsToJSON(tags))
   for (const uploadPath of referencedUploads(tasks)) {
     const name = path.basename(uploadPath)
     try {

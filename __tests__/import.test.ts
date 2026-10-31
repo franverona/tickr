@@ -231,7 +231,11 @@ describe('processImportZip', () => {
       }),
     )
 
-    const [task] = await processImportZip(zipFile)
+    const {
+      tasks: [task],
+      tags,
+    } = await processImportZip(zipFile)
+    expect(tags).toEqual([])
 
     expect(uploadedTypes.sort()).toEqual(['application/pdf', 'image/png'])
     expect(task.description).toBe('[spec](/uploads/new-old.pdf) ![a](/uploads/new-a.png)')

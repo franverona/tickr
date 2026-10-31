@@ -37,8 +37,8 @@ export default function ImportModal({ file, onClose, onImported }: ImportModalPr
     setIsPending(true)
     setError('')
     try {
-      const items = await processImportZip(file)
-      const result = await importTasks(items, mode === 'override')
+      const { tasks, tags } = await processImportZip(file)
+      const result = await importTasks(tasks, mode === 'override', tags)
       onImported(result)
     } catch {
       setError('Import failed. Check the file and try again.')

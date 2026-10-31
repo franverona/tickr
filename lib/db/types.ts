@@ -1,5 +1,5 @@
 import type { Tag, Task } from '../types'
-import type { ImportedTask } from '../import'
+import type { ImportedTag, ImportedTask } from '../import'
 
 // ── Kysely schema ────────────────────────────────────────────────────────────
 // completed/archived are stored as 0|1 on SQLite/MySQL (neither driver
@@ -94,5 +94,6 @@ export interface TaskRepository {
   importTasks(
     items: ImportedTask[],
     overrideAll?: boolean,
+    tags?: ImportedTag[],
   ): Promise<{ imported: number; tasks: Task[]; tags: Tag[] }>
 }

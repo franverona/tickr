@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { Kysely, sql } from 'kysely'
 import type { TagsTable, TaskUrlsTable, TaskTagsTable, TasksTable, TaskRepository } from '../types'
 import type { Tag, Task, TaskUrl } from '../../types'
-import type { ImportedTask } from '../../import'
+import type { ImportedTag, ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
 import { slugify } from '../slug'
@@ -399,8 +399,10 @@ export function createSqlTaskRepository<Bool>(
     async importTasks(
       items: ImportedTask[],
       overrideAll = false,
+      extraTags: ImportedTag[] = [],
     ): Promise<{ imported: number; tasks: Task[]; tags: Tag[] }> {
       const db = await ready()
+      const importedTags = [...items.flatMap((item) => item.tags), ...extraTags]
       const now = new Date().toISOString()
 
       let imported = 0
@@ -430,12 +432,10 @@ export function createSqlTaskRepository<Bool>(
         // Batch-resolve which candidate tag ids already exist (avoids an N+1
         // SELECT per tag).
         const candidateIds = new Set<string>()
-        for (const item of items) {
-          for (const { label } of item.tags) {
-            if (tagMap.has(label.toLowerCase())) continue
-            const id = slugify(label)
-            if (id) candidateIds.add(id)
-          }
+        for (const { label } of importedTags) {
+          if (tagMap.has(label.toLowerCase())) continue
+          const id = slugify(label)
+          if (id) candidateIds.add(id)
         }
         const existingById =
           candidateIds.size > 0
@@ -450,26 +450,24 @@ export function createSqlTaskRepository<Bool>(
         // Determine which tags need to be created
         const validColors = new Set<string>(COLOR_PALETTE.map((c) => c.classes))
         const tagsToCreate: Array<{ id: string; label: string; color: string }> = []
-        for (const item of items) {
-          for (const { label, color: importedColor } of item.tags) {
-            const key = label.toLowerCase()
-            if (tagMap.has(key)) continue
-            const id = slugify(label)
-            if (!id) continue
-            if (existingByIdSet.has(id)) {
-              tagMap.set(key, id)
-              continue
-            }
-            let color: string
-            if (validColors.has(importedColor)) {
-              color = importedColor
-            } else {
-              color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
-              colorIndex++
-            }
-            tagsToCreate.push({ id, label: label.trim(), color })
+        for (const { label, color: importedColor } of importedTags) {
+          const key = label.toLowerCase()
+          if (tagMap.has(key)) continue
+          const id = slugify(label)
+          if (!id) continue
+          if (existingByIdSet.has(id)) {
             tagMap.set(key, id)
+            continue
           }
+          let color: string
+          if (validColors.has(importedColor)) {
+            color = importedColor
+          } else {
+            color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
+            colorIndex++
+          }
+          tagsToCreate.push({ id, label: label.trim(), color })
+          tagMap.set(key, id)
         }
 
         const maxRow = await trx

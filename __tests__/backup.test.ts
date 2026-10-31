@@ -34,6 +34,7 @@ describe('createBackup', () => {
     await writeFile(path.join(uploadsDir, 'a.png'), 'png bytes')
 
     const repo = await makeSqliteRepo()
+    await repo.createTag({ label: 'Unused', color: 'bg-red-600 text-red-100 border-red-500' })
     await repo.createTask({
       title: 'With files',
       description: '![a](/uploads/a.png) [gone](/uploads/missing.pdf)',
@@ -54,6 +55,9 @@ describe('createBackup', () => {
     const [task] = parseJSONContent(await zip.file('tasks.json')!.async('string'))
     expect(task.title).toBe('With files')
     expect(task.description).toBe('![a](uploads/a.png) [gone](uploads/missing.pdf)')
+    expect(JSON.parse(await zip.file('tags.json')!.async('string'))).toContainEqual(
+      expect.objectContaining({ label: 'Unused' }),
+    )
   })
 
   it('keeps only the newest backups', async () => {

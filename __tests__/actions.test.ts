@@ -278,6 +278,15 @@ describe('importTasks', () => {
   })
 })
 
+describe('restoring unused tags', () => {
+  it('creates tags no task uses, keeping their color', async () => {
+    const color = 'bg-red-600 text-red-100 border-red-500'
+    const { tags } = await importTasks([], true, [{ label: 'Blocked', color }])
+
+    expect(tags).toEqual([expect.objectContaining({ label: 'Blocked', color })])
+  })
+})
+
 describe('duplicate tags', () => {
   it("rejects renaming a tag to another tag's label, ignoring case", async () => {
     seedTag(SEED_TAG)

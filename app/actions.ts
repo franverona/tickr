@@ -2,7 +2,7 @@
 
 import { getRepository } from '@/lib/db'
 import type { Tag, Task } from '@/lib/types'
-import type { ImportedTask } from '@/lib/import'
+import type { ImportedTag, ImportedTask } from '@/lib/import'
 
 // ── Tags ─────────────────────────────────────────────────────────────────────
 
@@ -132,6 +132,7 @@ export async function updateTaskUrl(
 export async function importTasks(
   items: ImportedTask[],
   overrideAll = false,
+  tags: ImportedTag[] = [],
 ): Promise<{ imported: number; tasks: Task[]; tags: Tag[] }> {
-  return getRepository().importTasks(items, overrideAll)
+  return getRepository().importTasks(items, overrideAll, tags)
 }
