@@ -373,6 +373,12 @@ export default function Page() {
   // the first visible card if the last-active one scrolled out of the
   // current tab/search filter), so Tab moves in/out of the list as a single
   // stop and ArrowUp/ArrowDown/Home/End move within it.
+  // Search spans all tabs, so actions follow the tasks themselves, not the tab
+  const contextTask = tasks.find((t) => t.id === contextMenu?.taskId)
+  const bulkStatuses = new Set(
+    isSearching ? tasks.filter((t) => selectedIds.has(t.id)).map(taskStatus) : [tab],
+  )
+
   const rovingCardId = filteredTasks.some((t) => t.id === activeCardId)
     ? activeCardId
     : (filteredTasks[0]?.id ?? null)
@@ -923,7 +929,7 @@ export default function Page() {
                     </div>
                   )}
                 </div>
-                {tab === 'active' && (
+                {bulkStatuses.has('active') && (
                   <button
                     onClick={() => handleBulkAction('complete')}
                     disabled={selectedIds.size === 0}
@@ -932,7 +938,7 @@ export default function Page() {
                     Complete
                   </button>
                 )}
-                {tab === 'done' && (
+                {bulkStatuses.has('done') && (
                   <button
                     onClick={() => handleBulkAction('reopen')}
                     disabled={selectedIds.size === 0}
@@ -941,7 +947,7 @@ export default function Page() {
                     Reopen
                   </button>
                 )}
-                {(tab === 'active' || tab === 'done') && (
+                {(bulkStatuses.has('active') || bulkStatuses.has('done')) && (
                   <button
                     onClick={() => handleBulkAction('archive')}
                     disabled={selectedIds.size === 0}
@@ -950,7 +956,7 @@ export default function Page() {
                     Archive
                   </button>
                 )}
-                {tab === 'archived' && (
+                {bulkStatuses.has('archived') && (
                   <button
                     onClick={() => handleBulkAction('unarchive')}
                     disabled={selectedIds.size === 0}
@@ -1266,7 +1272,7 @@ export default function Page() {
         <TaskContextMenu
           x={contextMenu.x}
           y={contextMenu.y}
-          tab={tab}
+          tab={contextTask ? taskStatus(contextTask) : tab}
           onComplete={() => handleContextMenuAction('complete')}
           onReopen={() => handleContextMenuAction('reopen')}
           onArchive={() => handleContextMenuAction('archive')}

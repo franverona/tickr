@@ -276,13 +276,25 @@ export function createSqlTaskRepository<Bool>(
       const patch: Record<string, unknown> = { updated_at: now }
       if (data.title !== undefined) patch.title = data.title
       if (data.description !== undefined) patch.description = data.description
+      // Timestamps record when a flag flipped, so setting it to the value it
+      // already has must keep them. This read decides only that.
+      const current =
+        data.completed !== undefined || data.archived !== undefined
+          ? await db
+              .selectFrom('tasks')
+              .select(['completed', 'archived'])
+              .where('id', '=', id)
+              .executeTakeFirst()
+          : undefined
       if (data.completed !== undefined) {
         patch.completed = boolIn(data.completed)
-        patch.completed_at = data.completed ? now : null
+        if (!current || boolOut(current.completed as Bool) !== data.completed)
+          patch.completed_at = data.completed ? now : null
       }
       if (data.archived !== undefined) {
         patch.archived = boolIn(data.archived)
-        patch.archived_at = data.archived ? now : null
+        if (!current || boolOut(current.archived as Bool) !== data.archived)
+          patch.archived_at = data.archived ? now : null
       }
       if (data.dueDate !== undefined) patch.due_date = data.dueDate
 

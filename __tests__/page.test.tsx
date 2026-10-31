@@ -139,6 +139,21 @@ describe('detail panel', () => {
   })
 })
 
+describe('actions on search results', () => {
+  it('offers the actions of the task, not of the tab', async () => {
+    await renderReady([makeTask({ id: 'a', title: 'Alpha', completed: true })])
+    fireEvent.keyDown(document, { key: '/' })
+    fireEvent.change(await screen.findByPlaceholderText('Search tasks…'), {
+      target: { value: 'alpha' },
+    })
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /Alpha/ }))
+
+    expect(await screen.findByRole('menuitem', { name: 'Reopen' })).toBeInTheDocument()
+    expect(screen.queryByRole('menuitem', { name: 'Mark as Complete' })).not.toBeInTheDocument()
+  })
+})
+
 describe('copy last 7 days', () => {
   it('copies recently completed tasks from the Done tab', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
