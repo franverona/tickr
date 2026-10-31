@@ -8,6 +8,14 @@ export function insertAtCursor(sel: TextSelection, text: string): string {
   return sel.value.slice(0, sel.selectionStart) + text + sel.value.slice(sel.selectionEnd)
 }
 
+export const uploadPlaceholder = (name: string) => `\`Uploading ${name}…\``
+
+// For saves that can outlive the upload, which can then no longer swap the
+// placeholder for the real link
+export function stripUploadPlaceholders(text: string): string {
+  return text.replace(/`Uploading [^`\n]*…`/g, '')
+}
+
 export function wrapSelectionAsLink(sel: TextSelection, url: string): string {
   const selected = sel.value.slice(sel.selectionStart, sel.selectionEnd)
   return (

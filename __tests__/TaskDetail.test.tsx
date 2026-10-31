@@ -513,6 +513,19 @@ describe('TaskDetail', () => {
     expect(screen.getByTestId('md-editor')).toHaveValue('- [x] First item')
   })
 
+  it('leaves a pending upload placeholder out of the save on close', async () => {
+    updateTask.mockResolvedValue(makeTask({ description: 'Notes ' }))
+    const { unmount } = renderTaskDetail(makeTask({ description: 'Notes' }))
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByTestId('md-editor'), {
+      target: { value: 'Notes `Uploading a.png…`' },
+    })
+
+    unmount()
+
+    expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'Notes ' })
+  })
+
   describe('description autocomplete', () => {
     beforeEach(() => {
       // Editing the description in these tests leaves it "dirty" relative
