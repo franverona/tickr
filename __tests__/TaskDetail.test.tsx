@@ -526,6 +526,25 @@ describe('TaskDetail', () => {
     expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'Notes ' })
   })
 
+  it('only follows # links that point at a task', () => {
+    const other = makeTask({ id: 'other', title: 'Other' })
+    const { props } = renderTaskDetail(makeTask({ description: 'Notes' }), [], {
+      allTasks: [other],
+    })
+    const clickHash = (hash: string) => {
+      const link = document.createElement('a')
+      link.setAttribute('href', hash)
+      screen.getByTestId('md-preview').append(link)
+      fireEvent.click(link)
+    }
+
+    clickHash('#some-heading')
+    expect(props.onSelectTask).not.toHaveBeenCalled()
+
+    clickHash('#other')
+    expect(props.onSelectTask).toHaveBeenCalledWith('other')
+  })
+
   describe('description autocomplete', () => {
     beforeEach(() => {
       // Editing the description in these tests leaves it "dirty" relative
