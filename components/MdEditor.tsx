@@ -6,6 +6,7 @@ import {
   convertOutlineList,
   detectTableDelimiter,
   insertAtCursor,
+  uploadPlaceholder,
   toMarkdownTable,
   wrapSelectionAsLink,
 } from '@/lib/paste-utils'
@@ -229,10 +230,13 @@ function htmlToMarkdown(html: string): string | null {
   )
 }
 
-export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<string>>) {
+export function makeImageHandlers(
+  setValue: React.Dispatch<React.SetStateAction<string>>,
+  onError: (message: string) => void,
+) {
   async function handleFiles(files: File[], textarea: HTMLTextAreaElement) {
     for (const file of files) {
-      const placeholder = `\`Uploading ${file.name}…\``
+      const placeholder = uploadPlaceholder(file.name)
       setValue(insertAtCursor(textarea, placeholder))
       try {
         const url = await uploadFile(file)
@@ -241,7 +245,7 @@ export function makeImageHandlers(setValue: React.Dispatch<React.SetStateAction<
         setValue((v) => v.replace(placeholder, markdown))
       } catch (err) {
         setValue((v) => v.replace(placeholder, ''))
-        console.error('File upload failed:', err)
+        onError(`Couldn't upload ${file.name}: ${err instanceof Error ? err.message : err}`)
       }
     }
   }

@@ -4,6 +4,7 @@ import {
   detectTableDelimiter,
   insertAtCursor,
   parseDelimitedRows,
+  stripUploadPlaceholders,
   toMarkdownTable,
   wrapSelectionAsLink,
 } from '../lib/paste-utils'
@@ -146,5 +147,13 @@ describe('insertAtCursor', () => {
   it('replaces the selected range', () => {
     const sel = { value: 'hello world', selectionStart: 6, selectionEnd: 11 }
     expect(insertAtCursor(sel, 'there')).toBe('hello there')
+  })
+})
+
+describe('stripUploadPlaceholders', () => {
+  it('removes placeholders and leaves other code spans alone', () => {
+    expect(stripUploadPlaceholders('a `Uploading x y.png…` b `Uploading` c')).toBe(
+      'a  b `Uploading` c',
+    )
   })
 })

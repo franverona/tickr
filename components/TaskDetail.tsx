@@ -14,6 +14,7 @@ import {
 } from './MdEditor'
 import { remarkChecklistLines, toggleChecklistLine } from '@/lib/checklist'
 import { searchEmojis } from '@/lib/emojis'
+import { stripUploadPlaceholders } from '@/lib/paste-utils'
 import { searchSnippets, type Snippet } from '@/lib/snippets'
 import { daysBetween, formatTimestamp, getDueStatus } from '@/lib/dates'
 import { isReviewLink } from '@/lib/standup'
@@ -249,7 +250,7 @@ export default function TaskDetail({
   const historySummary = task.completedAt
     ? `done in ${days(daysBetween(task.createdAt, task.completedAt))}`
     : `open for ${days(daysBetween(task.createdAt, new Date().toISOString()))}`
-  const imageHandlers = makeImageHandlers(setDescriptionDraft)
+  const imageHandlers = makeImageHandlers(setDescriptionDraft, onError)
 
   // setDescriptionDraft is stable (from useState) — safe to capture with empty deps
   const EditModeImg = useMemo(
@@ -766,8 +767,9 @@ export default function TaskDetail({
     // warning. Empty deps: this only fires on true unmount, not on every
     // keystroke re-render (unlike the debounce effect above).
     return () => {
-      if (descriptionDraftRef.current !== lastSavedDescRef.current) {
-        updateTask(task.id, { description: descriptionDraftRef.current })
+      const draft = stripUploadPlaceholders(descriptionDraftRef.current)
+      if (draft !== lastSavedDescRef.current) {
+        updateTask(task.id, { description: draft })
           .then(onUpdate)
           .catch(() => onError('Failed to save description'))
       }
@@ -780,10 +782,11 @@ export default function TaskDetail({
       clearTimeout(autoSaveTimerRef.current)
       autoSaveTimerRef.current = null
     }
-    if (descriptionDraft !== lastSavedDescRef.current) {
+    const draft = stripUploadPlaceholders(descriptionDraft)
+    if (draft !== lastSavedDescRef.current) {
       try {
-        const updated = await updateTask(task.id, { description: descriptionDraft })
-        lastSavedDescRef.current = descriptionDraft
+        const updated = await updateTask(task.id, { description: draft })
+        lastSavedDescRef.current = draft
         onUpdate(updated)
       } catch {
         onError('Failed to save description')
