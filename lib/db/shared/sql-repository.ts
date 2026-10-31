@@ -5,7 +5,7 @@ import type { Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTag, ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
-import { slugify } from '../slug'
+import { slugify, uniqueSlug } from '../slug'
 
 // The 4-table shape shared by every SQL backend (SQLite/Postgres/MySQL),
 // generic over how each stores completed/archived (native boolean on
@@ -127,15 +127,14 @@ export function createSqlTaskRepository<Bool>(
 
     async createTag(data: { label: string; color: string }): Promise<Tag> {
       const db = await ready()
-      const id = slugify(data.label)
-      if (!id) throw new Error('Invalid tag name')
+      const slug = slugify(data.label)
+      if (!slug) throw new Error('Invalid tag name')
 
-      const existing = await db
-        .selectFrom('tags')
-        .select('id')
-        .where('id', '=', id)
-        .executeTakeFirst()
-      if (existing) throw new Error(`A tag named "${data.label}" already exists`)
+      const tags = await db.selectFrom('tags').select(['id', 'label']).execute()
+      const key = data.label.trim().toLowerCase()
+      if (tags.some((t) => t.label.toLowerCase() === key))
+        throw new Error(`A tag named "${data.label}" already exists`)
+      const id = uniqueSlug(slug, new Set(tags.map((t) => t.id)))
 
       const now = new Date().toISOString()
       await db
@@ -429,23 +428,7 @@ export function createSqlTaskRepository<Bool>(
           tagMap.set(tag.label.toLowerCase(), tag.id)
         }
 
-        // Batch-resolve which candidate tag ids already exist (avoids an N+1
-        // SELECT per tag).
-        const candidateIds = new Set<string>()
-        for (const { label } of importedTags) {
-          if (tagMap.has(label.toLowerCase())) continue
-          const id = slugify(label)
-          if (id) candidateIds.add(id)
-        }
-        const existingById =
-          candidateIds.size > 0
-            ? await trx
-                .selectFrom('tags')
-                .select('id')
-                .where('id', 'in', [...candidateIds])
-                .execute()
-            : []
-        const existingByIdSet = new Set(existingById.map((r) => r.id))
+        const takenIds = new Set(existingTags.map((t) => t.id))
 
         // Determine which tags need to be created
         const validColors = new Set<string>(COLOR_PALETTE.map((c) => c.classes))
@@ -453,12 +436,10 @@ export function createSqlTaskRepository<Bool>(
         for (const { label, color: importedColor } of importedTags) {
           const key = label.toLowerCase()
           if (tagMap.has(key)) continue
-          const id = slugify(label)
-          if (!id) continue
-          if (existingByIdSet.has(id)) {
-            tagMap.set(key, id)
-            continue
-          }
+          const slug = slugify(label)
+          if (!slug) continue
+          const id = uniqueSlug(slug, takenIds)
+          takenIds.add(id)
           let color: string
           if (validColors.has(importedColor)) {
             color = importedColor

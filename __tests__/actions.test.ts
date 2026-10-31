@@ -323,6 +323,36 @@ describe('restoring unused tags', () => {
 })
 
 describe('duplicate tags', () => {
+  const color = 'bg-red-600 text-red-100 border-red-500'
+  const base = { description: '', dueDate: null, links: [], completed: false, archived: false }
+
+  it("reuses a renamed tag's old name under a new id", async () => {
+    const bug = await createTag({ label: 'Bug', color })
+    await updateTag(bug.id, { label: 'Defect' })
+
+    expect(await createTag({ label: 'Bug', color })).toMatchObject({ id: 'bug-2', label: 'Bug' })
+  })
+
+  it("rejects creating a tag with a renamed tag's new label", async () => {
+    const bug = await createTag({ label: 'Bug', color })
+    await updateTag(bug.id, { label: 'Defect' })
+
+    await expect(createTag({ label: 'defect', color })).rejects.toThrow('already exists')
+  })
+
+  it("doesn't merge an imported label into a tag renamed from it", async () => {
+    const bug = await createTag({ label: 'Bug', color })
+    await updateTag(bug.id, { label: 'Defect' })
+
+    const { tasks, tags } = await importTasks(
+      [{ ...base, title: 'T', tags: [{ label: 'Bug', color }] }],
+      false,
+    )
+
+    expect(tasks[0].tags).toEqual(['bug-2'])
+    expect(tags.map((t) => t.label).sort()).toEqual(['Bug', 'Defect'])
+  })
+
   it("rejects renaming a tag to another tag's label, ignoring case", async () => {
     seedTag(SEED_TAG)
     seedTag(BLOCKED_TAG)
