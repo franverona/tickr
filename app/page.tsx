@@ -235,12 +235,14 @@ export default function Page() {
 
       if (isTyping || isModalOpen || e.metaKey || e.ctrlKey || e.altKey) return
 
-      if (e.key === 'n') {
+      if (e.key.toLowerCase() === 'n') {
         e.preventDefault()
         setIsCreateOpen(true)
       } else if (e.key === '/') {
         e.preventDefault()
         setIsSearchOpen(true)
+        // autoFocus only covers opening it; it may already be open
+        searchInputRef.current?.focus()
       } else if (e.key === '?') {
         e.preventDefault()
         setIsShortcutsOpen(true)

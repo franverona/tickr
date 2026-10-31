@@ -308,6 +308,23 @@ describe('keyboard shortcuts', () => {
     expect(await screen.findByPlaceholderText('Search tasks…')).toHaveFocus()
   })
 
+  it('N opens the new-task modal with Caps Lock on', async () => {
+    await renderReady([makeTask({ id: 'a', title: 'Alpha' })])
+    fireEvent.keyDown(document, { key: 'N' })
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+  })
+
+  it('/ returns focus to a search box that is already open', async () => {
+    await renderReady([makeTask({ id: 'a', title: 'Alpha' })])
+    fireEvent.keyDown(document, { key: '/' })
+    const input = await screen.findByPlaceholderText('Search tasks…')
+    input.blur()
+
+    fireEvent.keyDown(document, { key: '/' })
+
+    expect(input).toHaveFocus()
+  })
+
   it('Escape closes the open task detail panel', async () => {
     const a = makeTask({ id: 'a', title: 'Alpha' })
     await renderReady([a])
