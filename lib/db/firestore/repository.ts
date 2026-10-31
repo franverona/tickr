@@ -3,7 +3,7 @@ import { FieldValue } from '@google-cloud/firestore'
 import type { DocumentSnapshot, Firestore } from '@google-cloud/firestore'
 import type { TaskRepository } from '../types'
 import type { Tag, Task, TaskUrl } from '../../types'
-import type { ImportedTask } from '../../import'
+import type { ImportedTag, ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
 import { slugify } from '../slug'
@@ -311,6 +311,7 @@ export class FirestoreTaskRepository implements TaskRepository {
   async importTasks(
     items: ImportedTask[],
     overrideAll = false,
+    extraTags: ImportedTag[] = [],
   ): Promise<{ imported: number; tasks: Task[]; tags: Tag[] }> {
     const db = await this.ready()
     const now = new Date().toISOString()
@@ -327,28 +328,27 @@ export class FirestoreTaskRepository implements TaskRepository {
     }
 
     // Determine which tags need to be created
+    const allTags = [...items.flatMap((item) => item.tags), ...extraTags]
     const validColors = new Set<string>(COLOR_PALETTE.map((c) => c.classes))
     const tagsToCreate: Array<{ id: string; label: string; color: string }> = []
-    for (const item of items) {
-      for (const { label, color: importedColor } of item.tags) {
-        const key = label.toLowerCase()
-        if (tagMap.has(key)) continue
-        const id = slugify(label)
-        if (!id) continue
-        if (existingIds.has(id)) {
-          tagMap.set(key, id)
-          continue
-        }
-        let color: string
-        if (validColors.has(importedColor)) {
-          color = importedColor
-        } else {
-          color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
-          colorIndex++
-        }
-        tagsToCreate.push({ id, label: label.trim(), color })
+    for (const { label, color: importedColor } of allTags) {
+      const key = label.toLowerCase()
+      if (tagMap.has(key)) continue
+      const id = slugify(label)
+      if (!id) continue
+      if (existingIds.has(id)) {
         tagMap.set(key, id)
+        continue
       }
+      let color: string
+      if (validColors.has(importedColor)) {
+        color = importedColor
+      } else {
+        color = COLOR_PALETTE[colorIndex % COLOR_PALETTE.length].classes
+        colorIndex++
+      }
+      tagsToCreate.push({ id, label: label.trim(), color })
+      tagMap.set(key, id)
     }
 
     const maxSnap = overrideAll

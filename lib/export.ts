@@ -22,6 +22,16 @@ export function exportToJSON(tasks: Task[], tags: Tag[]): string {
   return JSON.stringify(data, null, 2)
 }
 
+// Written next to the task file because tasks only carry the tags they use:
+// without this a restore loses every unused tag, in either format.
+export function exportTagsToJSON(tags: Tag[]): string {
+  return JSON.stringify(
+    tags.map(({ label, color }) => ({ label, color })),
+    null,
+    2,
+  )
+}
+
 function csvCell(value: string): string {
   if (/[",\n\r]/.test(value)) return '"' + value.replace(/"/g, '""') + '"'
   return value
@@ -121,6 +131,7 @@ export async function exportToZip(
   const archived = tasks.map((t) => ({ ...t, description: relativizeUploads(t.description) }))
   const content = format === 'json' ? exportToJSON(archived, tags) : exportToCSV(archived, tags)
   zip.file(`tasks.${format}`, content)
+  zip.file('tags.json', exportTagsToJSON(tags))
 
   const imagePaths = referencedUploads(tasks)
   if (imagePaths.length > 0) {

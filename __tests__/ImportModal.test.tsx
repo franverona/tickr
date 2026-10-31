@@ -13,6 +13,7 @@ vi.mock('@/app/actions', () => ({ importTasks }))
 
 const items: ImportedTask[] = []
 const result = { imported: 0, tasks: [], tags: [] }
+const parsed = { tasks: items, tags: [] }
 
 function makeFile() {
   return new File(['{}'], 'export.zip')
@@ -52,7 +53,7 @@ describe('ImportModal', () => {
 
   it('merge flow calls processImportZip then importTasks(items, false) and reports the result', async () => {
     const file = makeFile()
-    processImportZip.mockResolvedValueOnce(items)
+    processImportZip.mockResolvedValueOnce(parsed)
     importTasks.mockResolvedValueOnce(result)
     const onImported = vi.fn()
 
@@ -61,11 +62,11 @@ describe('ImportModal', () => {
 
     await vi.waitFor(() => expect(onImported).toHaveBeenCalledWith(result))
     expect(processImportZip).toHaveBeenCalledWith(file)
-    expect(importTasks).toHaveBeenCalledWith(items, false)
+    expect(importTasks).toHaveBeenCalledWith(items, false, [])
   })
 
   it('override flow calls importTasks(items, true) after typing DELETE', async () => {
-    processImportZip.mockResolvedValueOnce(items)
+    processImportZip.mockResolvedValueOnce(parsed)
     importTasks.mockResolvedValueOnce(result)
     const onImported = vi.fn()
 
@@ -75,11 +76,11 @@ describe('ImportModal', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Replace & Import' }))
 
     await vi.waitFor(() => expect(onImported).toHaveBeenCalledWith(result))
-    expect(importTasks).toHaveBeenCalledWith(items, true)
+    expect(importTasks).toHaveBeenCalledWith(items, true, [])
   })
 
   it('shows an inline error and re-enables Import when the import fails', async () => {
-    processImportZip.mockResolvedValueOnce(items)
+    processImportZip.mockResolvedValueOnce(parsed)
     importTasks.mockRejectedValueOnce(new Error('boom'))
 
     render(<ImportModal file={makeFile()} onClose={() => {}} onImported={() => {}} />)
