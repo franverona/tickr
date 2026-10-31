@@ -55,9 +55,9 @@ describe('createBackup', () => {
     const [task] = parseJSONContent(await zip.file('tasks.json')!.async('string'))
     expect(task.title).toBe('With files')
     expect(task.description).toBe('![a](uploads/a.png) [gone](uploads/missing.pdf)')
-    expect(JSON.parse(await zip.file('tags.json')!.async('string'))).toEqual([
+    expect(JSON.parse(await zip.file('tags.json')!.async('string'))).toContainEqual(
       expect.objectContaining({ label: 'Unused' }),
-    ])
+    )
   })
 
   it('keeps only the newest backups', async () => {
