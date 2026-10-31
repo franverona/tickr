@@ -7,9 +7,9 @@
     "node": ">=22.22.2"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -H 127.0.0.1",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 127.0.0.1",
     "test": "vitest run",
     "backup": "tsx scripts/backup.ts",
     "test:watch": "vitest",
