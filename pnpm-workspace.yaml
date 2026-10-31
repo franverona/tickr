@@ -1,5 +1,8 @@
 allowBuilds:
-  better-sqlite3: true
+  # Ships prebuilt binaries for macOS, Linux and Windows on x64 and arm64, so the
+  # node-gyp run would only add a Python and make requirement. Other platforms
+  # need this back on.
+  better-sqlite3: false
   # tsx's esbuild ships its binary as an optional platform package; its
   # postinstall only re-checks it, so it doesn't need to run
   esbuild: false
