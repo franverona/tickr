@@ -40,7 +40,7 @@ A local task management app for tracking work.
 
 ## Getting Started
 
-Requires **Node 22.22.2 or later** (see `.nvmrc`) and **pnpm 11** (`corepack enable` picks up the version pinned in `package.json`).
+Requires **Node 22.22.2 or later** (`engines` in `package.json`; `.nvmrc` only selects the major version) and **pnpm 11** (`corepack enable` picks up the version pinned in `package.json`).
 
 ```bash
 pnpm install
