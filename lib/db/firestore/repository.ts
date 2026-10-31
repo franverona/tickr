@@ -6,7 +6,7 @@ import type { Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTag, ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
-import { slugify } from '../slug'
+import { slugify, uniqueSlug } from '../slug'
 import { ensureSeeded } from './seed'
 import { chunk } from './chunk'
 
@@ -80,11 +80,15 @@ export class FirestoreTaskRepository implements TaskRepository {
 
   async createTag(data: { label: string; color: string }): Promise<Tag> {
     await this.ready()
-    const id = slugify(data.label)
-    if (!id) throw new Error('Invalid tag name')
+    const slug = slugify(data.label)
+    if (!slug) throw new Error('Invalid tag name')
 
     const now = new Date().toISOString()
     const label = data.label.trim()
+    const existing = (await this.tagsCol.get()).docs
+    if (existing.some((d) => (d.get('label') as string).toLowerCase() === label.toLowerCase()))
+      throw new Error(`A tag named "${data.label}" already exists`)
+    const id = uniqueSlug(slug, new Set(existing.map((d) => d.id)))
     // create() fails atomically if the doc exists, so two concurrent creates
     // with the same slug can't both pass a get() check and overwrite each other
     try {
@@ -334,12 +338,10 @@ export class FirestoreTaskRepository implements TaskRepository {
     for (const { label, color: importedColor } of allTags) {
       const key = label.toLowerCase()
       if (tagMap.has(key)) continue
-      const id = slugify(label)
-      if (!id) continue
-      if (existingIds.has(id)) {
-        tagMap.set(key, id)
-        continue
-      }
+      const slug = slugify(label)
+      if (!slug) continue
+      const id = uniqueSlug(slug, existingIds)
+      existingIds.add(id)
       let color: string
       if (validColors.has(importedColor)) {
         color = importedColor
