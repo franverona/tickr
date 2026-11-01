@@ -1073,7 +1073,12 @@ export default function TaskDetail({
         }`}
       >
         {/* Compact metadata rows: Tags, Links */}
-        <div className="space-y-2.5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0">
+        {/* Hidden, not unmounted, so open link forms survive; editing gets the full width */}
+        <div
+          className={`space-y-2.5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0 ${
+            isEditingDescription ? 'hidden' : ''
+          }`}
+        >
           {/* Tags */}
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
             <span className="text-surface-500 flex items-center gap-1.5 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
@@ -1346,7 +1351,7 @@ export default function TaskDetail({
           </div>
         </div>
 
-        <div className="border-surface-700/70 border-t xl:hidden" />
+        {!isEditingDescription && <div className="border-surface-700/70 border-t xl:hidden" />}
 
         <div
           className={`min-w-0 ${isEditingDescription ? 'flex-1' : 'w-full max-w-3xl xl:flex-1'}`}
@@ -1394,7 +1399,8 @@ export default function TaskDetail({
                   <MDEditor
                     value={descriptionDraft}
                     onChange={(val) => setDescriptionDraft(val || '')}
-                    height={560}
+                    height="max(360px, calc(100dvh - 11.5rem))"
+                    visibleDragbar={false}
                     preview="live"
                     textareaProps={suggestionTextareaProps}
                     previewOptions={{
