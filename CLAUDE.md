@@ -26,7 +26,7 @@ app/
     upload/route.ts         # attachment upload (POST /api/upload → public/uploads/); same-origin + size checked before parsing
     uploads/[...path]/      # dynamic file server (GET /uploads/* → public/uploads/), nosniff + sandbox CSP
 components/
-  TaskCard.tsx         # task list item
+  TaskCard.tsx         # task card, in the full-width grid or the compact sidebar
   TaskDetail.tsx       # right-panel detail view
   TaskContextMenu.tsx  # right-click / context menu for a task
   CreateTaskModal.tsx
@@ -71,7 +71,7 @@ lib/
       index.ts                     # getFirestoreRepository(), globalThis-cached
   types.ts             # Task and Tag interfaces
   constants.ts         # PREDEFINED_TAGS and COLOR_PALETTE
-  dates.ts             # due-date badge logic (overdue / due today / due soon)
+  dates.ts             # due-date badge logic (overdue / due today / due soon), weekLabel() for Done/Archived grouping
   standup.ts           # isReviewLink() (MR/PR URLs) + doneLastWeekSummary() for the Done tab's copy button
   emojis.ts            # emoji autocomplete (`:name`) data + matching
   snippets.ts          # snippet autocomplete (`/key`) data
