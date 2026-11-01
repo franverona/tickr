@@ -350,6 +350,23 @@ describe('keyboard shortcuts', () => {
     expect(screen.queryByRole('heading', { name: 'Alpha' })).not.toBeInTheDocument()
   })
 
+  it('Escape in a field that closes on Escape leaves the task open', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    await renderReady([a])
+    fireEvent.click(screen.getByRole('button', { name: 'Alpha' }))
+    expect(await screen.findByRole('heading', { name: 'Alpha' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTitle('Add link'))
+    const input = screen.getByPlaceholderText('URL')
+    // Browsers unmount the field before the document listener runs, so focus is
+    // already gone by then; act() defers that here, so drop focus by hand.
+    input.blur()
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    expect(screen.queryByPlaceholderText('URL')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Alpha' })).toBeInTheDocument()
+  })
+
   it('Escape closes the "···" options menu', async () => {
     await renderReady([])
     fireEvent.click(screen.getByTitle('More options'))

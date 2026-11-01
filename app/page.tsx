@@ -226,11 +226,14 @@ export default function Page() {
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
-      const activeEl = document.activeElement
-      const isTyping =
-        activeEl instanceof HTMLInputElement ||
-        activeEl instanceof HTMLTextAreaElement ||
-        (activeEl instanceof HTMLElement && activeEl.isContentEditable)
+      // e.target too: a field's own Escape handler may have already unmounted it,
+      // leaving focus on body by the time this runs.
+      const isTyping = [document.activeElement, e.target].some(
+        (el) =>
+          el instanceof HTMLInputElement ||
+          el instanceof HTMLTextAreaElement ||
+          (el instanceof HTMLElement && el.isContentEditable),
+      )
       const isOtherModalOpen =
         isCreateOpen || isTagsOpen || pendingImportFile !== null || isShortcutsOpen
       const isModalOpen = isOtherModalOpen || isPaletteOpen
