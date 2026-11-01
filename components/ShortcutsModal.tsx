@@ -11,7 +11,7 @@ const SHORTCUTS: [string, string][] = [
   ['⌘K / Ctrl+K', 'Open command palette'],
   ['N', 'New task'],
   ['/', 'Search'],
-  ['↑ / ↓', 'Move between tasks'],
+  ['↑ ↓ ← →', 'Move between tasks'],
   ['Home / End', 'Jump to first / last task'],
   ['Shift+F10 / Menu key', 'Open task context menu'],
   ['Drag', 'Reorder active tasks (manual sort)'],

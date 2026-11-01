@@ -48,3 +48,18 @@ export function formatTimestamp(iso: string): string {
     ...(otherYear ? { year: 'numeric' } : {}),
   })
 }
+
+// "This week", "Last week", or "Week of Mar 4"; weeks start on Monday
+export function weekLabel(iso: string, now: Date = new Date()): string {
+  const monday = (d: Date) => {
+    const m = new Date(d)
+    m.setHours(0, 0, 0, 0)
+    m.setDate(m.getDate() - ((m.getDay() + 6) % 7))
+    return m
+  }
+  const start = monday(new Date(iso))
+  const weeksAgo = Math.round((monday(now).getTime() - start.getTime()) / (7 * 86400000))
+  if (weeksAgo === 0) return 'This week'
+  if (weeksAgo === 1) return 'Last week'
+  return `Week of ${formatTimestamp(start.toISOString())}`
+}

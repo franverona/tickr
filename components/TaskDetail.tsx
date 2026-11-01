@@ -196,6 +196,38 @@ type Suggestion =
   | { kind: 'mention'; items: Task[] }
   | { kind: 'snippet'; items: ReadonlyArray<Snippet> }
 
+function LinkAction({
+  label,
+  onClick,
+  children,
+}: {
+  label: string
+  onClick: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      aria-label={label}
+      className="text-surface-500 hover:bg-surface-700 hover:text-surface-200 flex h-5 w-5 items-center justify-center rounded transition-colors"
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {children}
+      </svg>
+    </button>
+  )
+}
+
 export default function TaskDetail({
   task,
   tags,
@@ -958,7 +990,7 @@ export default function TaskDetail({
             onClick={() => setIsEditingTitle(true)}
             title={task.title}
             className={`group hover:text-surface-300 flex min-w-0 flex-1 cursor-text items-center gap-1.5 transition-colors ${
-              task.completed ? 'text-surface-400 line-through' : 'text-surface-100'
+              task.completed ? 'text-surface-300' : 'text-surface-100'
             }`}
           >
             <span className="min-w-0 truncate text-sm font-medium">{task.title}</span>
@@ -1034,9 +1066,19 @@ export default function TaskDetail({
         </button>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto p-5">
+      {/* flex-row-reverse: metadata stays first when stacked, but sits in a right rail on xl */}
+      <div
+        className={`flex flex-1 flex-col gap-4 overflow-y-auto p-5 xl:flex-row-reverse xl:items-start xl:gap-8 ${
+          isEditingDescription ? '' : 'xl:justify-center'
+        }`}
+      >
         {/* Compact metadata rows: Tags, Links */}
-        <div className="space-y-2.5">
+        {/* Hidden, not unmounted, so open link forms survive; editing gets the full width */}
+        <div
+          className={`space-y-2.5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0 ${
+            isEditingDescription ? 'hidden' : ''
+          }`}
+        >
           {/* Tags */}
           <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
             <span className="text-surface-500 flex items-center gap-1.5 text-xs tracking-wide uppercase sm:w-16 sm:shrink-0">
@@ -1049,6 +1091,7 @@ export default function TaskDetail({
                 selected={task.tags}
                 onChange={saveTags}
                 onTagCreated={onTagCreated}
+                collapsible
               />
             </div>
           </div>
@@ -1179,7 +1222,7 @@ export default function TaskDetail({
                         {u.label}
                       </a>
                       {confirmDeleteUrlId === u.id ? (
-                        <div className="flex shrink-0 items-center gap-1.5">
+                        <div className="ml-auto flex shrink-0 items-center gap-1.5">
                           <span className="text-surface-400 text-xs">Delete?</span>
                           <button
                             onClick={() => handleDeleteUrl(u.id)}
@@ -1195,38 +1238,46 @@ export default function TaskDetail({
                           </button>
                         </div>
                       ) : (
-                        <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                          <button
+                        <div className="ml-auto hidden shrink-0 items-center gap-0.5 group-focus-within:flex group-hover:flex">
+                          <LinkAction
+                            label={copiedLinkId === u.id ? 'Copied!' : 'Copy link'}
                             onClick={() => handleCopyLink(u)}
-                            className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
-                            title="Copy link"
                           >
-                            {copiedLinkId === u.id ? 'Copied!' : 'Copy link'}
-                          </button>
+                            {copiedLinkId === u.id ? (
+                              <polyline points="20 6 9 17 4 12" />
+                            ) : (
+                              <>
+                                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                              </>
+                            )}
+                          </LinkAction>
                           {isReviewLink(u.url) && (
-                            <button
+                            <LinkAction
+                              label={copiedUrlId === u.id ? 'Copied!' : 'Copy Slack review message'}
                               onClick={() => handleCopyForSlack(u)}
-                              className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
-                              title="Copy Slack review message"
                             >
-                              {copiedUrlId === u.id ? 'Copied!' : 'Copy for Slack'}
-                            </button>
+                              {copiedUrlId === u.id ? (
+                                <polyline points="20 6 9 17 4 12" />
+                              ) : (
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                              )}
+                            </LinkAction>
                           )}
-                          <button
+                          <LinkAction
+                            label="Edit link"
                             onClick={() => startEditUrl(u.id, u.url, u.label)}
-                            className="text-surface-500 hover:bg-surface-700 hover:text-surface-300 rounded px-1 py-0.5 text-xs transition-colors"
-                            title="Edit link"
                           >
-                            Edit
-                          </button>
-                          <button
+                            <path d="M12 20h9" />
+                            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+                          </LinkAction>
+                          <LinkAction
+                            label="Remove link"
                             onClick={() => setConfirmDeleteUrlId(u.id)}
-                            className="text-surface-600 hover:text-surface-300 text-lg leading-none transition-colors"
-                            title="Remove link"
-                            aria-label="Remove link"
                           >
-                            ×
-                          </button>
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                          </LinkAction>
                         </div>
                       )}
                     </div>
@@ -1300,9 +1351,11 @@ export default function TaskDetail({
           </div>
         </div>
 
-        <div className="border-surface-700/70 border-t" />
+        {!isEditingDescription && <div className="border-surface-700/70 border-t xl:hidden" />}
 
-        <div>
+        <div
+          className={`min-w-0 ${isEditingDescription ? 'flex-1' : 'w-full max-w-3xl xl:flex-1'}`}
+        >
           <div className="mb-2 flex items-center justify-between">
             <label className="text-surface-400 text-xs tracking-wide uppercase">Description</label>
             <div className="flex items-center gap-2">
@@ -1346,7 +1399,8 @@ export default function TaskDetail({
                   <MDEditor
                     value={descriptionDraft}
                     onChange={(val) => setDescriptionDraft(val || '')}
-                    height={560}
+                    height="max(360px, calc(100dvh - 11.5rem))"
+                    visibleDragbar={false}
                     preview="live"
                     textareaProps={suggestionTextareaProps}
                     previewOptions={{

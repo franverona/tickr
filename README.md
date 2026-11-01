@@ -20,19 +20,22 @@ A local task management app for tracking work.
 
 ## Features
 
-- **Active / Done / Archived** task tabs
+- **Active / Done / Archived** task tabs with counts; Done and Archived are grouped by week
+- **Card grid** — tasks fill the page, then collapse into a compact sidebar while one is open
+- **Quick add** — type a title at the top of the Active tab and press Enter, no dialog needed
+- **Tag filters** — narrow the current tab to a single tag
 - **Inline editing** — title, description (Markdown), tags, due date
 - **Tag system** — create tags with a color picker; rename, recolor, or delete tags via the Tags modal
-- **Mark complete / reopen / archive / unarchive / delete**
+- **Mark complete / reopen / archive / unarchive / delete**, with complete and reopen also available right on the card
 - **Drag-and-drop reordering** of active tasks
-- **Due date indicators** — color-coded badges for overdue, due today, and due soon
+- **Due date indicators** — color-coded badges for overdue, due today, and due soon, plus a colored card border for overdue and due today
 - **Attachments** — drag-and-drop or paste files into a task's description (once the task exists, not in the New Task dialog): images show inline; PDF, text, Markdown, CSV, JSON and ZIP files are added as links (up to 10 MB each, stored in `public/uploads/`)
 - **Task search** — filter tasks by title, description, tag, or link label or URL in real time, across tabs
 - **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any task or action from the keyboard
 - **Keyboard shortcuts** — full set of shortcuts for navigation and actions; press `?` for the cheat sheet
 - **Bulk actions** — select several tasks to complete, reopen, archive, unarchive, delete, or tag them at once
 - **Due-date notifications** — a browser notification once a day, while the app is open, listing tasks that are overdue or due today
-- **Links section** — attach labeled URLs to any task; MR/PR links get a one-click "Copy for Slack" button
+- **Links section** — attach labeled URLs to any task; MR/PR links get a one-click copy of a Slack review message
 - **Standup summary** — on the Done tab, copy the tasks completed in the last 7 days, with their MR/PR links, as a Markdown list
 - **Editor enhancements** (in the task detail editor) — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete
 - **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv` plus every uploaded file the descriptions reference

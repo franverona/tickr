@@ -111,7 +111,7 @@ describe('detail panel', () => {
     fireEvent.change(await screen.findByPlaceholderText('Search tasks…'), {
       target: { value: 'alpha' },
     })
-    fireEvent.click(await screen.findByRole('button', { name: /Alpha/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Alpha/ }))
     expect(await screen.findByRole('heading', { name: 'Alpha' })).toBeInTheDocument()
     return done
   }
@@ -147,10 +147,22 @@ describe('actions on search results', () => {
       target: { value: 'alpha' },
     })
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: /Alpha/ }))
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /^Alpha/ }))
 
     expect(await screen.findByRole('menuitem', { name: 'Reopen' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Mark as Complete' })).not.toBeInTheDocument()
+  })
+})
+
+describe('status feedback', () => {
+  it('confirms completing a task from its card', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    await renderReady([a])
+    updateTask.mockResolvedValueOnce({ ...a, completed: true })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Complete Alpha' }))
+
+    expect(await screen.findByText('Task marked as done')).toBeInTheDocument()
   })
 })
 
@@ -167,7 +179,7 @@ describe('copy last 7 days', () => {
     await renderReady([done])
 
     expect(screen.queryByRole('button', { name: 'Copy last 7 days' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Done/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Copy last 7 days' }))
 
     await waitFor(() =>
@@ -348,6 +360,23 @@ describe('keyboard shortcuts', () => {
 
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('heading', { name: 'Alpha' })).not.toBeInTheDocument()
+  })
+
+  it('Escape in a field that closes on Escape leaves the task open', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    await renderReady([a])
+    fireEvent.click(screen.getByRole('button', { name: 'Alpha' }))
+    expect(await screen.findByRole('heading', { name: 'Alpha' })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTitle('Add link'))
+    const input = screen.getByPlaceholderText('URL')
+    // Browsers unmount the field before the document listener runs, so focus is
+    // already gone by then; act() defers that here, so drop focus by hand.
+    input.blur()
+    fireEvent.keyDown(input, { key: 'Escape' })
+
+    expect(screen.queryByPlaceholderText('URL')).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Alpha' })).toBeInTheDocument()
   })
 
   it('Escape closes the "···" options menu', async () => {

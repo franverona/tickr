@@ -212,6 +212,7 @@ describe('TaskDetail', () => {
     updateTask.mockResolvedValueOnce(updated)
     const { props } = renderTaskDetail(task, [tag])
 
+    fireEvent.click(screen.getByRole('button', { name: '+ Add tag' }))
     fireEvent.click(screen.getByRole('button', { name: 'bug' }))
 
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
@@ -413,7 +414,7 @@ describe('TaskDetail', () => {
     updateTaskUrl.mockResolvedValueOnce(updated)
     const { props } = renderTaskDetail(task)
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Edit link' }))
     const urlInput = screen.getByDisplayValue('https://example.com')
     fireEvent.change(urlInput, { target: { value: 'https://example.com/updated' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
