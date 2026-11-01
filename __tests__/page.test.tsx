@@ -154,6 +154,18 @@ describe('actions on search results', () => {
   })
 })
 
+describe('status feedback', () => {
+  it('confirms completing a task from its card', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    await renderReady([a])
+    updateTask.mockResolvedValueOnce({ ...a, completed: true })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Complete Alpha' }))
+
+    expect(await screen.findByText('Task marked as done')).toBeInTheDocument()
+  })
+})
+
 describe('copy last 7 days', () => {
   it('copies recently completed tasks from the Done tab', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)

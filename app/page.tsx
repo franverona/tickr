@@ -431,6 +431,11 @@ export default function Page() {
     const previous = tasks.find((t) => t.id === updated.id)
     const statusChanged =
       previous?.completed !== updated.completed || previous?.archived !== updated.archived
+    if (previous && previous.completed !== updated.completed) {
+      showToast(updated.completed ? 'Task marked as done' : 'Task reopened', 'success')
+    } else if (previous && previous.archived !== updated.archived) {
+      showToast(updated.archived ? 'Task archived' : 'Task unarchived', 'success')
+    }
     if (updated.id === selectedTaskId && previous && statusChanged && !isSearching) {
       const stillInTab =
         tab === 'active'
