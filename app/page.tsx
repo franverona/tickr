@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { Fragment, useState, useEffect, useRef } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import {
   getTasks,
   getTags,
+  createTask,
   reorderTasks,
   updateTask,
   deleteTask,
@@ -21,7 +22,7 @@ import ShortcutsModal from '@/components/ShortcutsModal'
 import CommandPalette from '@/components/CommandPalette'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
-import { getDueStatus, localDateKey } from '@/lib/dates'
+import { getDueStatus, localDateKey, weekLabel } from '@/lib/dates'
 import { doneLastWeekSummary } from '@/lib/standup'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
@@ -37,6 +38,17 @@ function taskStatus(task: Task): 'active' | 'done' | 'archived' {
 
 const STATUS_ORDER = { active: 0, done: 1, archived: 2 } as const
 
+const TAB_LABELS = { active: 'Active', done: 'Done', archived: 'Archived' } as const
+
+function historyGroup(at: string | null): string {
+  return at ? weekLabel(at) : 'Earlier'
+}
+
+function gridColumns(el: Element): number {
+  const grid = el.closest('[data-task-grid]')
+  return grid ? getComputedStyle(grid).gridTemplateColumns.split(' ').length : 1
+}
+
 export default function Page() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [tags, setTags] = useState<Tag[]>([])
@@ -46,6 +58,9 @@ export default function Page() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [tab, setTab] = useState<'active' | 'done' | 'archived'>('active')
   const [searchQuery, setSearchQuery] = useState('')
+  const [tagFilter, setTagFilter] = useState<string | null>(null)
+  const [quickTitle, setQuickTitle] = useState('')
+  const [isQuickAdding, setIsQuickAdding] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
@@ -107,6 +122,14 @@ export default function Page() {
     if (localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === '1') setIsSidebarCollapsed(true)
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
+
+  // Opening or closing a task reflows the grid, which can push the card off-screen.
+  // Optional call: jsdom has no scrollIntoView.
+  useEffect(() => {
+    cardRefs.current
+      .get(selectedTaskId ?? activeCardId ?? '')
+      ?.scrollIntoView?.({ block: 'nearest' })
+  }, [selectedTaskId, activeCardId, isLoading])
 
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, isSidebarCollapsed ? '1' : '0')
@@ -290,6 +313,7 @@ export default function Page() {
   function handleImported(result: { imported: number; tasks: Task[]; tags: Tag[] }) {
     setTasks(result.tasks)
     setTags(result.tags)
+    setTagFilter(null)
     setPendingImportFile(null)
     setMenuFeedback(`Imported ${result.imported}`)
     setTimeout(() => setMenuFeedback(null), 4000)
@@ -314,6 +338,7 @@ export default function Page() {
 
   function handleTagDeleted(id: string) {
     setTags((prev) => prev.filter((t) => t.id !== id))
+    setTagFilter((f) => (f === id ? null : f))
     setTasks((prev) =>
       prev.map((t) =>
         t.tags.includes(id) ? { ...t, tags: t.tags.filter((tid) => tid !== id) } : t,
@@ -342,26 +367,39 @@ export default function Page() {
     }
   }
 
-  const filteredTasks = tasks
-    .filter((task) => {
-      if (isSearching) {
-        return (
-          task.title.toLowerCase().includes(query) ||
-          task.description.toLowerCase().includes(query) ||
-          task.tags.some((id) => tagLabelById.get(id)?.includes(query)) ||
-          // URLs too: Jira keys and MR numbers often only appear there
-          task.urls.some(
-            (url) =>
-              url.label.toLowerCase().includes(query) || url.url.toLowerCase().includes(query),
-          )
+  const tabCounts = {
+    active: tasks.filter((t) => taskStatus(t) === 'active').length,
+    done: tasks.filter((t) => taskStatus(t) === 'done').length,
+    archived: tasks.filter((t) => taskStatus(t) === 'archived').length,
+  }
+
+  const tabTasks = tasks.filter((task) => {
+    if (isSearching) {
+      return (
+        task.title.toLowerCase().includes(query) ||
+        task.description.toLowerCase().includes(query) ||
+        task.tags.some((id) => tagLabelById.get(id)?.includes(query)) ||
+        // URLs too: Jira keys and MR numbers often only appear there
+        task.urls.some(
+          (url) => url.label.toLowerCase().includes(query) || url.url.toLowerCase().includes(query),
         )
-      }
-      return tab === 'active'
-        ? !task.completed && !task.archived
-        : tab === 'done'
-          ? task.completed && !task.archived
-          : task.archived
-    })
+      )
+    }
+    return tab === 'active'
+      ? !task.completed && !task.archived
+      : tab === 'done'
+        ? task.completed && !task.archived
+        : task.archived
+  })
+
+  // The active filter stays listed even if its last task just left this tab,
+  // otherwise the list would be empty with no way to clear it.
+  const filterTags = tags.filter(
+    (tag) => tag.id === tagFilter || tabTasks.some((t) => t.tags.includes(tag.id)),
+  )
+
+  const filteredTasks = tabTasks
+    .filter((task) => !tagFilter || task.tags.includes(tagFilter))
     .sort((a, b) => {
       if (isSearching) return STATUS_ORDER[taskStatus(a)] - STATUS_ORDER[taskStatus(b)]
       if (tab === 'done') return (b.completedAt ?? '').localeCompare(a.completedAt ?? '')
@@ -409,6 +447,7 @@ export default function Page() {
   function handleTaskCreated(task: Task) {
     setTasks((prev) => [task, ...prev])
     setTab('active')
+    setTagFilter(null)
     setSelectedTaskId(task.id)
     setIsCreateOpen(false)
   }
@@ -442,7 +481,7 @@ export default function Page() {
 
     // Must match filteredTasks' active-tab set exactly (same filter, same
     // order) since src/over are indices into that array — reorder is only
-    // ever triggered while it has no search query applied (see draggable
+    // ever triggered with no search query or tag filter applied (see draggable
     // below), so filteredTasks here is just tasks filtered, unsorted.
     const active = tasks.filter((t) => !t.completed && !t.archived)
     const reordered = [...active]
@@ -480,10 +519,18 @@ export default function Page() {
   }
 
   function handleCardKeyDown(e: React.KeyboardEvent, index: number, task: Task) {
+    // shortcut: Up/Down assume unbroken rows, so they land off-column across the
+    // Done tab's week headers; use geometry if that gets annoying.
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      focusCardAt(index + 1)
+      focusCardAt(index + gridColumns(e.currentTarget))
     } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      focusCardAt(index - gridColumns(e.currentTarget))
+    } else if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      focusCardAt(index + 1)
+    } else if (e.key === 'ArrowLeft') {
       e.preventDefault()
       focusCardAt(index - 1)
     } else if (e.key === 'Home') {
@@ -508,6 +555,13 @@ export default function Page() {
     if (!contextMenu) return
     const { taskId } = contextMenu
     setContextMenu(null)
+    await applyTaskAction(taskId, action)
+  }
+
+  async function applyTaskAction(
+    taskId: string,
+    action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete',
+  ) {
     try {
       if (action === 'delete') {
         await deleteTask(taskId)
@@ -526,6 +580,27 @@ export default function Page() {
       }
     } catch {
       showToast(action === 'delete' ? 'Failed to delete task' : 'Failed to update task', 'error')
+    }
+  }
+
+  async function handleQuickAdd(e: React.FormEvent) {
+    e.preventDefault()
+    const title = quickTitle.trim()
+    if (!title || isQuickAdding) return
+    setIsQuickAdding(true)
+    try {
+      // Carries the active filter's tag, otherwise the new task would be hidden by it
+      const task = await createTask({
+        title,
+        description: '',
+        tags: tagFilter ? [tagFilter] : [],
+      })
+      setTasks((prev) => [task, ...prev])
+      setQuickTitle('')
+    } catch {
+      showToast('Failed to create task', 'error')
+    } finally {
+      setIsQuickAdding(false)
     }
   }
 
@@ -635,6 +710,10 @@ export default function Page() {
   }
 
   const hasNoTasks = !isLoading && tasks.length === 0
+  const compactCards = selectedTask !== null
+  const listClass = `grid gap-2 ${
+    compactCards ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-[repeat(auto-fill,minmax(18rem,1fr))]'
+  }`
 
   return (
     <div className="bg-surface-900 flex h-screen flex-col overflow-hidden">
@@ -865,12 +944,12 @@ export default function Page() {
       <div className="flex min-h-0 flex-1">
         {/* Task list */}
         <div
-          className={`border-surface-700 flex shrink-0 flex-col border-r ${
+          className={`border-surface-700 flex shrink-0 flex-col ${
             selectedTask
               ? isSidebarCollapsed
                 ? 'hidden'
-                : 'hidden md:flex md:w-90'
-              : 'flex w-full md:w-90'
+                : 'hidden border-r md:flex md:w-90'
+              : 'flex w-full'
           }`}
         >
           {isSelectMode ? (
@@ -886,6 +965,11 @@ export default function Page() {
                   >
                     {allFilteredSelected ? 'Deselect all' : 'Select all'}
                   </button>
+                  {tagFilter && (
+                    <span className="text-surface-500 truncate text-xs">
+                      Filtered by {tags.find((t) => t.id === tagFilter)?.label}
+                    </span>
+                  )}
                 </div>
                 <button
                   onClick={cancelSelectMode}
@@ -985,65 +1069,104 @@ export default function Page() {
               </div>
             </div>
           ) : (
-            <div className="border-surface-700 flex h-12 items-center border-b px-3 sm:px-4">
-              <div className="flex h-full gap-4 sm:gap-5">
-                {(['active', 'done', 'archived'] as const).map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => {
-                      setTab(t)
-                      setSelectedTaskId(null)
-                      cancelSelectMode()
-                    }}
-                    className={`flex h-full items-center border-b-2 text-xs font-medium transition-colors ${
-                      tab === t
-                        ? 'border-surface-300 text-surface-100'
-                        : 'text-surface-400 hover:text-surface-200 border-transparent'
-                    }`}
-                  >
-                    {t === 'active' ? 'Active' : t === 'done' ? 'Done' : 'Archived'}
-                  </button>
-                ))}
-              </div>
-              <div className="ml-auto flex items-center gap-2.5">
-                <span className="text-surface-500 text-xs">
-                  {isLoading
-                    ? ''
-                    : `${filteredTasks.length} ${
-                        isSearching
-                          ? filteredTasks.length === 1
-                            ? 'result'
-                            : 'results'
-                          : filteredTasks.length === 1
-                            ? 'task'
-                            : 'tasks'
+            <>
+              <div className="border-surface-700 flex h-12 items-center border-b px-3 sm:px-4">
+                <div className="flex h-full gap-4 sm:gap-5">
+                  {(['active', 'done', 'archived'] as const).map((t) => (
+                    <button
+                      key={t}
+                      onClick={() => {
+                        setTab(t)
+                        setTagFilter(null)
+                        setSelectedTaskId(null)
+                        cancelSelectMode()
+                      }}
+                      className={`flex h-full items-center gap-1.5 border-b-2 text-xs font-medium transition-colors ${
+                        tab === t
+                          ? 'border-surface-300 text-surface-100'
+                          : 'text-surface-400 hover:text-surface-200 border-transparent'
                       }`}
-                </span>
-                {standupSummary && (
-                  <button
-                    onClick={handleCopyStandup}
-                    title="Copy tasks completed in the last 7 days, with their MR/PR links, as Markdown"
-                    className="text-surface-400 hover:text-surface-100 text-xs transition-colors"
-                  >
-                    {standupCopied ? 'Copied!' : 'Copy last 7 days'}
-                  </button>
-                )}
+                    >
+                      {TAB_LABELS[t]}
+                      {!isLoading && (
+                        <span className="text-surface-500 font-normal">{tabCounts[t]}</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
                 {!isLoading && filteredTasks.length > 0 && (
                   <button
                     onClick={() => {
                       setIsSelectMode(true)
                       setSelectedTaskId(null)
                     }}
-                    className="text-surface-400 hover:text-surface-100 text-xs transition-colors"
+                    className="text-surface-400 hover:text-surface-100 ml-auto text-xs transition-colors"
                   >
                     Select
                   </button>
                 )}
               </div>
-            </div>
+              {(filterTags.length > 0 || standupSummary || isSearching) && (
+                <div className="border-surface-700 flex items-center gap-3 border-b px-3 py-2 sm:px-4">
+                  <div
+                    className={`flex min-w-0 flex-1 items-center gap-1.5 ${
+                      compactCards ? '[scrollbar-width:none] overflow-x-auto' : 'flex-wrap'
+                    }`}
+                  >
+                    {filterTags.map((tag) => (
+                      <button
+                        key={tag.id}
+                        onClick={() => setTagFilter((f) => (f === tag.id ? null : tag.id))}
+                        aria-pressed={tagFilter === tag.id}
+                        className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                          tagFilter === tag.id
+                            ? tag.color
+                            : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-200'
+                        }`}
+                      >
+                        {tag.label}
+                      </button>
+                    ))}
+                  </div>
+                  {isSearching && (
+                    <span className="text-surface-500 shrink-0 text-xs">
+                      {filteredTasks.length} {filteredTasks.length === 1 ? 'result' : 'results'}
+                    </span>
+                  )}
+                  {standupSummary && (
+                    <button
+                      onClick={handleCopyStandup}
+                      title="Copy tasks completed in the last 7 days, with their MR/PR links, as Markdown"
+                      className="text-surface-400 hover:text-surface-100 shrink-0 text-xs transition-colors"
+                    >
+                      {standupCopied ? 'Copied!' : 'Copy last 7 days'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </>
           )}
 
-          <div className="flex-1 overflow-y-auto p-3">
+          {/* key: each tab starts at the top instead of inheriting the last tab's scroll */}
+          <div key={tab} className="flex-1 overflow-y-auto p-3">
+            {tab === 'active' && !isSearching && !isSelectMode && !isLoading && !hasNoTasks && (
+              <form onSubmit={handleQuickAdd} className="mb-3">
+                <input
+                  value={quickTitle}
+                  onChange={(e) => setQuickTitle(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') {
+                      setQuickTitle('')
+                      e.currentTarget.blur()
+                    }
+                  }}
+                  readOnly={isQuickAdding}
+                  aria-label="Quick add task"
+                  placeholder="Add a task and press Enter…"
+                  className="border-surface-700 bg-surface-800 text-surface-100 placeholder-surface-500 focus:border-surface-400 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
+                />
+              </form>
+            )}
             {loadError ? (
               <div
                 role="alert"
@@ -1058,7 +1181,7 @@ export default function Page() {
                 </button>
               </div>
             ) : isLoading ? (
-              <div className="flex flex-col gap-2">
+              <div className={listClass}>
                 {Array.from({ length: 6 }).map((_, i) => (
                   <div
                     key={i}
@@ -1084,34 +1207,91 @@ export default function Page() {
                 <p className="text-sm">
                   {query
                     ? 'No tasks match your search'
-                    : tab === 'done'
-                      ? 'No completed tasks yet'
-                      : tab === 'archived'
-                        ? 'No archived tasks'
-                        : 'No active tasks'}
+                    : tagFilter
+                      ? 'No tasks with this tag'
+                      : tab === 'done'
+                        ? 'No completed tasks yet'
+                        : tab === 'archived'
+                          ? 'No archived tasks'
+                          : 'No active tasks'}
                 </p>
               </div>
-            ) : tab === 'active' && !isSearching ? (
-              <div className="flex flex-col gap-2">
+            ) : tab === 'active' && !isSearching && !tagFilter ? (
+              <div data-task-grid className={listClass}>
                 {filteredTasks.map((task, i) => (
-                  <div key={task.id}>
+                  <div
+                    key={task.id}
+                    draggable
+                    onDragStart={(e) => {
+                      e.dataTransfer.effectAllowed = 'move'
+                      handleDragStart(i)
+                    }}
+                    onDragOver={(e) => handleDragOver(e, i)}
+                    onDrop={handleDrop}
+                    onDragEnd={handleDragEnd}
+                    className={`relative ${dragSrcIdx === i ? 'opacity-40' : ''}`}
+                  >
                     {dragSrcIdx !== null &&
                       dragOverIdx === i &&
                       dragSrcIdx !== i &&
                       dragOverIdx !== dragSrcIdx + 1 && (
-                        <div className="bg-accent-500 mb-2 h-0.5 rounded-full" />
+                        <div
+                          className={`bg-accent-500 absolute rounded-full ${
+                            compactCards
+                              ? 'inset-x-0 -top-1.25 h-0.5'
+                              : 'inset-y-0 -left-1.25 w-0.5'
+                          }`}
+                        />
                       )}
-                    <div
-                      draggable
-                      onDragStart={(e) => {
-                        e.dataTransfer.effectAllowed = 'move'
-                        handleDragStart(i)
+                    <TaskCard
+                      ref={(el) => {
+                        if (el) cardRefs.current.set(task.id, el)
+                        else cardRefs.current.delete(task.id)
                       }}
-                      onDragOver={(e) => handleDragOver(e, i)}
-                      onDrop={handleDrop}
-                      onDragEnd={handleDragEnd}
-                      className={dragSrcIdx === i ? 'opacity-40' : ''}
-                    >
+                      task={task}
+                      tags={tags}
+                      isSelected={task.id === selectedTaskId}
+                      onClick={() => handleTaskCardClick(task.id)}
+                      onContextMenu={(e) => handleContextMenu(e, task.id)}
+                      onKeyDown={(e) => handleCardKeyDown(e, i, task)}
+                      selectMode={isSelectMode}
+                      checked={selectedIds.has(task.id)}
+                      tabIndex={task.id === rovingCardId ? 0 : -1}
+                      compact={compactCards}
+                      onToggleComplete={
+                        isSelectMode ? undefined : () => applyTaskAction(task.id, 'complete')
+                      }
+                    />
+                  </div>
+                ))}
+                <div
+                  className="col-span-full h-4"
+                  onDragOver={(e) => handleDragOver(e, filteredTasks.length)}
+                  onDrop={handleDrop}
+                >
+                  {dragSrcIdx !== null &&
+                    dragOverIdx === filteredTasks.length &&
+                    dragOverIdx !== dragSrcIdx + 1 && (
+                      <div className="bg-accent-500 h-0.5 rounded-full" />
+                    )}
+                </div>
+              </div>
+            ) : (
+              <div data-task-grid className={listClass}>
+                {filteredTasks.map((task, i) => {
+                  const groupAt = (t: Task) => (tab === 'done' ? t.completedAt : t.archivedAt)
+                  const group =
+                    tab !== 'active' && !isSearching ? historyGroup(groupAt(task)) : null
+                  const startsGroup =
+                    group !== null &&
+                    (i === 0 || historyGroup(groupAt(filteredTasks[i - 1])) !== group)
+                  return (
+                    <Fragment key={task.id}>
+                      {startsGroup && (
+                        <h3 className="text-surface-500 col-span-full pt-2 text-xs font-medium first:pt-0">
+                          {group}
+                        </h3>
+                      )}
                       <TaskCard
                         ref={(el) => {
                           if (el) cardRefs.current.set(task.id, el)
@@ -1126,50 +1306,24 @@ export default function Page() {
                         selectMode={isSelectMode}
                         checked={selectedIds.has(task.id)}
                         tabIndex={task.id === rovingCardId ? 0 : -1}
+                        showStatus={isSearching}
+                        compact={compactCards}
+                        onToggleComplete={
+                          isSelectMode || task.archived
+                            ? undefined
+                            : () => applyTaskAction(task.id, task.completed ? 'reopen' : 'complete')
+                        }
                       />
-                    </div>
-                  </div>
-                ))}
-                <div
-                  className="h-4"
-                  onDragOver={(e) => handleDragOver(e, filteredTasks.length)}
-                  onDrop={handleDrop}
-                >
-                  {dragSrcIdx !== null &&
-                    dragOverIdx === filteredTasks.length &&
-                    dragOverIdx !== dragSrcIdx + 1 && (
-                      <div className="bg-accent-500 h-0.5 rounded-full" />
-                    )}
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {filteredTasks.map((task, i) => (
-                  <TaskCard
-                    key={task.id}
-                    ref={(el) => {
-                      if (el) cardRefs.current.set(task.id, el)
-                      else cardRefs.current.delete(task.id)
-                    }}
-                    task={task}
-                    tags={tags}
-                    isSelected={task.id === selectedTaskId}
-                    onClick={() => handleTaskCardClick(task.id)}
-                    onContextMenu={(e) => handleContextMenu(e, task.id)}
-                    onKeyDown={(e) => handleCardKeyDown(e, i, task)}
-                    selectMode={isSelectMode}
-                    checked={selectedIds.has(task.id)}
-                    tabIndex={task.id === rovingCardId ? 0 : -1}
-                    showStatus={isSearching}
-                  />
-                ))}
+                    </Fragment>
+                  )
+                })}
               </div>
             )}
           </div>
         </div>
 
         {/* Task detail panel */}
-        {selectedTask ? (
+        {selectedTask && (
           <div className="min-w-0 flex-1 overflow-hidden">
             <TaskDetail
               key={selectedTask.id}
@@ -1186,18 +1340,6 @@ export default function Page() {
               onToggleSidebar={() => setIsSidebarCollapsed((c) => !c)}
             />
           </div>
-        ) : (
-          !hasNoTasks && (
-            <div className="hidden flex-1 flex-col items-center justify-center gap-1.5 select-none md:flex">
-              <p className="text-surface-400 text-sm font-medium">Select a task to view details</p>
-              <button
-                onClick={() => setIsCreateOpen(true)}
-                className="text-accent-500 hover:text-accent-400 text-sm transition-colors"
-              >
-                or create a new one →
-              </button>
-            </div>
-          )
         )}
       </div>
 

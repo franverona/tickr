@@ -111,7 +111,7 @@ describe('detail panel', () => {
     fireEvent.change(await screen.findByPlaceholderText('Search tasks…'), {
       target: { value: 'alpha' },
     })
-    fireEvent.click(await screen.findByRole('button', { name: /Alpha/ }))
+    fireEvent.click(await screen.findByRole('button', { name: /^Alpha/ }))
     expect(await screen.findByRole('heading', { name: 'Alpha' })).toBeInTheDocument()
     return done
   }
@@ -147,7 +147,7 @@ describe('actions on search results', () => {
       target: { value: 'alpha' },
     })
 
-    fireEvent.contextMenu(await screen.findByRole('button', { name: /Alpha/ }))
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /^Alpha/ }))
 
     expect(await screen.findByRole('menuitem', { name: 'Reopen' })).toBeInTheDocument()
     expect(screen.queryByRole('menuitem', { name: 'Mark as Complete' })).not.toBeInTheDocument()
@@ -167,7 +167,7 @@ describe('copy last 7 days', () => {
     await renderReady([done])
 
     expect(screen.queryByRole('button', { name: 'Copy last 7 days' })).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: /^Done/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Copy last 7 days' }))
 
     await waitFor(() =>

@@ -10,9 +10,18 @@ interface TagSelectorProps {
   selected: string[]
   onChange: (tags: string[]) => void
   onTagCreated: (tag: Tag) => void
+  /** Show only the applied tags until the user asks to add one */
+  collapsible?: boolean
 }
 
-export default function TagSelector({ tags, selected, onChange, onTagCreated }: TagSelectorProps) {
+export default function TagSelector({
+  tags,
+  selected,
+  onChange,
+  onTagCreated,
+  collapsible,
+}: TagSelectorProps) {
+  const [isExpanded, setIsExpanded] = useState(!collapsible)
   const [isCreating, setIsCreating] = useState(false)
   const [newLabel, setNewLabel] = useState('')
   const [newColor, setNewColor] = useState<string>(COLOR_PALETTE[0].classes)
@@ -56,7 +65,7 @@ export default function TagSelector({ tags, selected, onChange, onTagCreated }: 
   return (
     <div>
       <div className="flex flex-wrap items-center gap-1.5">
-        {tags.map((tag) => {
+        {(isExpanded ? tags : tags.filter((t) => selected.includes(t.id))).map((tag) => {
           const isSelected = selected.includes(tag.id)
           return (
             <button
@@ -74,7 +83,18 @@ export default function TagSelector({ tags, selected, onChange, onTagCreated }: 
           )
         })}
 
-        {!isCreating && (
+        {collapsible && (
+          <button
+            type="button"
+            onClick={() => setIsExpanded((e) => !e)}
+            aria-expanded={isExpanded}
+            className="border-surface-500 text-surface-400 hover:border-surface-300 hover:text-surface-200 inline-flex items-center rounded-full border border-dashed px-2 py-0.5 text-xs transition-all"
+          >
+            {isExpanded ? 'Show less' : '+ Add tag'}
+          </button>
+        )}
+
+        {isExpanded && !isCreating && (
           <button
             type="button"
             onClick={() => setIsCreating(true)}
