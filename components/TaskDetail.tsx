@@ -294,7 +294,8 @@ export default function TaskDetail({
     [],
   )
 
-  const EMOJI_RE = /:([a-z0-9_+\-]*)$/
+  // Lookbehind, not a group: insertion replaces match[0], which must be just `:query`
+  const EMOJI_RE = /(?<=^|\s):([a-z0-9_+\-]+)$/
   const MENTION_RE = /(?:^|\s)@([^\n]{0,60})$/
   const SNIPPET_RE = /(?:^|\s)\/([a-z-]{0,20})$/
 
