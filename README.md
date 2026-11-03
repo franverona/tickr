@@ -64,11 +64,11 @@ Created automatically at `./data/tasks.db` on first run — no config needed. To
 
 ### Postgres
 
-Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`). For a local Postgres to test against: `docker compose up -d postgres` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset: `docker compose down -v` (drops the local container's volume), or clear the tables directly for a remote instance.
+Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`). For a local Postgres to test against: `docker compose up -d postgres` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset the local one: `docker compose rm -sf postgres && docker volume rm tickr_tickr-postgres-data`, then `docker compose up -d postgres` (`docker compose down -v` would also wipe the MySQL volume). For a remote instance, clear the tables directly.
 
 ### MySQL
 
-Set `DB_TYPE=mysql` and `DATABASE_URL` (e.g. `mysql://user:pass@host:3306/dbname`). For a local MySQL to test against: `docker compose up -d mysql` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset: `docker compose down -v` (drops the local container's volume), or clear the tables directly for a remote instance.
+Set `DB_TYPE=mysql` and `DATABASE_URL` (e.g. `mysql://user:pass@host:3306/dbname`). For a local MySQL to test against: `docker compose up -d mysql` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset the local one: `docker compose rm -sf mysql && docker volume rm tickr_tickr-mysql-data`, then `docker compose up -d mysql` (`docker compose down -v` would also wipe the Postgres volume). For a remote instance, clear the tables directly.
 
 The local container runs MySQL 26.7, which refuses to start on a volume created by MySQL 8.4 (`Cannot upgrade from 80410 to 260700`; the data isn't touched). To keep that data, start it once on 9.7 first:
 
@@ -80,7 +80,7 @@ docker stop -t 60 tickr-mysql-hop && docker rm tickr-mysql-hop
 docker compose up -d mysql
 ```
 
-If the data doesn't matter, `docker compose down -v` is simpler.
+If the data doesn't matter, resetting MySQL as above is simpler.
 
 ### Firestore
 
