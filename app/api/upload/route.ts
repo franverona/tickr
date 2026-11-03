@@ -2,21 +2,25 @@ import { randomUUID } from 'crypto'
 import { writeFile, mkdir } from 'fs/promises'
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
+import { UPLOAD_EXT_TO_MIME } from '@/lib/upload-types'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
 const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 
-const EXT_MAP: Record<string, string> = {
-  'image/png': 'png',
-  'image/jpeg': 'jpg',
-  'image/gif': 'gif',
-  'image/webp': 'webp',
-  'application/pdf': 'pdf',
-  'text/plain': 'txt',
-  'text/markdown': 'md',
-  'text/csv': 'csv',
-  'application/json': 'json',
-  'application/zip': 'zip',
+// Reversed so the first extension listed for a type wins (jpg over jpeg)
+const MIME_TO_EXT = Object.fromEntries(
+  Object.entries(UPLOAD_EXT_TO_MIME)
+    .reverse()
+    .map(([ext, mime]) => [mime, ext]),
+)
+
+// Browsers often send an empty or vendor type for .md, .csv and .zip, so fall
+// back to the name's extension. Both are client-declared; the files are served
+// with nosniff and a sandbox CSP either way.
+function uploadExtension(file: File): string | null {
+  if (Object.hasOwn(MIME_TO_EXT, file.type)) return MIME_TO_EXT[file.type]
+  const ext = path.extname(file.name).slice(1).toLowerCase()
+  return Object.hasOwn(UPLOAD_EXT_TO_MIME, ext) ? ext : null
 }
 
 // Room for multipart boundaries and part headers on top of the file itself
@@ -52,14 +56,14 @@ export async function POST(req: NextRequest) {
   if (!(file instanceof File)) {
     return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   }
-  if (!(file.type in EXT_MAP)) {
+  const ext = uploadExtension(file)
+  if (!ext) {
     return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
   }
   if (file.size > MAX_SIZE_BYTES) {
     return NextResponse.json({ error: 'File exceeds 10 MB limit' }, { status: 400 })
   }
 
-  const ext = EXT_MAP[file.type]
   const filename = `${randomUUID()}.${ext}`
   const dest = path.join(UPLOADS_DIR, filename)
 
