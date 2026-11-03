@@ -129,7 +129,7 @@ public/
 - Same 4-table schema as SQLite (`tasks`, `tags`, `task_urls`, `task_tags`), but `completed`/`archived` are native `BOOLEAN` columns (the `pg` driver handles JS booleans natively, unlike better-sqlite3) — see `lib/db/postgres/schema.ts`'s `PgTasksTable`. Timestamps stay `TEXT` (ISO-8601 strings) on both backends for consistency. `postgres/repository.ts` passes identity `boolIn`/`boolOut` converters into the shared `createSqlTaskRepository()` factory, since `pg` already hands back real JS booleans
 - `lib/db/postgres/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder (`db.schema.createTable(...)`) — no incremental migration history to replay, unlike `sqlite/migrate.ts`, since Postgres starts fresh
 - **Local testing**: `docker-compose.yml` at the repo root runs a `postgres:16-alpine` container (`docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=postgres` and `DATABASE_URL`, then `pnpm dev`
-- To reset: `docker compose down -v` (drops the named volume) and restart
+- To reset: `docker compose rm -sf postgres && docker volume rm tickr_tickr-postgres-data`, then `docker compose up -d postgres`. Not `docker compose down -v`: that drops every named volume in the project, MySQL's too
 
 ## MySQL adapter
 
@@ -139,7 +139,7 @@ public/
 - MySQL has no `ON CONFLICT` — predefined-tag seeding (`lib/db/mysql/migrate.ts`) uses Kysely's `.ignore()` (`INSERT IGNORE`), and `mysql/repository.ts` passes `tagConflictStrategy: 'ignore'` into the shared factory so imported-tag creation does the same, instead of the SQLite/Postgres adapters' `tagConflictStrategy: 'onConflict'` (`.onConflict((oc) => oc.doNothing())`)
 - `lib/db/mysql/migrate.ts`'s `ensureSchema()` creates the current schema directly via Kysely's schema builder — no incremental migration history to replay, same as Postgres
 - **Local testing**: `docker-compose.yml`'s `mysql` service (`mysql:26.7`, `docker compose up -d`). Copy `.env.example` to `.env.local`, uncomment `DB_TYPE=mysql` and its `DATABASE_URL`, then `pnpm dev`
-- To reset: `docker compose down -v` (drops the named volume) and restart
+- To reset: `docker compose rm -sf mysql && docker volume rm tickr_tickr-mysql-data`, then `docker compose up -d mysql`. Not `docker compose down -v`: that drops every named volume in the project, Postgres's too
 
 ## Firestore adapter
 
