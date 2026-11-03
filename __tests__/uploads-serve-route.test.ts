@@ -16,12 +16,14 @@ describe('GET /uploads/*', () => {
     const res = await get('notes.txt')
     expect(res.headers.get('content-type')).toBe('text/plain')
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
-    expect(res.headers.get('content-security-policy')).toBe('sandbox')
+    expect(res.headers.get('content-security-policy')).toBe("sandbox; frame-ancestors 'none'")
+    expect(res.headers.get('x-frame-options')).toBe('DENY')
   })
 
   it('leaves PDFs unsandboxed so the browser can render them', async () => {
     const res = await get('spec.pdf')
     expect(res.headers.get('x-content-type-options')).toBe('nosniff')
-    expect(res.headers.get('content-security-policy')).toBeNull()
+    expect(res.headers.get('content-security-policy')).toBe("frame-ancestors 'none'")
+    expect(res.headers.get('x-frame-options')).toBe('DENY')
   })
 })

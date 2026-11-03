@@ -26,7 +26,12 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ path: stri
         // HTML, and sandbox it so nothing in it can run as this app. PDFs are
         // exempt because Chrome won't render a PDF under a sandbox CSP.
         'X-Content-Type-Options': 'nosniff',
-        ...(contentType === 'application/pdf' ? {} : { 'Content-Security-Policy': 'sandbox' }),
+        // next.config.ts's anti-framing headers skip uploads, so they're set here
+        'X-Frame-Options': 'DENY',
+        'Content-Security-Policy':
+          contentType === 'application/pdf'
+            ? "frame-ancestors 'none'"
+            : "sandbox; frame-ancestors 'none'",
       },
     })
   } catch {
