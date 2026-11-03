@@ -312,6 +312,21 @@ describe('TaskDetail', () => {
     vi.useRealTimers()
   })
 
+  it('does not auto-save while an upload placeholder is in the description', async () => {
+    vi.useFakeTimers()
+    updateTask.mockResolvedValue(makeTask())
+    renderTaskDetail(makeTask({ description: 'Notes' }))
+
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByTestId('md-editor'), {
+      target: { value: 'Notes `Uploading a.png…`' },
+    })
+    await vi.advanceTimersByTimeAsync(1500)
+
+    expect(updateTask).not.toHaveBeenCalled()
+    vi.useRealTimers()
+  })
+
   it('reports a failed description auto-save', async () => {
     vi.useFakeTimers()
     // The draft stays unsaved, so unmounting in cleanup flushes it once more

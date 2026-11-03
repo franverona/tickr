@@ -758,6 +758,10 @@ export default function TaskDetail({
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
 
     autoSaveTimerRef.current = setTimeout(async () => {
+      // Stay pending until uploads finish: a saved placeholder would match the
+      // draft, so beforeunload wouldn't warn and a reload would leave it stored.
+      // The upload's swap changes the draft, which schedules the real save.
+      if (stripUploadPlaceholders(descriptionDraft) !== descriptionDraft) return
       setAutoSaveStatus('saving')
       try {
         const updated = await updateTask(task.id, { description: descriptionDraft })
