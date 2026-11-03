@@ -47,7 +47,7 @@ function parseTimestamp(value: unknown): string | undefined {
 // Message is shown to the user as-is
 export class ImportUploadError extends Error {}
 
-async function uploadFile(filename: string, data: ArrayBuffer): Promise<string | null> {
+async function uploadFile(filename: string, data: BlobPart): Promise<string | null> {
   const ext = filename.split('.').pop()?.toLowerCase() ?? ''
   const mimeType = UPLOAD_EXT_TO_MIME[ext]
   if (!mimeType) return null
@@ -276,6 +276,66 @@ export function parseTagsContent(content: string): ImportedTag[] {
 // Well above a real backup, low enough to stop a crafted ZIP before it inflates
 const MAX_ZIP_ATTACHMENTS = 5000
 const MAX_ZIP_ATTACHMENT_BYTES = 5 * 1024 * 1024 * 1024
+// /api/upload's cap: a bigger attachment would fail to upload anyway
+const MAX_ZIP_ENTRY_BYTES = 10 * 1024 * 1024
+// importTasks' 20 MB body limit (next.config.ts) bounds what's worth parsing
+const MAX_ZIP_DATA_FILE_BYTES = 20 * 1024 * 1024
+
+const ZIP_TOO_LARGE = 'ZIP has too many attachments, or they are too large'
+
+// Inflates an entry while counting real bytes: the size a ZIP declares can
+// lie, and JSZip only checks it after inflating everything. `budget` is shared
+// across entries for a total cap. pause() takes effect between 16 KB input
+// blocks, so a read can overshoot by one block's output (~16 MB at most).
+interface ZipStream {
+  on(event: 'data', cb: (chunk: Uint8Array) => void): ZipStream
+  on(event: 'error', cb: (err: Error) => void): ZipStream
+  on(event: 'end', cb: () => void): ZipStream
+  pause(): ZipStream
+  resume(): ZipStream
+}
+
+function readZipEntry(
+  entry: JSZipObject,
+  maxBytes: number,
+  budget = { left: Infinity },
+): Promise<Uint8Array<ArrayBuffer>> {
+  return new Promise((resolve, reject) => {
+    const chunks: Uint8Array[] = []
+    let size = 0
+    // shortcut: internalStream is JSZip's untyped stream API (async() is built on
+    // it); upgrade if JSZip types it or adds a byte limit.
+    const stream = (
+      entry as unknown as { internalStream(type: 'uint8array'): ZipStream }
+    ).internalStream('uint8array')
+    stream
+      .on('data', (chunk: Uint8Array) => {
+        size += chunk.length
+        budget.left -= chunk.length
+        if (size > maxBytes || budget.left < 0) {
+          stream.pause()
+          reject(new Error(ZIP_TOO_LARGE))
+          return
+        }
+        chunks.push(chunk)
+      })
+      .on('error', reject)
+      .on('end', () => {
+        const out = new Uint8Array(size)
+        let offset = 0
+        for (const c of chunks) {
+          out.set(c, offset)
+          offset += c.length
+        }
+        resolve(out)
+      })
+      .resume()
+  })
+}
+
+async function readZipText(entry: JSZipObject): Promise<string> {
+  return new TextDecoder().decode(await readZipEntry(entry, MAX_ZIP_DATA_FILE_BYTES))
+}
 
 export async function processImportZip(
   file: File,
@@ -290,9 +350,9 @@ export async function processImportZip(
 
   let tasks: ImportedTask[]
   if (jsonFile) {
-    tasks = parseJSONContent(await jsonFile.async('string'))
+    tasks = parseJSONContent(await readZipText(jsonFile))
   } else {
-    tasks = parseCSVContent(await csvFile!.async('string'))
+    tasks = parseCSVContent(await readZipText(csvFile!))
   }
 
   // Upload attachments from uploads/ and build old-filename → new-url mapping
@@ -304,7 +364,7 @@ export async function processImportZip(
       const ext = relativePath.split('.').pop()?.toLowerCase() ?? ''
       if (!entry.dir && UPLOAD_EXT_TO_MIME[ext]) entries.push([relativePath, entry])
     })
-    // Checked before inflating, which is where a crafted ZIP would hurt.
+    // A quick reject before inflating; readZipEntry enforces the real sizes.
     // shortcut: _data is JSZip's private entry metadata, upgrade if it adds a public size.
     const declaredBytes = entries.reduce(
       (sum, [, entry]) =>
@@ -314,14 +374,15 @@ export async function processImportZip(
       0,
     )
     if (entries.length > MAX_ZIP_ATTACHMENTS || declaredBytes > MAX_ZIP_ATTACHMENT_BYTES) {
-      throw new Error('ZIP has too many attachments, or they are too large')
+      throw new Error(ZIP_TOO_LARGE)
     }
+    const budget = { left: MAX_ZIP_ATTACHMENT_BYTES }
 
     const failed: string[] = []
     const jobs: Promise<void>[] = []
     for (const [relativePath, entry] of entries) {
       jobs.push(
-        entry.async('arraybuffer').then(async (data) => {
+        readZipEntry(entry, MAX_ZIP_ENTRY_BYTES, budget).then(async (data) => {
           try {
             const newUrl = await uploadFile(relativePath, data)
             if (newUrl) imageMapping.set(relativePath, newUrl)
@@ -353,7 +414,7 @@ export async function processImportZip(
 
   // Absent from ZIPs made before tags.json existed
   const tagsFile = zip.file('tags.json')
-  const tags = tagsFile ? parseTagsContent(await tagsFile.async('string')) : []
+  const tags = tagsFile ? parseTagsContent(await readZipText(tagsFile)) : []
 
   return { tasks, tags }
 }
