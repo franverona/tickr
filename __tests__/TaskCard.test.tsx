@@ -84,6 +84,18 @@ describe('TaskCard', () => {
     expect(screen.getByText(formatDueDate(dueDate)).className).toContain(`text-${color}-300`)
   })
 
+  it('shows checklist progress when the description has checkboxes', () => {
+    render(
+      <TaskCard
+        task={makeTask({ description: '- [x] a\n- [ ] b\n- [ ] c' })}
+        tags={[]}
+        isSelected={false}
+        onClick={() => {}}
+      />,
+    )
+    expect(screen.getByTitle('1 of 3 checklist items done')).toHaveTextContent('1/3')
+  })
+
   it('calls onClick exactly once when clicked', () => {
     const onClick = vi.fn()
     render(<TaskCard task={makeTask()} tags={[]} isSelected={false} onClick={onClick} />)
