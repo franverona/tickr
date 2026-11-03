@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DbSchema } from '../lib/db/types'
 
 const { getTestDb } = vi.hoisted(() => {
@@ -24,17 +24,20 @@ vi.mock('../lib/db', async () => {
 })
 
 import {
+  addTaskUrl,
   createTag,
   createTask,
   deleteTag,
   deleteTask,
   deleteTasks,
+  deleteTaskUrl,
   getTasks,
   importTasks,
   reorderTasks,
   updateTag,
   updateTask,
   updateTasks,
+  updateTaskUrl,
 } from '../app/actions'
 
 const SEED_TAG = { id: 'wip', label: 'WIP', color: 'bg-blue-600 text-blue-100 border-blue-500' }
@@ -172,6 +175,32 @@ describe('status timestamps', () => {
     await updateTask(task.id, { completed: true })
 
     expect((await updateTask(task.id, { completed: false })).completedAt).toBeNull()
+  })
+})
+
+describe('task links', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('bump the task updatedAt on add, edit and delete', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-01-01T00:00:00.000Z'))
+    const task = await createTask({ title: 'T', description: '', tags: [] })
+
+    vi.setSystemTime(new Date('2026-01-02T00:00:00.000Z'))
+    const added = await addTaskUrl(task.id, { url: 'https://example.com', label: 'Ex' })
+    expect(added.updatedAt).toBe('2026-01-02T00:00:00.000Z')
+
+    vi.setSystemTime(new Date('2026-01-03T00:00:00.000Z'))
+    const urlId = added.urls[0].id
+    const edited = await updateTaskUrl(task.id, urlId, { url: 'https://example.org', label: 'Ex' })
+    expect(edited.updatedAt).toBe('2026-01-03T00:00:00.000Z')
+
+    vi.setSystemTime(new Date('2026-01-04T00:00:00.000Z'))
+    const removed = await deleteTaskUrl(task.id, urlId)
+    expect(removed.updatedAt).toBe('2026-01-04T00:00:00.000Z')
+    expect(removed.urls).toEqual([])
   })
 })
 
