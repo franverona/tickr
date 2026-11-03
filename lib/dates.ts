@@ -18,6 +18,14 @@ export function getDueStatus(dueDate: string | null, completed: boolean): DueSta
   return null
 }
 
+// Due dates for the context menu's and bulk bar's quick picks. Next Monday is
+// a week away on a Monday, never today.
+export function quickDueDate(kind: 'tomorrow' | 'next-monday', now: Date = new Date()): string {
+  const d = new Date(now)
+  d.setDate(d.getDate() + (kind === 'tomorrow' ? 1 : (8 - d.getDay()) % 7 || 7))
+  return localDateKey(d)
+}
+
 // "YYYY-MM-DD" for the local calendar day (toISOString would give the UTC day)
 export function localDateKey(date: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0')

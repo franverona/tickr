@@ -33,7 +33,8 @@ A local task management app for tracking work.
 - **Task search** — filter tasks by title, description, tag, or link label or URL in real time, across tabs
 - **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any task or action from the keyboard
 - **Keyboard shortcuts** — full set of shortcuts for navigation and actions; press `?` for the cheat sheet
-- **Bulk actions** — select several tasks to complete, reopen, archive, unarchive, delete, or tag them at once
+- **Bulk actions** — select several tasks to complete, reopen, archive, unarchive, delete, tag, or reschedule them at once
+- **Quick due dates** — set an active task's due date to tomorrow or next Monday (or clear it) from its right-click menu, or for every selected task from the bulk bar
 - **Due-date notifications** — a browser notification once a day, while the app is open, listing tasks that are overdue or due today
 - **Links section** — attach labeled URLs to any task; MR/PR links get a one-click copy of a Slack review message. Jira tickets, GitLab MRs and GitHub PRs also show on the task's card as badges (`NDC-123`, `MR !42`, `PR #7`) that open the link directly
 - **Standup summary** — on the Done tab, copy the tasks completed in the last 7 days, with their MR/PR links, as a Markdown list

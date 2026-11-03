@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { quickDueDate } from '@/lib/dates'
 
 interface Props {
   x: number
@@ -12,6 +13,9 @@ interface Props {
   onUnarchive: () => void
   onDelete: () => void
   onClose: () => void
+  /** Quick due dates, shown for active tasks only (completed ones aren't due) */
+  onSetDueDate?: (dueDate: string | null) => void
+  hasDueDate?: boolean
 }
 
 export default function TaskContextMenu({
@@ -24,6 +28,8 @@ export default function TaskContextMenu({
   onUnarchive,
   onDelete,
   onClose,
+  onSetDueDate,
+  hasDueDate,
 }: Props) {
   const menuRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ x, y })
@@ -111,6 +117,30 @@ export default function TaskContextMenu({
           <button role="menuitem" onClick={onUnarchive} className={item}>
             Unarchive
           </button>
+        )}
+        {tab === 'active' && onSetDueDate && (
+          <>
+            <div className="border-surface-700 my-1 border-t" />
+            <button
+              role="menuitem"
+              onClick={() => onSetDueDate(quickDueDate('tomorrow'))}
+              className={item}
+            >
+              Due tomorrow
+            </button>
+            <button
+              role="menuitem"
+              onClick={() => onSetDueDate(quickDueDate('next-monday'))}
+              className={item}
+            >
+              Due next Monday
+            </button>
+            {hasDueDate && (
+              <button role="menuitem" onClick={() => onSetDueDate(null)} className={item}>
+                Clear due date
+              </button>
+            )}
+          </>
         )}
         <div className="border-surface-700 my-1 border-t" />
         {confirmDelete ? (
