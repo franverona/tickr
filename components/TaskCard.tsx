@@ -133,7 +133,9 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
                     ? 'border-red-500 bg-red-950 text-red-300'
                     : dueStatus === 'today'
                       ? 'border-amber-500 bg-amber-950 text-amber-300'
-                      : 'border-surface-600 bg-surface-700 text-surface-300'
+                      : dueStatus === 'soon'
+                        ? 'border-sky-500 bg-sky-950 text-sky-300'
+                        : 'border-surface-600 bg-surface-700 text-surface-300'
                 }`}
               >
                 {formatDueDate(task.dueDate)}
