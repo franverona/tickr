@@ -66,7 +66,7 @@ lib/
     firestore/
       connection.ts        # Firestore client singleton, globalThis-cached, reads FIRESTORE_SERVICE_ACCOUNT_KEY
       seed.ts                 # ensureSeeded() — predefined-tag seeding only (no DDL to run)
-      chunk.ts                  # chunk() — splits arrays for Firestore's 500-op batch limit
+      chunk.ts                  # chunk() — splits arrays for Firestore's 500-op batch limit, and optionally by bytes for its 10 MiB commit limit
       repository.ts               # FirestoreTaskRepository implements TaskRepository (no Kysely, no shared factory)
       index.ts                     # getFirestoreRepository(), globalThis-cached
   types.ts             # Task and Tag interfaces
@@ -77,12 +77,14 @@ lib/
   snippets.ts          # snippet autocomplete (`/key`) data
   suggestLabel.ts       # tag label suggestion helper
   markdown-sanitize.ts # rehype-sanitize allowlist, passed to every description preview
+  checklist.ts         # remarkChecklistLines() + toggleChecklistLine(), for clicking checkboxes in a description
   paste-utils.ts       # rich-paste-to-Markdown, URL-over-selection, CSV/TSV-to-table conversion
   useFocusTrap.ts      # focus-trap hook shared by modals
   export.ts            # exportToJSON, exportToCSV, exportToZip (client-side), referencedUploads
   import.ts            # processImportZip — parse ZIP, re-upload attachments (client-side)
-  upload-types.ts      # UPLOAD_EXT_TO_MIME — accepted upload types, shared by import and /api/uploads
+  upload-types.ts      # UPLOAD_EXT_TO_MIME — accepted upload types, shared by import, /api/upload and /api/uploads
   backup.ts            # createBackup() — server-side ZIP in the export format, with retention (Node only)
+proxy.ts               # Host check on every request (DNS rebinding), see Key conventions
 scripts/
   backup.ts            # `pnpm backup` entry point (run via tsx): loads .env.local, calls createBackup()
 data/
@@ -98,7 +100,7 @@ public/
 - **Uploaded file serving**: In production, Next.js indexes `public/` once at startup, so newly uploaded files 404 if served as static assets. A `beforeFiles` rewrite in `next.config.ts` redirects all `GET /uploads/*` requests to `/api/uploads/*`, which reads files from `public/uploads/` dynamically on every request. Responses carry `X-Content-Type-Options: nosniff` and, except for PDFs, `Content-Security-Policy: sandbox`, since the files are served from the app's own origin
 - **Anti-framing**: `next.config.ts`'s `headers()` sends `Content-Security-Policy: frame-ancestors 'none'` and `X-Frame-Options: DENY` on every path except `/uploads/*` and `/api/uploads/*`, because a config header replaces a route's header of the same name and would drop the uploads route's `sandbox`. That route adds `frame-ancestors 'none'` and `X-Frame-Options` itself
 - **Tag colors** are stored as full Tailwind class strings (e.g. `"bg-blue-600 text-blue-100 border-blue-500"`). All color options must appear as literals in `COLOR_PALETTE` in `lib/constants.ts` so Tailwind v4 bundles them
-- `better-sqlite3` is excluded from webpack bundling via `serverExternalPackages` in `next.config.ts`
+- `better-sqlite3` is kept out of the server bundle via `serverExternalPackages` in `next.config.ts` (Next 16 builds with Turbopack)
 - **Migrations** run idempotently in `ensureSchema()` inside `lib/db/sqlite/migrate.ts` — add `ALTER TABLE … ADD COLUMN` wrapped in try/catch to extend the schema without breaking existing databases. There's no migration-version table; idempotency comes from try/catch on `ADD COLUMN` and existence checks (e.g. `pragma_table_info`) for anything that can't be safely retried the same way (like `DROP COLUMN`)
 - **Markdown previews** always pass `sanitizeMarkdown` (`lib/markdown-sanitize.ts`) in `rehypePlugins`: the preview library enables `rehype-raw`, so descriptions are otherwise raw HTML in the app's origin
 - **Export format**: ZIP containing `tasks.json` or `tasks.csv` + `tags.json` (every tag, since tasks only carry the ones they use; optional on import) + `uploads/` folder. Local `/uploads/` paths in task descriptions are rewritten to relative `uploads/` (`relativizeUploads()`) so the archive is self-contained; `/uploads/` inside other hosts' URLs is left alone. In `lib/export.ts`, `exportToZip` and `downloadBlob` are browser-only; the rest also runs in Node, for `lib/backup.ts`.
@@ -149,26 +151,35 @@ public/
 - `lib/db/firestore/seed.ts`'s `ensureSeeded()` seeds `PREDEFINED_TAGS` only when both collections are empty (same fresh-database rule as the SQL adapters), via `doc(id).create()` caught against `ALREADY_EXISTS` (gRPC code 6) — the Firestore analog to the SQL adapters' `.onConflict().doNothing()`
 - **No cascade deletes**: `deleteTag` has to fan out — query every task with `tags array-contains id` and `FieldValue.arrayRemove(id)` each one, batched. `deleteTask` needs no fan-out at all, since urls/tags are embedded on the task doc itself
 - `createTask`'s "lowest sort_order among incomplete tasks" query (`where('completed', '==', false).orderBy('sortOrder')`) needs a Firestore **composite index** — it can't be created from application code; Firestore throws `FAILED_PRECONDITION` with a direct Console link to create it, once, on first use
-- `reorderTasks`/`importTasks`/`deleteTag`'s fan-out all use `lib/db/firestore/chunk.ts`'s `chunk()` to stay under Firestore's 500-operation batch limit. An import whose wipe and writes fit in 500 operations commits as one atomic batch. Larger imports are **not** atomic across chunks (each chunk commits independently) — an accepted trade-off, since Firestore transactions share the same 500-write cap so true atomicity isn't available for imports that size anyway
+- `reorderTasks`/`importTasks`/`deleteTag`'s fan-out all use `lib/db/firestore/chunk.ts`'s `chunk()` to stay under Firestore's 500-operation batch limit; `importTasks` also passes each write's estimated size, so a chunk stays under the 10 MiB commit limit. An import whose wipe and writes fit in both commits as one atomic batch. Larger imports are **not** atomic across chunks (each chunk commits independently) — an accepted trade-off, since Firestore transactions share the same 500-write cap so true atomicity isn't available for imports that size anyway
 - Automated tests run against the **emulator only** (`cross-backend-import-export.test.ts`, via the test-only `FIRESTORE_TEST_HOST`, default `localhost:8080`, with explicit `host`/`ssl: false` settings that can't reach a live project). Never point tests at the live project. The emulator doesn't enforce composite indexes, so the index requirement above still needs a manual check on a real project
 
 ## Testing
 
 - **Vitest** — run with `pnpm test` (or `pnpm test:watch`)
-- Tests live in `__tests__/`, mirroring `lib/`/`components/`/`app/` — e.g. `export.test.ts`, `import.test.ts`, `actions.test.ts`, `cross-backend-import-export.test.ts`, `migrate.test.ts`, `dates.test.ts`, `paste-utils.test.ts`, `page.test.tsx`, `upload-route.test.ts` / `uploads-serve-route.test.ts` (the two API routes), plus one `*.test.tsx` per interactive component (`TaskCard`, `TaskDetail`, `TaskContextMenu`, `TagSelector`, `CreateTaskModal`, `TagManagementModal`, `ImportModal`, …)
+- Tests live in `__tests__/`, mirroring `lib/`/`components/`/`app/` — e.g. `export.test.ts`, `import.test.ts`, `actions.test.ts`, `cross-backend-import-export.test.ts`, `migrate.test.ts`, `dates.test.ts`, `paste-utils.test.ts`, `page.test.tsx`, `upload-route.test.ts` / `uploads-serve-route.test.ts` (the two API routes), plus a `*.test.tsx` for most interactive components (`TaskCard`, `TaskDetail`, `TaskContextMenu`, `TagSelector`, `CreateTaskModal`, `TagManagementModal`, `ImportModal`, `MdEditor`; `CommandPalette` and `ShortcutsModal` have none yet)
 - `actions.test.ts` mocks `lib/db`'s `getRepository` via `vi.hoisted` + `vi.mock`, backed by a `SqliteTaskRepository` built on an in-memory `better-sqlite3` DB — schema comes from the real `ensureSchema()` (`lib/db/sqlite/migrate.ts`) rather than a duplicated DDL copy, so the test fixture can't drift from production. `beforeEach` wipes all rows (including seeded tags) for isolation; tests that need specific tags insert them directly first
 - `parseCSVRows`, `parseJSONContent`, `parseCSVContent` in `lib/import.ts` are exported so they can be unit-tested directly
 - `cross-backend-import-export.test.ts` seeds a source `TaskRepository`, runs it through `exportToJSON`/`exportToCSV` → `parseJSONContent`/`parseCSVContent` → a destination repository's `importTasks`, and asserts the data survives modulo backend-regenerated ids/timestamps. The SQLite↔SQLite case (two independent in-memory DBs) always runs; the SQLite↔Postgres, SQLite↔MySQL and SQLite↔Firestore cases each skip themselves (via a runtime reachability check, not a hardcoded env flag) when the corresponding `docker-compose.yml` service isn't running. They connect via the test-only **`POSTGRES_TEST_URL`** / **`MYSQL_TEST_URL`** / **`FIRESTORE_TEST_HOST`**, exported in the shell because Vitest doesn't load env files for these (defaulting to the docker-compose services, on a `tickr_test` database created on demand), never the app's `DATABASE_URL`, its `tickr` database or a live Firestore project, because they wipe every task and tag in that database. In CI (`CI` env var set), `ci.yml` always starts all three (Postgres and MySQL as service containers, the Firestore emulator with `docker run`, since services can't take its start command), so there an unreachable database fails the run instead of skipping. Because two independent in-memory SQLite DBs are created in the same process, `makeSqliteRepo()` calls `vi.resetModules()` before each one — `lib/db/sqlite/migrate.ts` caches its migration promise at module scope (correct for production's single connection), so without a fresh module instance per DB, the second DB's tables would never actually get created
 
 ## Before considering a feature or fix done
 
-Run all three of the following and fix any failures:
+Run all of the following and fix any failures:
 
 ```bash
 pnpm exec tsc --noEmit
 pnpm lint
+pnpm format:check
 pnpm test
 ```
+
+CI (`ci.yml`) also runs `pnpm build` and smoke-tests the production server. Don't run `pnpm build` in this checkout to check that: it overwrites the `.next` that pm2 serves. Use a separate worktree if a local build is needed.
+
+## Commits and merging
+
+- Commit messages follow Conventional Commits (`feat(scope): …`, `fix: …`, `docs: …`, `ci: …`, `chore(deps): …`), enforced by commitlint (`commitlint.config.mjs`) in `.husky/commit-msg`
+- PRs are squash-merged, and the `ci` check is required
+- `dependabot-automerge.yml` auto-merges Dependabot's npm and GitHub Actions patch/minor updates, except 0.x minor bumps. docker-compose updates are never auto-merged: Dependabot doesn't update `ci.yml`'s service images, so sync those by hand (and check the image still starts with the compose config, as with Postgres 18's new volume path) before merging
 
 ## Running
 
