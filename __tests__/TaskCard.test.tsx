@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import TaskCard from '../components/TaskCard'
-import { formatDueDate } from '../lib/dates'
+import { formatDueDate, localDateKey } from '../lib/dates'
 import type { Tag, Task } from '../lib/types'
 
 function makeTask(overrides: Partial<Task> = {}): Task {
@@ -69,6 +69,19 @@ describe('TaskCard', () => {
     // getDueStatus's overdue/today/soon coloring is covered by dates.test.ts —
     // this just confirms the badge text renders using the same formatter.
     expect(screen.getByText(formatDueDate(dueDateStr))).toBeInTheDocument()
+  })
+
+  it.each([
+    [2, 'sky'],
+    [10, 'surface'],
+  ])('colors a badge due in %i days with %s', (days, color) => {
+    const due = new Date()
+    due.setDate(due.getDate() + days)
+    const dueDate = localDateKey(due)
+    render(
+      <TaskCard task={makeTask({ dueDate })} tags={[]} isSelected={false} onClick={() => {}} />,
+    )
+    expect(screen.getByText(formatDueDate(dueDate)).className).toContain(`text-${color}-300`)
   })
 
   it('calls onClick exactly once when clicked', () => {

@@ -1151,7 +1151,9 @@ export default function TaskDetail({
                     ? 'text-red-400'
                     : dueStatus === 'today'
                       ? 'text-amber-400'
-                      : ''
+                      : dueStatus === 'soon'
+                        ? 'text-sky-400'
+                        : ''
                 }`}
               />
               {task.dueDate && (

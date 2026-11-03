@@ -28,7 +28,7 @@ A local task management app for tracking work.
 - **Tag system** — create tags with a color picker; rename, recolor, or delete tags via the Tags modal
 - **Mark complete / reopen / archive / unarchive / delete**, with complete and reopen also available right on the card
 - **Drag-and-drop reordering** of active tasks
-- **Due date indicators** — color-coded badges for overdue, due today, and due soon, plus a colored card border for overdue and due today
+- **Due date indicators** — color-coded badges for overdue, due today, and due soon (within 3 days), plus a colored card border for overdue and due today
 - **Attachments** — drag-and-drop or paste files into a task's description (once the task exists, not in the New Task dialog): images show inline; PDF, text, Markdown, CSV, JSON and ZIP files are added as links (up to 10 MB each, stored in `public/uploads/`)
 - **Task search** — filter tasks by title, description, tag, or link label or URL in real time, across tabs
 - **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any task or action from the keyboard
