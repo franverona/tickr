@@ -283,6 +283,13 @@ describe('importTasks', () => {
     expect(tasks[0].tags).toEqual([SEED_TAG.id])
   })
 
+  it('refuses an override with no tasks instead of wiping everything', async () => {
+    const existing = await createTask({ title: 'Keep me', description: '', tags: [] })
+
+    await expect(importTasks([], true)).rejects.toThrow('Nothing to import')
+    expect((await getTasks()).map((t) => t.id)).toEqual([existing.id])
+  })
+
   it('re-links #id mentions to the regenerated task ids', async () => {
     const base = { tags: [], completed: false, archived: false, dueDate: null, links: [] }
     const { tasks } = await importTasks(
@@ -336,7 +343,7 @@ describe('importTasks', () => {
 describe('restoring unused tags', () => {
   it('creates tags no task uses, keeping their color', async () => {
     const color = 'bg-red-600 text-red-100 border-red-500'
-    const { tags } = await importTasks([], true, [{ label: 'Blocked', color }])
+    const { tags } = await importTasks([], false, [{ label: 'Blocked', color }])
 
     expect(tags).toEqual([expect.objectContaining({ label: 'Blocked', color })])
   })

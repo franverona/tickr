@@ -38,6 +38,11 @@ export default function ImportModal({ file, onClose, onImported }: ImportModalPr
     setError('')
     try {
       const { tasks, tags } = await processImportZip(file)
+      if (mode === 'override' && tasks.length === 0) {
+        setError('This file has no tasks, so replacing would only delete everything.')
+        setIsPending(false)
+        return
+      }
       const result = await importTasks(tasks, mode === 'override', tags)
       onImported(result)
     } catch (err) {
