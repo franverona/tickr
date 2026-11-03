@@ -516,6 +516,30 @@ describe('TaskDetail', () => {
     })
   })
 
+  it('keeps both ticks when two checklist items are clicked before the first save returns', async () => {
+    const task = makeTask({ description: '- [ ] First item\n- [x] Second item' })
+    let finishFirst!: (t: Task) => void
+    updateTask
+      .mockReturnValueOnce(new Promise((r) => (finishFirst = r)))
+      .mockResolvedValueOnce(makeTask({ description: '- [x] First item\n- [ ] Second item' }))
+    const { props } = renderTaskDetail(task)
+
+    const checkboxes = screen.getAllByRole('checkbox')
+    fireEvent.click(checkboxes[0])
+    fireEvent.click(checkboxes[1])
+
+    await vi.waitFor(() => expect(updateTask).toHaveBeenCalledTimes(2))
+    expect(updateTask).toHaveBeenLastCalledWith('task-1', {
+      description: '- [x] First item\n- [ ] Second item',
+    })
+    // The older response arriving last must not roll the draft back
+    finishFirst(makeTask({ description: '- [x] First item\n- [x] Second item' }))
+    await new Promise((r) => setTimeout(r, 0))
+    expect(props.onUpdate).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByText('Edit'))
+    expect(screen.getByTestId('md-editor')).toHaveValue('- [x] First item\n- [ ] Second item')
+  })
+
   it('opens the editor with a ticked checklist item already applied', async () => {
     const task = makeTask({ description: '- [ ] First item' })
     const updated = makeTask({ description: '- [x] First item' })
