@@ -94,6 +94,39 @@ describe('TaskCard', () => {
       />,
     )
     expect(screen.getByTitle('1 of 3 checklist items done')).toHaveTextContent('1/3')
+  it('links each ticket and review once, without opening the task', () => {
+    const onClick = vi.fn()
+    const jira = 'https://acme.atlassian.net/browse/NDC-1'
+    const mr = 'https://gitlab.com/g/p/-/merge_requests/42'
+    const urls = [jira, mr, jira, 'https://example.com/notes'].map((url, i) => ({
+      id: `u${i}`,
+      url,
+      label: 'x',
+    }))
+    render(<TaskCard task={makeTask({ urls })} tags={[]} isSelected={false} onClick={onClick} />)
+
+    const links = screen.getAllByRole('link')
+    expect(links.map((l) => [l.textContent, l.getAttribute('href')])).toEqual([
+      ['NDC-1', jira],
+      ['MR !42', mr],
+    ])
+    expect(links[0]).toHaveAttribute('target', '_blank')
+    fireEvent.click(links[0])
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
+  it('hides ticket links in select mode', () => {
+    const urls = [{ id: 'u1', url: 'https://github.com/o/r/pull/1', label: 'PR' }]
+    render(
+      <TaskCard
+        task={makeTask({ urls })}
+        tags={[]}
+        isSelected={false}
+        onClick={() => {}}
+        selectMode
+      />,
+    )
+    expect(screen.queryByRole('link')).not.toBeInTheDocument()
   })
 
   it('calls onClick exactly once when clicked', () => {
