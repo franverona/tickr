@@ -74,6 +74,25 @@ export function createSqlTaskRepository<Bool>(
     return rows.map((r) => r.tag_id)
   }
 
+  // A link change is a task change: bump updated_at with it, as Firestore does
+  async function changeTaskUrls(
+    taskId: string,
+    change: (trx: Kysely<SqlSchema<Bool>>, now: string) => Promise<unknown>,
+  ): Promise<Task> {
+    const db = await ready()
+    const now = new Date().toISOString()
+    await db.transaction().execute(async (trx) => {
+      await change(trx, now)
+      await trx.updateTable('tasks').set({ updated_at: now }).where('id', '=', taskId).execute()
+    })
+    const row = await db
+      .selectFrom('tasks')
+      .selectAll()
+      .where('id', '=', taskId)
+      .executeTakeFirstOrThrow()
+    return rowToTask(row, await getTaskTagIds(db, taskId), await getTaskUrls(db, taskId))
+  }
+
   async function getTaskUrls(db: Kysely<SqlSchema<Bool>>, taskId: string): Promise<TaskUrl[]> {
     return db
       .selectFrom('task_urls')
@@ -350,39 +369,24 @@ export function createSqlTaskRepository<Bool>(
     // ── Task URLs ────────────────────────────────────────────────────────
 
     async addTaskUrl(taskId: string, data: { url: string; label: string }): Promise<Task> {
-      const db = await ready()
-      const now = new Date().toISOString()
-      await db
-        .insertInto('task_urls')
-        .values({
-          id: randomUUID(),
-          task_id: taskId,
-          url: data.url.trim(),
-          label: data.label.trim(),
-          created_at: now,
-        })
-        .execute()
-      const row = await db
-        .selectFrom('tasks')
-        .selectAll()
-        .where('id', '=', taskId)
-        .executeTakeFirstOrThrow()
-      return rowToTask(row, await getTaskTagIds(db, taskId), await getTaskUrls(db, taskId))
+      return changeTaskUrls(taskId, (trx, now) =>
+        trx
+          .insertInto('task_urls')
+          .values({
+            id: randomUUID(),
+            task_id: taskId,
+            url: data.url.trim(),
+            label: data.label.trim(),
+            created_at: now,
+          })
+          .execute(),
+      )
     },
 
     async deleteTaskUrl(taskId: string, urlId: string): Promise<Task> {
-      const db = await ready()
-      await db
-        .deleteFrom('task_urls')
-        .where('id', '=', urlId)
-        .where('task_id', '=', taskId)
-        .execute()
-      const row = await db
-        .selectFrom('tasks')
-        .selectAll()
-        .where('id', '=', taskId)
-        .executeTakeFirstOrThrow()
-      return rowToTask(row, await getTaskTagIds(db, taskId), await getTaskUrls(db, taskId))
+      return changeTaskUrls(taskId, (trx) =>
+        trx.deleteFrom('task_urls').where('id', '=', urlId).where('task_id', '=', taskId).execute(),
+      )
     },
 
     async updateTaskUrl(
@@ -390,19 +394,14 @@ export function createSqlTaskRepository<Bool>(
       urlId: string,
       data: { url: string; label: string },
     ): Promise<Task> {
-      const db = await ready()
-      await db
-        .updateTable('task_urls')
-        .set({ url: data.url.trim(), label: data.label.trim() })
-        .where('id', '=', urlId)
-        .where('task_id', '=', taskId)
-        .execute()
-      const row = await db
-        .selectFrom('tasks')
-        .selectAll()
-        .where('id', '=', taskId)
-        .executeTakeFirstOrThrow()
-      return rowToTask(row, await getTaskTagIds(db, taskId), await getTaskUrls(db, taskId))
+      return changeTaskUrls(taskId, (trx) =>
+        trx
+          .updateTable('task_urls')
+          .set({ url: data.url.trim(), label: data.label.trim() })
+          .where('id', '=', urlId)
+          .where('task_id', '=', taskId)
+          .execute(),
+      )
     },
 
     // ── Import ───────────────────────────────────────────────────────────
