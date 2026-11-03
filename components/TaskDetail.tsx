@@ -892,13 +892,24 @@ export default function TaskDetail({
 
   async function handleCopyForSlack(u: Task['urls'][number]) {
     const message = `For review:\n${task.title} → ${u.url}`
-    await navigator.clipboard.writeText(message)
+    // navigator.clipboard is undefined outside a secure context (plain HTTP)
+    try {
+      await navigator.clipboard.writeText(message)
+    } catch {
+      onError('Failed to copy')
+      return
+    }
     setCopiedUrlId(u.id)
     setTimeout(() => setCopiedUrlId((id) => (id === u.id ? null : id)), 2000)
   }
 
   async function handleCopyLink(u: Task['urls'][number]) {
-    await navigator.clipboard.writeText(u.url)
+    try {
+      await navigator.clipboard.writeText(u.url)
+    } catch {
+      onError('Failed to copy')
+      return
+    }
     setCopiedLinkId(u.id)
     setTimeout(() => setCopiedLinkId((id) => (id === u.id ? null : id)), 2000)
   }

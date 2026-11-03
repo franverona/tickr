@@ -297,6 +297,22 @@ describe('TaskDetail', () => {
     expect(updateTask).not.toHaveBeenCalled()
   })
 
+  it.each(['Copy link', 'Copy Slack review message'])(
+    'reports a failed copy from "%s" when the clipboard is unavailable',
+    async (title) => {
+      // As on plain HTTP, where navigator.clipboard is undefined
+      vi.stubGlobal('navigator', { ...navigator, clipboard: undefined })
+      const url = { id: 'u1', url: 'https://github.com/o/r/pull/1', label: 'PR' }
+      const { props } = renderTaskDetail(makeTask({ urls: [url] }))
+
+      fireEvent.click(screen.getByTitle(title))
+
+      await vi.waitFor(() => expect(props.onError).toHaveBeenCalledWith('Failed to copy'))
+      expect(screen.getByTitle(title)).toBeInTheDocument()
+      vi.unstubAllGlobals()
+    },
+  )
+
   it('cancels the delete confirmation without calling deleteTask', () => {
     const task = makeTask()
     renderTaskDetail(task)
