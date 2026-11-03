@@ -37,8 +37,9 @@ A local task management app for tracking work.
 - **Due-date notifications** — a browser notification once a day, while the app is open, listing tasks that are overdue or due today
 - **Links section** — attach labeled URLs to any task; MR/PR links get a one-click copy of a Slack review message
 - **Standup summary** — on the Done tab, copy the tasks completed in the last 7 days, with their MR/PR links, as a Markdown list
-- **Editor enhancements** (in the task detail editor) — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete
-- **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv` plus every uploaded file the descriptions reference
+- **Editor enhancements** (in the task detail editor) — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete; Tab / Shift+Tab indent and outdent list items (a numbered item becomes an outline sub-item like `2.1.`), and Enter continues nested and outline lists; drag an image's corner in the editor preview to resize it (the width is saved in the Markdown)
+- **Clickable checklists** — tick a description's `- [ ]` boxes straight from the task view, no editing needed
+- **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv`, `tags.json` (every tag, including ones no task uses), and every uploaded file the descriptions reference
 - **Import** — restore from an exported ZIP (merge, or replace everything); attachments are re-uploaded, tag labels are matched or created automatically, and timestamps are kept. `@` mention links are re-linked from JSON exports
 
 ## Getting Started
@@ -130,6 +131,7 @@ pm2 restart tickr
 ```bash
 pnpm dev             # Start dev server
 pnpm build           # Production build
+pnpm start           # Serve the production build (on 127.0.0.1)
 pnpm test            # Run unit tests (Vitest)
 pnpm test:watch      # Run tests in watch mode
 pnpm lint            # ESLint
@@ -140,7 +142,7 @@ pnpm backup          # Write a backup ZIP to backups/ (see Backups)
 
 ## Backups
 
-`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (gitignored) in the same format as the Export feature: `tasks.json` plus the uploaded files the tasks reference, so it restores with the regular Import. It uses the same backend as the app (it reads `.env.local`), keeps the 30 newest backups (a backup with no tasks, usually the wrong backend, is named `…-empty.zip` and is neither counted nor pruned), and writes to `BACKUP_DIR` instead when that's set (e.g. a synced or external folder).
+`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (gitignored) in the same format as the Export feature: `tasks.json`, `tags.json` and the uploaded files the tasks reference, so it restores with the regular Import. It uses the same backend as the app (it reads `.env.local`), keeps the 30 newest backups (a backup with no tasks, usually the wrong backend, is named `…-empty.zip` and is neither counted nor pruned), and writes to `BACKUP_DIR` instead when that's set (e.g. a synced or external folder).
 
 To run it daily at 03:00 with pm2:
 
