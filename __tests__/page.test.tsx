@@ -315,6 +315,45 @@ describe('bulk actions', () => {
   })
 })
 
+describe('bulk action scope', () => {
+  function select(...titles: string[]) {
+    for (const title of titles) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(title) }))
+    }
+  }
+
+  it('ignores selected tasks that leave view when the search is cleared', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    const d = makeTask({ id: 'd', title: 'Delta', completed: true })
+    await renderReady([a, d])
+    fireEvent.click(screen.getByTitle('Search tasks'))
+    const search = screen.getByPlaceholderText('Search tasks…')
+    fireEvent.change(search, { target: { value: 'Delta' } })
+    fireEvent.click(screen.getByText('Select'))
+    select('Delta')
+    expect(screen.getByText('1 selected')).toBeInTheDocument()
+
+    // Back on the Active tab, the Done task is hidden and must not be acted on
+    fireEvent.change(search, { target: { value: '' } })
+    expect(screen.getByText('0 selected')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Complete' })).toBeDisabled()
+  })
+
+  it('applies an action only to the selected tasks it fits', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha task' })
+    const c = makeTask({ id: 'c', title: 'Gamma task', archived: true })
+    await renderReady([a, c])
+    fireEvent.click(screen.getByTitle('Search tasks'))
+    fireEvent.change(screen.getByPlaceholderText('Search tasks…'), { target: { value: 'task' } })
+    fireEvent.click(screen.getByText('Select'))
+    select('Alpha', 'Gamma')
+
+    updateTasks.mockResolvedValueOnce({ succeeded: [{ ...a, completed: true }], failedIds: [] })
+    fireEvent.click(screen.getByRole('button', { name: 'Complete' }))
+    await waitFor(() => expect(updateTasks).toHaveBeenCalledWith(['a'], { completed: true }))
+  })
+})
+
 describe('keyboard shortcuts', () => {
   it('"n" opens the New Task modal', async () => {
     await renderReady([])
