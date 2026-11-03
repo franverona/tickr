@@ -81,3 +81,14 @@ jobs:
       - run: pnpm test
 
       - run: pnpm build
+
+      # The build passing doesn't mean the server runs: this catches a broken
+      # proxy bundle or /uploads rewrite. The upload is written after startup,
+      # like a real one, since public/ is only indexed at startup.
+      - name: Smoke-test the production server
+        run: |
+          pnpm start -p 9876 > server.log 2>&1 &
+          timeout 60 bash -c 'until curl -sf -o /dev/null http://127.0.0.1:9876/; do sleep 1; done' || { cat server.log; exit 1; }
+          mkdir -p public/uploads && echo ok > public/uploads/ci-smoke.txt
+          test "$(curl -sf http://127.0.0.1:9876/uploads/ci-smoke.txt)" = ok
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: evil.test' http://127.0.0.1:9876/)" = 403
