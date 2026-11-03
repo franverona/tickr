@@ -23,6 +23,18 @@ export function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
 // Unlike sqlite/migrate.ts, there's no incremental-migration history to
 // replay here — a fresh MySQL database creates the current target schema
 // directly, in one shot (same approach as postgres/migrate.ts).
+// Binary collation on id/FK columns: MySQL's default (utf8mb4_0900_ai_ci) is
+// accent-insensitive, so slugs like `café` and `cafe` would collide
+const ID = sql`varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`
+const ID_COLUMNS: Array<[table: string, column: string]> = [
+  ['tasks', 'id'],
+  ['tags', 'id'],
+  ['task_urls', 'id'],
+  ['task_urls', 'task_id'],
+  ['task_tags', 'task_id'],
+  ['task_tags', 'tag_id'],
+]
+
 async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
   // id/FK columns use varchar(255) rather than text — MySQL can't index a
   // TEXT/BLOB column (primary/foreign keys included) without an explicit key
@@ -33,7 +45,7 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
   await db.schema
     .createTable('tasks')
     .ifNotExists()
-    .addColumn('id', 'varchar(255)', (c) => c.primaryKey())
+    .addColumn('id', ID, (c) => c.primaryKey())
     .addColumn('title', 'text', (c) => c.notNull())
     // mediumtext (16 MB): MySQL's text caps at 64 KB, too small for long Markdown
     .addColumn('description', sql`mediumtext`, (c) => c.notNull())
@@ -60,7 +72,7 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
   await db.schema
     .createTable('tags')
     .ifNotExists()
-    .addColumn('id', 'varchar(255)', (c) => c.primaryKey())
+    .addColumn('id', ID, (c) => c.primaryKey())
     .addColumn('label', 'text', (c) => c.notNull())
     .addColumn('color', 'text', (c) => c.notNull())
     .addColumn('created_at', 'text', (c) => c.notNull())
@@ -69,10 +81,8 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
   await db.schema
     .createTable('task_urls')
     .ifNotExists()
-    .addColumn('id', 'varchar(255)', (c) => c.primaryKey())
-    .addColumn('task_id', 'varchar(255)', (c) =>
-      c.notNull().references('tasks.id').onDelete('cascade'),
-    )
+    .addColumn('id', ID, (c) => c.primaryKey())
+    .addColumn('task_id', ID, (c) => c.notNull().references('tasks.id').onDelete('cascade'))
     .addColumn('url', 'text', (c) => c.notNull())
     .addColumn('label', 'text', (c) => c.notNull())
     .addColumn('created_at', 'text', (c) => c.notNull())
@@ -81,15 +91,34 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
   await db.schema
     .createTable('task_tags')
     .ifNotExists()
-    .addColumn('task_id', 'varchar(255)', (c) =>
-      c.notNull().references('tasks.id').onDelete('cascade'),
-    )
-    .addColumn('tag_id', 'varchar(255)', (c) =>
-      c.notNull().references('tags.id').onDelete('cascade'),
-    )
+    .addColumn('task_id', ID, (c) => c.notNull().references('tasks.id').onDelete('cascade'))
+    .addColumn('tag_id', ID, (c) => c.notNull().references('tags.id').onDelete('cascade'))
     .addColumn('position', 'integer', (c) => c.notNull().defaultTo(0))
     .addPrimaryKeyConstraint('task_tags_pk', ['task_id', 'tag_id'])
     .execute()
+
+  // Databases created before the id columns were binary. FK checks are off so
+  // a referenced column and its references can change in turn; that setting is
+  // per session, hence one pinned connection.
+  const { rows: idCollations } = await sql<{ n: number }>`
+    SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND COLLATION_NAME <> 'utf8mb4_bin'
+      AND (TABLE_NAME, COLUMN_NAME) IN (${sql.join(ID_COLUMNS.map(([t, c]) => sql`(${t}, ${c})`))})
+  `.execute(db)
+  if (Number(idCollations[0]?.n) > 0) {
+    await db.connection().execute(async (conn) => {
+      await sql`SET FOREIGN_KEY_CHECKS = 0`.execute(conn)
+      try {
+        for (const [table, column] of ID_COLUMNS) {
+          await sql`ALTER TABLE ${sql.table(table)} MODIFY ${sql.ref(column)} ${ID} NOT NULL`.execute(
+            conn,
+          )
+        }
+      } finally {
+        await sql`SET FOREIGN_KEY_CHECKS = 1`.execute(conn)
+      }
+    })
+  }
 
   // Seed predefined tags only into a fresh database (no tags, no tasks), so a
   // predefined tag the user deleted doesn't come back on the next start.

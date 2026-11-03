@@ -325,3 +325,46 @@ describe('descriptions over 64 KB per backend', () => {
     await assertLongDescription(makeFirestoreRepo())
   })
 })
+
+async function assertAccentedTagsDistinct(repo: TaskRepository): Promise<void> {
+  await repo.importTasks([], true)
+  const color = 'bg-red-600 text-red-100 border-red-500'
+  const accented = await repo.createTag({ label: 'Café', color })
+  const plain = await repo.createTag({ label: 'Cafe', color })
+  expect([accented.id, plain.id]).toEqual(['café', 'cafe'])
+  const task = await repo.createTask({ title: 'T', description: '', tags: [plain.id] })
+  const [stored] = await repo.getTasks()
+  expect(stored.id).toBe(task.id)
+  expect(stored.tags).toEqual(['cafe'])
+}
+
+// MySQL's default collation is accent-insensitive, so id columns need a binary one
+describe('accented and plain tag ids stay distinct per backend', () => {
+  it('sqlite', async () => {
+    await assertAccentedTagsDistinct(await makeSqliteRepo())
+  })
+
+  it('postgres', async (ctx) => {
+    if (!(await isPostgresAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertAccentedTagsDistinct(makePostgresRepo())
+  })
+
+  it('mysql', async (ctx) => {
+    if (!(await isMysqlAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertAccentedTagsDistinct(makeMysqlRepo())
+  })
+
+  it('firestore', async (ctx) => {
+    if (!(await isFirestoreAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertAccentedTagsDistinct(makeFirestoreRepo())
+  })
+})
