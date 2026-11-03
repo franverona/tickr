@@ -283,6 +283,20 @@ describe('TaskDetail', () => {
     expect(deleteTask).toHaveBeenCalledWith('task-1')
   })
 
+  it("doesn't save an unsaved description after the task is deleted", async () => {
+    deleteTask.mockResolvedValueOnce(undefined)
+    const { props, unmount } = renderTaskDetail(makeTask({ description: 'Notes' }))
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByTestId('md-editor'), { target: { value: 'Notes, edited' } })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirm Delete' }))
+    await vi.waitFor(() => expect(props.onDelete).toHaveBeenCalledWith('task-1'))
+    unmount()
+
+    expect(updateTask).not.toHaveBeenCalled()
+  })
+
   it('cancels the delete confirmation without calling deleteTask', () => {
     const task = makeTask()
     renderTaskDetail(task)
