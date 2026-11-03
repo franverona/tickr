@@ -74,6 +74,37 @@ describe('createBackup', () => {
     warn.mockRestore()
   })
 
+  it("doesn't count empty backups among the ones it keeps", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'tickr-backup-'))
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const repo = await makeSqliteRepo()
+    const opts = { repo, uploadsDir: path.join(dir, 'uploads'), outDir: dir, keep: 1 }
+    await writeFile(path.join(dir, 'tickr-2026-01-01-000000.zip'), 'real backup')
+
+    for (const day of [2, 3]) await createBackup({ ...opts, now: new Date(2026, 0, day) })
+    await repo.createTask({ title: 'T', description: '', tags: [] })
+    await createBackup({ ...opts, now: new Date(2026, 0, 4) })
+
+    // The good run pruned only the older good backup, not in favour of empties
+    expect((await readdir(dir)).sort()).toEqual([
+      'tickr-2026-01-02-000000-empty.zip',
+      'tickr-2026-01-03-000000-empty.zip',
+      'tickr-2026-01-04-000000.zip',
+    ])
+    warn.mockRestore()
+  })
+
+  it('fails instead of skipping an upload it cannot read', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'tickr-backup-'))
+    const uploadsDir = path.join(dir, 'uploads')
+    // A directory where the file should be: reading it fails with EISDIR, not ENOENT
+    await mkdir(path.join(uploadsDir, 'a.png'), { recursive: true })
+    const repo = await makeSqliteRepo()
+    await repo.createTask({ title: 'T', description: '![a](/uploads/a.png)', tags: [] })
+
+    await expect(createBackup({ repo, uploadsDir, outDir: dir })).rejects.toThrow(/EISDIR/)
+  })
+
   it('keeps only the newest backups', async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'tickr-backup-'))
     const repo = await makeSqliteRepo()

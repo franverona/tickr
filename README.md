@@ -140,7 +140,7 @@ pnpm backup          # Write a backup ZIP to backups/ (see Backups)
 
 ## Backups
 
-`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (gitignored) in the same format as the Export feature: `tasks.json` plus the uploaded files the tasks reference, so it restores with the regular Import. It uses the same backend as the app (it reads `.env.local`), keeps the 30 newest backups, and writes to `BACKUP_DIR` instead when that's set (e.g. a synced or external folder).
+`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (gitignored) in the same format as the Export feature: `tasks.json` plus the uploaded files the tasks reference, so it restores with the regular Import. It uses the same backend as the app (it reads `.env.local`), keeps the 30 newest backups (a backup with no tasks, usually the wrong backend, is named `…-empty.zip` and is neither counted nor pruned), and writes to `BACKUP_DIR` instead when that's set (e.g. a synced or external folder).
 
 To run it daily at 03:00 with pm2:
 

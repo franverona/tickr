@@ -31,7 +31,10 @@ export async function createBackup({
     const name = path.basename(uploadPath)
     try {
       zip.file(`uploads/${name}`, await readFile(path.join(uploadsDir, name)))
-    } catch {
+    } catch (err) {
+      // Only a missing file is skippable: any other read error would silently
+      // drop an attachment from every backup from now on
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
       console.warn(`Skipping missing upload: ${name}`)
     }
   }
@@ -40,11 +43,13 @@ export async function createBackup({
   const time = [now.getHours(), now.getMinutes(), now.getSeconds()]
     .map((n) => String(n).padStart(2, '0'))
     .join('')
-  const file = path.join(outDir, `tickr-${localDateKey(now)}-${time}.zip`)
+  // An empty backup usually means the wrong backend, so it gets a name the
+  // retention below doesn't match: it must neither push out nor count among
+  // the real ones
+  const suffix = tasks.length === 0 ? '-empty' : ''
+  const file = path.join(outDir, `tickr-${localDateKey(now)}-${time}${suffix}.zip`)
   await writeFile(file, await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }))
 
-  // An empty backup usually means the wrong backend, so it must not push out
-  // the real ones
   if (tasks.length === 0) {
     console.warn('Backup has no tasks: keeping every older backup')
     return file
