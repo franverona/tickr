@@ -68,6 +68,7 @@ export default function TagManagementModal({
       onTagDeleted(id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete tag')
+    } finally {
       setIsDeleting(false)
     }
   }
