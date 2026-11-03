@@ -1058,7 +1058,7 @@ export default function Page() {
                       const v = e.target.value as 'tomorrow' | 'next-monday' | 'clear'
                       handleBulkAction('due', v === 'clear' ? null : quickDueDate(v))
                     }}
-                    className="text-surface-300 hover:text-surface-100 bg-transparent text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                    className="text-surface-300 hover:text-surface-100 [&>option]:bg-surface-800 field-sizing-content cursor-pointer appearance-none bg-transparent text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     <option value="" disabled>
                       Due…
