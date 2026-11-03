@@ -35,7 +35,7 @@ A local task management app for tracking work.
 - **Keyboard shortcuts** — full set of shortcuts for navigation and actions; press `?` for the cheat sheet
 - **Bulk actions** — select several tasks to complete, reopen, archive, unarchive, delete, or tag them at once
 - **Due-date notifications** — a browser notification once a day, while the app is open, listing tasks that are overdue or due today
-- **Links section** — attach labeled URLs to any task; MR/PR links get a one-click copy of a Slack review message
+- **Links section** — attach labeled URLs to any task; MR/PR links get a one-click copy of a Slack review message. Jira tickets, GitLab MRs and GitHub PRs also show on the task's card as badges (`NDC-123`, `MR !42`, `PR #7`) that open the link directly
 - **Standup summary** — on the Done tab, copy the tasks completed in the last 7 days, with their MR/PR links, as a Markdown list
 - **Editor enhancements** (in the task detail editor) — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete; Tab / Shift+Tab indent and outdent list items (a numbered item becomes an outline sub-item like `2.1.`), and Enter continues nested and outline lists; drag an image's corner in the editor preview to resize it (the width is saved in the Markdown)
 - **Clickable checklists** — tick a description's `- [ ]` boxes straight from the task view, no editing needed; cards show progress (e.g. `3/7`)

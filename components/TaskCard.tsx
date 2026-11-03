@@ -5,6 +5,7 @@ import type { Tag, Task } from '@/lib/types'
 import TagBadge from './TagBadge'
 import { formatDueDate, formatTimestamp, getDueStatus } from '@/lib/dates'
 import { checklistProgress } from '@/lib/checklist'
+import { ticketLabel } from '@/lib/suggestLabel'
 
 interface TaskCardProps {
   task: Task
@@ -50,6 +51,17 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
   const dueStatus = getDueStatus(task.dueDate, task.completed)
   const doneAt = task.completed ? task.completedAt : null
   const checklist = checklistProgress(task.description)
+  // Hidden while selecting, so every click on a card toggles it
+  const tickets = selectMode
+    ? []
+    : [
+        ...new Map(
+          task.urls.flatMap((u) => {
+            const label = ticketLabel(u.url)
+            return label ? [[u.url, label] as const] : []
+          }),
+        ).entries(),
+      ]
 
   return (
     <div className="group/card relative h-full">
@@ -61,7 +73,7 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
         onKeyDown={onKeyDown}
         className={`flex h-full w-full flex-col rounded-lg border text-left transition-colors ${
           compact ? 'px-3 py-2' : 'p-3'
-        } ${onToggleComplete ? 'pr-8' : ''} ${
+        } ${onToggleComplete ? 'pr-8' : ''} ${tickets.length > 0 ? 'pb-11' : ''} ${
           dueStatus === 'overdue'
             ? 'border-l-2 border-l-red-500'
             : dueStatus === 'today'
@@ -176,6 +188,42 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
           <p className="text-surface-400 mt-1.5 line-clamp-2 text-xs leading-relaxed">{preview}</p>
         )}
       </button>
+      {tickets.length > 0 && (
+        // Siblings of the card like the complete button: a link can't sit
+        // inside a <button>, and clicking one mustn't open the task
+        <div className="absolute right-3 bottom-3 left-3 flex gap-1 overflow-hidden">
+          {tickets.map(([url, label]) => (
+            <a
+              key={url}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              tabIndex={tabIndex}
+              draggable={false}
+              title={url}
+              aria-label={`Open ${label}`}
+              className="border-surface-600 bg-surface-700 text-surface-200 hover:border-surface-400 hover:text-surface-100 inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium transition-colors"
+            >
+              <svg
+                width="9"
+                height="9"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
+              {label}
+            </a>
+          ))}
+        </div>
+      )}
       {onToggleComplete && (
         // A sibling of the card, since a <button> can't contain another one
         <button
