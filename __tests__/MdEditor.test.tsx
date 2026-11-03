@@ -30,4 +30,37 @@ describe('makeImageHandlers', () => {
     )
     expect(value).toBe('')
   })
+
+  it('keeps a link for every dropped file', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (_url: string, init: RequestInit) => {
+        const file = (init.body as FormData).get('file') as File
+        return Response.json({ url: `/uploads/${file.name}` })
+      }),
+    )
+    let value = ''
+    const setValue = (next: string | ((v: string) => string)) => {
+      value = typeof next === 'function' ? next(value) : next
+    }
+    const onError = vi.fn()
+    const { onDrop } = makeImageHandlers(setValue as never, onError)
+
+    // The textarea's DOM value stays '' throughout, as it does before React re-renders
+    onDrop({
+      dataTransfer: {
+        files: [
+          new File(['a'], 'a.png', { type: 'image/png' }),
+          new File(['b'], 'b$&.pdf', { type: 'application/pdf' }),
+        ],
+      },
+      currentTarget: document.createElement('textarea'),
+      preventDefault: () => {},
+    } as never)
+
+    await vi.waitFor(() =>
+      expect(value).toBe('![a.png](/uploads/a.png)[b$&.pdf](/uploads/b$&.pdf)'),
+    )
+    expect(onError).not.toHaveBeenCalled()
+  })
 })
