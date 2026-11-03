@@ -22,7 +22,7 @@ import ShortcutsModal from '@/components/ShortcutsModal'
 import CommandPalette from '@/components/CommandPalette'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
-import { getDueStatus, localDateKey, weekLabel } from '@/lib/dates'
+import { getDueStatus, localDateKey, quickDueDate, weekLabel } from '@/lib/dates'
 import { doneLastWeekSummary } from '@/lib/standup'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
@@ -567,6 +567,17 @@ export default function Page() {
     await applyTaskAction(taskId, action)
   }
 
+  async function handleContextMenuDueDate(dueDate: string | null) {
+    if (!contextMenu) return
+    const { taskId } = contextMenu
+    setContextMenu(null)
+    try {
+      handleTaskUpdated(await updateTask(taskId, { dueDate }))
+    } catch {
+      showToast('Failed to update task', 'error')
+    }
+  }
+
   async function applyTaskAction(
     taskId: string,
     action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete',
@@ -641,7 +652,8 @@ export default function Page() {
   }
 
   async function handleBulkAction(
-    action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete',
+    action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete' | 'due',
+    dueDate: string | null = null,
   ) {
     // A search can mix statuses: each action only takes the tasks it fits,
     // matching what the context menu offers per task
@@ -651,6 +663,8 @@ export default function Page() {
       archive: ['active', 'done'],
       unarchive: ['archived'],
       delete: ['active', 'done', 'archived'],
+      // Completed tasks show no due status, so only active ones are rescheduled
+      due: ['active'],
     }[action]
     const ids = selectedTasks.filter((t) => fits.includes(taskStatus(t))).map((t) => t.id)
     const count = ids.length
@@ -669,13 +683,15 @@ export default function Page() {
         if (selectedTaskId && succeededIds.has(selectedTaskId)) setSelectedTaskId(null)
       } else {
         const data =
-          action === 'complete'
-            ? { completed: true }
-            : action === 'reopen'
-              ? { completed: false }
-              : action === 'archive'
-                ? { archived: true }
-                : { archived: false }
+          action === 'due'
+            ? { dueDate }
+            : action === 'complete'
+              ? { completed: true }
+              : action === 'reopen'
+                ? { completed: false }
+                : action === 'archive'
+                  ? { archived: true }
+                  : { archived: false }
         const result = await updateTasks(ids, data)
         failedIds = result.failedIds
         setTasks((prev) => prev.map((t) => result.succeeded.find((u) => u.id === t.id) ?? t))
@@ -1032,6 +1048,26 @@ export default function Page() {
                     </div>
                   )}
                 </div>
+                {bulkStatuses.has('active') && (
+                  // A native select: a short fixed list, with no menu state to manage
+                  <select
+                    aria-label="Set due date"
+                    value=""
+                    disabled={selectedTasks.length === 0}
+                    onChange={(e) => {
+                      const v = e.target.value as 'tomorrow' | 'next-monday' | 'clear'
+                      handleBulkAction('due', v === 'clear' ? null : quickDueDate(v))
+                    }}
+                    className="text-surface-300 hover:text-surface-100 bg-transparent text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <option value="" disabled>
+                      Due…
+                    </option>
+                    <option value="tomorrow">Tomorrow</option>
+                    <option value="next-monday">Next Monday</option>
+                    <option value="clear">Clear due date</option>
+                  </select>
+                )}
                 {bulkStatuses.has('active') && (
                   <button
                     onClick={() => handleBulkAction('complete')}
@@ -1440,6 +1476,8 @@ export default function Page() {
           onUnarchive={() => handleContextMenuAction('unarchive')}
           onDelete={() => handleContextMenuAction('delete')}
           onClose={() => setContextMenu(null)}
+          onSetDueDate={handleContextMenuDueDate}
+          hasDueDate={!!contextTask?.dueDate}
         />
       )}
     </div>

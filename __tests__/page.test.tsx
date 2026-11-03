@@ -4,6 +4,7 @@ import { cleanup, render, screen, fireEvent, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Page from '../app/page'
 import type { Tag, Task } from '../lib/types'
+import { quickDueDate } from '../lib/dates'
 
 // Reusable mock for @/components/MdEditor — see CreateTaskModal.test.tsx.
 // Needed here because pressing 'n' renders CreateTaskModal, which renders
@@ -351,6 +352,30 @@ describe('bulk action scope', () => {
     updateTasks.mockResolvedValueOnce({ succeeded: [{ ...a, completed: true }], failedIds: [] })
     fireEvent.click(screen.getByRole('button', { name: 'Complete' }))
     await waitFor(() => expect(updateTasks).toHaveBeenCalledWith(['a'], { completed: true }))
+  })
+})
+
+describe('quick due dates', () => {
+  it('sets the due date of every selected active task from the bulk bar', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    const b = makeTask({ id: 'b', title: 'Beta' })
+    await renderReady([a, b])
+    fireEvent.click(screen.getByText('Select'))
+    fireEvent.click(screen.getByRole('button', { name: /Alpha/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Beta/ }))
+
+    const dueDate = quickDueDate('tomorrow')
+    updateTasks.mockResolvedValueOnce({
+      succeeded: [
+        { ...a, dueDate },
+        { ...b, dueDate },
+      ],
+      failedIds: [],
+    })
+    fireEvent.change(screen.getByLabelText('Set due date'), { target: { value: 'tomorrow' } })
+
+    await waitFor(() => expect(updateTasks).toHaveBeenCalledWith(['a', 'b'], { dueDate }))
+    expect(await screen.findByText('Updated 2 tasks')).toBeInTheDocument()
   })
 })
 

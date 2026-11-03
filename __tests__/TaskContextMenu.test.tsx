@@ -3,6 +3,7 @@ import '@testing-library/jest-dom/vitest'
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import TaskContextMenu from '../components/TaskContextMenu'
+import { quickDueDate } from '../lib/dates'
 
 function renderMenu(overrides: Partial<Parameters<typeof TaskContextMenu>[0]> = {}) {
   const handlers = {
@@ -19,6 +20,28 @@ function renderMenu(overrides: Partial<Parameters<typeof TaskContextMenu>[0]> = 
 
 describe('TaskContextMenu', () => {
   afterEach(() => cleanup())
+
+  it('sets quick due dates on an active task, and clears one only when set', () => {
+    const onSetDueDate = vi.fn()
+    renderMenu({ tab: 'active', onSetDueDate })
+    expect(screen.queryByRole('menuitem', { name: 'Clear due date' })).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Due tomorrow' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Due next Monday' }))
+    expect(onSetDueDate.mock.calls).toEqual([
+      [quickDueDate('tomorrow')],
+      [quickDueDate('next-monday')],
+    ])
+    cleanup()
+
+    renderMenu({ tab: 'active', onSetDueDate, hasDueDate: true })
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Clear due date' }))
+    expect(onSetDueDate).toHaveBeenLastCalledWith(null)
+  })
+
+  it('offers no due dates outside the active tab', () => {
+    renderMenu({ tab: 'done', onSetDueDate: vi.fn() })
+    expect(screen.queryByRole('menuitem', { name: 'Due tomorrow' })).not.toBeInTheDocument()
+  })
 
   it('exposes role="menu" with menuitem actions', () => {
     renderMenu({ tab: 'active' })

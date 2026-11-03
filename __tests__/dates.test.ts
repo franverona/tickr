@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { daysBetween, formatTimestamp, getDueStatus, localDateKey } from '../lib/dates'
+import {
+  daysBetween,
+  formatTimestamp,
+  getDueStatus,
+  localDateKey,
+  quickDueDate,
+} from '../lib/dates'
 
 function dateStr(offsetDays: number): string {
   const d = new Date()
@@ -68,5 +74,18 @@ describe('formatTimestamp', () => {
     const thisYear = new Date().getFullYear()
     expect(formatTimestamp(`${thisYear}-03-04T12:00:00`)).not.toContain(String(thisYear))
     expect(formatTimestamp('2001-03-04T12:00:00')).toContain('2001')
+  })
+})
+
+describe('quickDueDate', () => {
+  // 2026-03-02 is a Monday
+  it.each([
+    ['2026-03-01', 'tomorrow', '2026-03-02'],
+    ['2026-03-31', 'tomorrow', '2026-04-01'],
+    ['2026-03-01', 'next-monday', '2026-03-02'],
+    ['2026-03-02', 'next-monday', '2026-03-09'],
+    ['2026-03-07', 'next-monday', '2026-03-09'],
+  ] as const)('from %s, %s is %s', (from, kind, expected) => {
+    expect(quickDueDate(kind, new Date(`${from}T15:00:00`))).toBe(expected)
   })
 })
