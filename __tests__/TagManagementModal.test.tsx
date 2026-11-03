@@ -131,4 +131,21 @@ describe('TagManagementModal', () => {
 
     await vi.waitFor(() => expect(onTagDeleted).toHaveBeenCalledWith('tag-1'))
   })
+
+  it('can delete a second tag without reopening the modal', async () => {
+    deleteTag.mockResolvedValue(undefined)
+    const onTagDeleted = vi.fn()
+    const second = makeTag({ id: 'tag-2', label: 'feature' })
+    const props = { onClose: () => {}, onTagUpdated: () => {}, onTagDeleted }
+
+    const { rerender } = render(<TagManagementModal tags={[makeTag(), second]} {...props} />)
+    fireEvent.click(screen.getAllByTitle('Delete tag')[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    await vi.waitFor(() => expect(onTagDeleted).toHaveBeenCalledWith('tag-1'))
+
+    rerender(<TagManagementModal tags={[second]} {...props} />)
+    fireEvent.click(screen.getByTitle('Delete tag'))
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
+    await vi.waitFor(() => expect(onTagDeleted).toHaveBeenCalledWith('tag-2'))
+  })
 })
