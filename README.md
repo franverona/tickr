@@ -138,6 +138,7 @@ pnpm lint            # ESLint
 pnpm format          # Prettier (write)
 pnpm format:check    # Prettier (check)
 pnpm backup          # Write a backup ZIP to backups/ (see Backups)
+pnpm uploads:prune   # List uploads no task references; add --apply to delete them (see Uploads)
 ```
 
 ## Backups
@@ -154,3 +155,5 @@ pm2 save
 ## Uploads
 
 Uploaded files are stored at `public/uploads/` (gitignored). Accepted types are images (PNG, JPEG, GIF, WebP), PDF, plain text, Markdown, CSV, JSON and ZIP, up to 10 MB each. Files referenced from task descriptions are included automatically when using the Export feature.
+
+Nothing deletes an upload when its task or image goes away, so unreferenced files pile up. `pnpm uploads:prune` lists them (same backend as the app, like `pnpm backup`) without deleting anything; `pnpm uploads:prune --apply` deletes them. Files under a day old are always kept, since a recent upload may not be saved into its description yet, and it refuses to run when the backend has no tasks (usually the wrong `DB_TYPE`, where every upload would look unreferenced). Take a backup first if in doubt.

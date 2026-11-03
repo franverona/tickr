@@ -12,6 +12,7 @@
     "start": "next start -H 127.0.0.1",
     "test": "vitest run",
     "backup": "tsx scripts/backup.ts",
+    "uploads:prune": "tsx scripts/prune-uploads.ts",
     "test:watch": "vitest",
     "lint": "eslint",
     "format": "prettier --write .",
