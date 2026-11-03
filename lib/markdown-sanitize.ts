@@ -5,6 +5,30 @@ import type { Options } from 'rehype-sanitize'
 // description (including from an imported backup) runs in the app's origin.
 // Starts from GitHub's allowlist, plus what the preview itself generates: the
 // copy button and heading icons (svg/path, class names, data-code).
+// The classes the preview's own plugins add before sanitizing (GFM task lists
+// and footnotes, alerts, heading icons, the copy button, code languages);
+// Prism's token classes come after. Any other class is dropped, so a
+// description can't borrow the app's Tailwind classes (`fixed inset-0 z-50`)
+// to draw over the UI.
+const PREVIEW_CLASSES = [
+  'contains-task-list',
+  'task-list-item',
+  'footnotes',
+  'data-footnote-backref',
+  'sr-only',
+  'anchor',
+  'icon',
+  'icon-link',
+  'copied',
+  'octicon',
+  /^octicon-[\w-]+$/,
+  // The heading-link icon sets className as one string, not a list
+  /^octicon octicon-[\w-]+$/,
+  /^language-[\w+-]+$/,
+  'markdown-alert',
+  /^markdown-alert-[\w-]+$/,
+]
+
 const schema: Options = {
   ...defaultSchema,
   // Keep heading ids as rehype-slug wrote them
@@ -18,8 +42,8 @@ const schema: Options = {
     // built-ins), and nothing the preview generates needs it
     '*': [
       ...(defaultSchema.attributes?.['*'] ?? []).filter((a) => a !== 'name'),
-      'className',
-      'class',
+      ['className', ...PREVIEW_CLASSES],
+      ['class', ...PREVIEW_CLASSES],
     ],
     a: [...(defaultSchema.attributes?.a ?? []), 'ariaHidden', 'tabIndex'],
     div: [...(defaultSchema.attributes?.div ?? []), 'data-code', 'dataCode'],

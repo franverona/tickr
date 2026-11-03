@@ -24,6 +24,12 @@ describe('sanitizeMarkdown', () => {
     expect(render(source)).not.toMatch(forbidden)
   })
 
+  it("drops classes the preview doesn't generate", () => {
+    const html = render('<div class="fixed inset-0 z-50 markdown-alert">x</div>')
+    expect(html).not.toMatch(/fixed|inset-0|z-50/)
+    expect(html).toContain('markdown-alert')
+  })
+
   it('keeps resized images', () => {
     expect(render('<img src="/uploads/a.png" alt="a" width="240">')).toMatch(
       /<img[^>]*src="\/uploads\/a\.png"[^>]*width="240"/,
@@ -47,6 +53,7 @@ describe('sanitizeMarkdown', () => {
     const html = render('# Title\n\n> [!NOTE]\n> hi\n\n```ts\nconst a = 1\n```')
     expect(html).toContain('id="title"')
     expect(html).toContain('class="anchor"')
+    expect(html).toContain('octicon-link')
     expect(html).toContain('octicon-copy')
     expect(html).toContain('data-code=')
     expect(html).toContain('code-line')
