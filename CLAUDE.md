@@ -84,9 +84,12 @@ lib/
   import.ts            # processImportZip — parse ZIP, re-upload attachments (client-side)
   upload-types.ts      # UPLOAD_EXT_TO_MIME — accepted upload types, shared by import, /api/upload and /api/uploads
   backup.ts            # createBackup() — server-side ZIP in the export format, with retention (Node only)
+  prune-uploads.ts     # findOrphanUploads()/removeUploads() — uploads no description references, 1-day grace (Node only)
 proxy.ts               # Host check on every request (DNS rebinding), see Key conventions
 scripts/
   backup.ts            # `pnpm backup` entry point (run via tsx): loads .env.local, calls createBackup()
+  prune-uploads.ts     # `pnpm uploads:prune [--apply]`: dry run by default, refuses when the backend has no tasks
+  load-env.ts          # loadEnv() — the same env files `next start` reads, shared by both scripts
 data/
   tasks.db             # created at runtime, gitignored
 public/

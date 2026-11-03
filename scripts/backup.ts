@@ -3,17 +3,10 @@
 //   pm2 start "pnpm backup" --name tickr-backup --cron "0 3 * * *" --no-autorestart
 import path from 'path'
 import { createBackup } from '../lib/backup'
+import { loadEnv } from './load-env'
 
 async function main() {
-  // Same files as `next start`, highest priority first: a variable that's
-  // already set is kept, so the first file to define it wins
-  for (const file of ['.env.production.local', '.env.local', '.env.production', '.env']) {
-    try {
-      process.loadEnvFile(file)
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err
-    }
-  }
+  loadEnv()
   const { getRepository } = await import('../lib/db')
   const file = await createBackup({
     repo: getRepository(),
