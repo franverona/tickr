@@ -313,6 +313,18 @@ describe('TaskDetail', () => {
     },
   )
 
+  it.each([
+    ['https://example.com/a', 'https://example.com/a'],
+    ['mailto:a@example.com', 'mailto:a@example.com'],
+    ['vscode://file/etc/passwd', null],
+    ['javascript:alert(1)', null],
+    ['not a url', null],
+  ])('renders link %s with href %s', (url, href) => {
+    renderTaskDetail(makeTask({ urls: [{ id: 'u1', url, label: 'The link' }] }))
+    const link = screen.getByText('The link')
+    expect(link.getAttribute('href')).toBe(href)
+  })
+
   it('cancels the delete confirmation without calling deleteTask', () => {
     const task = makeTask()
     renderTaskDetail(task)

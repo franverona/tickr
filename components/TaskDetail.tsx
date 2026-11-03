@@ -111,6 +111,18 @@ function createResizableImg(onResize: (src: string, w: number) => void) {
   }
 }
 
+// Links come from user input and imports with no scheme check, unlike
+// description links, which the sanitizer filters. Anything else (vscode:,
+// javascript:, …) renders as plain text instead of launching a handler.
+const SAFE_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
+function safeLinkHref(url: string): string | undefined {
+  try {
+    return SAFE_LINK_PROTOCOLS.has(new URL(url).protocol) ? url : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function ProviderIcon({ url }: { url: string }) {
   let hostname = ''
   try {
@@ -1240,7 +1252,7 @@ export default function TaskDetail({
                     <div key={u.id} className="group flex items-center gap-2">
                       <ProviderIcon url={u.url} />
                       <a
-                        href={u.url}
+                        href={safeLinkHref(u.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-surface-300 hover:text-surface-100 min-w-0 truncate text-sm transition-colors hover:underline"
