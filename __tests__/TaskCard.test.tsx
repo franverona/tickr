@@ -94,6 +94,8 @@ describe('TaskCard', () => {
       />,
     )
     expect(screen.getByTitle('1 of 3 checklist items done')).toHaveTextContent('1/3')
+  })
+
   it('links each ticket and review once, without opening the task', () => {
     const onClick = vi.fn()
     const jira = 'https://acme.atlassian.net/browse/NDC-1'
