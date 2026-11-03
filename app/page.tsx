@@ -416,9 +416,10 @@ export default function Page() {
   // stop and ArrowUp/ArrowDown/Home/End move within it.
   // Search spans all tabs, so actions follow the tasks themselves, not the tab
   const contextTask = tasks.find((t) => t.id === contextMenu?.taskId)
-  const bulkStatuses = new Set(
-    isSearching ? tasks.filter((t) => selectedIds.has(t.id)).map(taskStatus) : [tab],
-  )
+  // Only visible selected tasks count: a search, tab or tag-filter change can
+  // hide tasks that are still in selectedIds
+  const selectedTasks = filteredTasks.filter((t) => selectedIds.has(t.id))
+  const bulkStatuses = new Set(isSearching ? selectedTasks.map(taskStatus) : [tab])
 
   const rovingCardId = filteredTasks.some((t) => t.id === activeCardId)
     ? activeCardId
@@ -642,8 +643,18 @@ export default function Page() {
   async function handleBulkAction(
     action: 'complete' | 'reopen' | 'archive' | 'unarchive' | 'delete',
   ) {
-    const ids = Array.from(selectedIds)
+    // A search can mix statuses: each action only takes the tasks it fits,
+    // matching what the context menu offers per task
+    const fits = {
+      complete: ['active'],
+      reopen: ['done'],
+      archive: ['active', 'done'],
+      unarchive: ['archived'],
+      delete: ['active', 'done', 'archived'],
+    }[action]
+    const ids = selectedTasks.filter((t) => fits.includes(taskStatus(t))).map((t) => t.id)
     const count = ids.length
+    if (count === 0) return
     const noun = count === 1 ? 'task' : 'tasks'
     const verb = action === 'delete' ? 'Deleting' : 'Updating'
     const infinitive = action === 'delete' ? 'delete' : 'update'
@@ -692,7 +703,7 @@ export default function Page() {
 
   async function handleBulkAddTag(tagId: string) {
     setIsBulkTagOpen(false)
-    const targets = tasks.filter((t) => selectedIds.has(t.id) && !t.tags.includes(tagId))
+    const targets = selectedTasks.filter((t) => !t.tags.includes(tagId))
     if (targets.length === 0) return
     showToast(`Tagging ${targets.length} task${targets.length === 1 ? '' : 's'}…`, 'loading')
     try {
@@ -965,7 +976,7 @@ export default function Page() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <span className="text-surface-300 text-xs font-medium">
-                    {selectedIds.size} selected
+                    {selectedTasks.length} selected
                   </span>
                   <button
                     onClick={toggleSelectAll}
@@ -990,7 +1001,7 @@ export default function Page() {
                 <div ref={bulkTagMenuRef} className="relative flex">
                   <button
                     onClick={() => setIsBulkTagOpen((o) => !o)}
-                    disabled={selectedIds.size === 0}
+                    disabled={selectedTasks.length === 0}
                     aria-haspopup="menu"
                     aria-expanded={isBulkTagOpen}
                     className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
@@ -1024,7 +1035,7 @@ export default function Page() {
                 {bulkStatuses.has('active') && (
                   <button
                     onClick={() => handleBulkAction('complete')}
-                    disabled={selectedIds.size === 0}
+                    disabled={selectedTasks.length === 0}
                     className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Complete
@@ -1033,7 +1044,7 @@ export default function Page() {
                 {bulkStatuses.has('done') && (
                   <button
                     onClick={() => handleBulkAction('reopen')}
-                    disabled={selectedIds.size === 0}
+                    disabled={selectedTasks.length === 0}
                     className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Reopen
@@ -1042,7 +1053,7 @@ export default function Page() {
                 {(bulkStatuses.has('active') || bulkStatuses.has('done')) && (
                   <button
                     onClick={() => handleBulkAction('archive')}
-                    disabled={selectedIds.size === 0}
+                    disabled={selectedTasks.length === 0}
                     className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Archive
@@ -1051,7 +1062,7 @@ export default function Page() {
                 {bulkStatuses.has('archived') && (
                   <button
                     onClick={() => handleBulkAction('unarchive')}
-                    disabled={selectedIds.size === 0}
+                    disabled={selectedTasks.length === 0}
                     className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Unarchive
@@ -1060,7 +1071,7 @@ export default function Page() {
                 {bulkConfirmDelete ? (
                   <button
                     onClick={() => handleBulkAction('delete')}
-                    disabled={selectedIds.size === 0}
+                    disabled={selectedTasks.length === 0}
                     className="text-xs text-red-400 transition-colors hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Confirm Delete?
@@ -1068,7 +1079,7 @@ export default function Page() {
                 ) : (
                   <button
                     onClick={() => setBulkConfirmDelete(true)}
-                    disabled={selectedIds.size === 0}
+                    disabled={selectedTasks.length === 0}
                     className="text-xs text-red-400 transition-colors hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Delete
