@@ -10,6 +10,9 @@ const nextConfig: NextConfig = {
       // description. Images go through /api/upload, so this is only text.
       bodySizeLimit: '20mb',
     },
+    // proxy.ts makes Next buffer every request body, cut at 10 MB by default,
+    // which would truncate 10 MB uploads and 20 MB actions before they arrive
+    proxyClientMaxBodySize: '25mb',
   },
   async rewrites() {
     return {
