@@ -1,7 +1,8 @@
 import type { Tag } from './types'
 
-// Predefined tags — seeded into the DB on first run.
-// To add more defaults, add here; they'll be inserted on next startup.
+// Predefined tags, seeded only into a fresh database (no tags and no tasks),
+// so a predefined tag the user edited or deleted never comes back. Adding one
+// here only affects new databases; existing ones need it created in the app.
 export const PREDEFINED_TAGS: Tag[] = [
   {
     id: 'wip',
