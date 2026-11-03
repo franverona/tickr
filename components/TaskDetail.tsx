@@ -1354,7 +1354,7 @@ export default function TaskDetail({
         {!isEditingDescription && <div className="border-surface-700/70 border-t xl:hidden" />}
 
         <div
-          className={`min-w-0 ${isEditingDescription ? 'flex-1' : 'w-full max-w-3xl xl:flex-1'}`}
+          className={`min-w-0 ${isEditingDescription ? 'flex-1' : 'w-full max-w-5xl xl:flex-1'}`}
         >
           <div className="mb-2 flex items-center justify-between">
             <label className="text-surface-400 text-xs tracking-wide uppercase">Description</label>
