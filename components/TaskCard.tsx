@@ -73,7 +73,7 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
         onKeyDown={onKeyDown}
         className={`flex h-full w-full flex-col rounded-lg border text-left transition-colors ${
           compact ? 'px-3 py-2' : 'p-3'
-        } ${onToggleComplete ? 'pr-8' : ''} ${tickets.length > 0 ? 'pb-8' : ''} ${
+        } ${onToggleComplete ? 'pr-8' : ''} ${tickets.length > 0 ? 'pb-11' : ''} ${
           dueStatus === 'overdue'
             ? 'border-l-2 border-l-red-500'
             : dueStatus === 'today'
@@ -191,7 +191,7 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
       {tickets.length > 0 && (
         // Siblings of the card like the complete button: a link can't sit
         // inside a <button>, and clicking one mustn't open the task
-        <div className="absolute right-3 bottom-2 left-3 flex gap-1 overflow-hidden">
+        <div className="absolute right-3 bottom-3 left-3 flex gap-1 overflow-hidden">
           {tickets.map(([url, label]) => (
             <a
               key={url}
