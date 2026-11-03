@@ -270,6 +270,8 @@ export default function TaskDetail({
   const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedDescRef = useRef(task.description)
   const descriptionDraftRef = useRef(task.description)
+  // Set once the task is deleted, so no pending save runs on it afterwards
+  const deletedRef = useRef(false)
   const editorWrapperRef = useRef<HTMLDivElement>(null)
   const dueStatus = getDueStatus(task.dueDate, task.completed)
   const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`
@@ -801,7 +803,7 @@ export default function TaskDetail({
     // keystroke re-render (unlike the debounce effect above).
     return () => {
       const draft = stripUploadPlaceholders(descriptionDraftRef.current)
-      if (draft !== lastSavedDescRef.current) {
+      if (!deletedRef.current && draft !== lastSavedDescRef.current) {
         updateTask(task.id, { description: draft })
           .then(onUpdate)
           .catch(() => onError('Failed to save description'))
@@ -941,6 +943,8 @@ export default function TaskDetail({
   async function handleDelete() {
     try {
       await deleteTask(task.id)
+      deletedRef.current = true
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current)
       onDelete(task.id)
     } catch {
       onError('Failed to delete task')
