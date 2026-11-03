@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { parseCSVContent, parseCSVRows, parseJSONContent, processImportZip } from '../lib/import'
 
+const HEADER_WITH_DUE = 'Title,Tags,Status,Due Date,Description,Created At,Updated At'
+
 describe('parseCSVRows', () => {
   it('parses a simple two-column row', () => {
     expect(parseCSVRows('a,b\nc,d')).toEqual([
@@ -106,6 +108,15 @@ describe('parseJSONContent', () => {
     expect(result[0].dueDate).toBeNull()
   })
 
+  it.each(['2025-13-45', '2025-02-30', '2025-00-10'])(
+    'discards %s, which has the right shape but is not a real date',
+    (dueDate) => {
+      expect(parseJSONContent(JSON.stringify([{ title: 'T', dueDate }]))[0].dueDate).toBeNull()
+      const csv = [HEADER_WITH_DUE, `Task one,,Active,${dueDate},,,`].join('\n')
+      expect(parseCSVContent(csv)[0].dueDate).toBeNull()
+    },
+  )
+
   it('throws when the input is not an array', () => {
     expect(() => parseJSONContent(JSON.stringify({ title: 'oops' }))).toThrow()
   })
@@ -193,8 +204,7 @@ describe('parseCSVContent', () => {
   })
 
   it('parses a due date column when present', () => {
-    const header = 'Title,Tags,Status,Due Date,Description,Created At,Updated At'
-    const csv = [header, 'Task one,,Active,2024-02-15,,,'].join('\n')
+    const csv = [HEADER_WITH_DUE, 'Task one,,Active,2024-02-15,,,'].join('\n')
     const result = parseCSVContent(csv)
     expect(result[0].dueDate).toBe('2024-02-15')
   })

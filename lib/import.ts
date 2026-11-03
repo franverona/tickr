@@ -30,6 +30,13 @@ export interface ImportedTask {
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
+// The shape alone lets `2025-13-45` through; a real date round-trips unchanged
+function isDueDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !ISO_DATE_RE.test(value)) return false
+  const d = new Date(`${value}T00:00:00Z`)
+  return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === value
+}
+
 // Normalized with toISOString: the Done/Archived tabs sort these as strings
 function parseTimestamp(value: unknown): string | undefined {
   if (typeof value !== 'string' || !value.trim()) return undefined
@@ -122,7 +129,7 @@ export function parseJSONContent(content: string): ImportedTask[] {
           : [],
         completed: t.completed === true,
         archived: t.archived === true,
-        dueDate: typeof t.dueDate === 'string' && ISO_DATE_RE.test(t.dueDate) ? t.dueDate : null,
+        dueDate: isDueDate(t.dueDate) ? t.dueDate : null,
         links: Array.isArray(t.links)
           ? t.links.map(parseLinkEntry).filter((x): x is ImportedLink => x !== null)
           : [],
@@ -203,7 +210,7 @@ export function parseCSVContent(content: string): ImportedTask[] {
           archivedIdx !== -1
             ? row[archivedIdx]?.trim().toLowerCase() === 'true'
             : status === 'archived',
-        dueDate: ISO_DATE_RE.test(dueDate) ? dueDate : null,
+        dueDate: isDueDate(dueDate) ? dueDate : null,
         links: linksIdx !== -1 ? parseCSVList(row[linksIdx]).map(parseCSVLinkCell) : [],
         createdAt: parseTimestamp(cell(row, createdIdx)),
         updatedAt: parseTimestamp(cell(row, updatedIdx)),
