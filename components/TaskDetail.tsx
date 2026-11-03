@@ -830,10 +830,14 @@ export default function TaskDetail({
   }
 
   async function handleToggleChecklist(index: number) {
+    // Build on the latest toggle, not the task prop: that only updates once
+    // the previous save returns, so a quick second click would drop the first
+    const description = toggleChecklistLine(descriptionDraftRef.current, checklistLines[index])
+    descriptionDraftRef.current = description
     try {
-      const updated = await updateTask(task.id, {
-        description: toggleChecklistLine(task.description, checklistLines[index]),
-      })
+      const updated = await updateTask(task.id, { description })
+      // A newer toggle went out meanwhile: its response carries both changes
+      if (descriptionDraftRef.current !== description) return
       // The draft only initializes at mount, so without this the next edit
       // starts from the old text and autosaves over this change.
       lastSavedDescRef.current = updated.description
@@ -841,6 +845,9 @@ export default function TaskDetail({
       setDescriptionDraft(updated.description)
       onUpdate(updated)
     } catch {
+      if (descriptionDraftRef.current === description) {
+        descriptionDraftRef.current = lastSavedDescRef.current
+      }
       onError('Failed to update checklist item')
     }
   }
