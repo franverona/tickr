@@ -260,6 +260,38 @@ describe('processImportZip', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  // Rewrites the uncompressed size in the local and central headers of entries
+  // declaring `from` bytes, as a crafted ZIP would
+  function redeclareSize(buf: ArrayBuffer, from: number, to: number): ArrayBuffer {
+    const view = new DataView(buf)
+    for (let i = 0; i + 28 <= buf.byteLength; i++) {
+      const sig = view.getUint32(i, true)
+      const at = sig === 0x04034b50 ? i + 22 : sig === 0x02014b50 ? i + 24 : -1
+      if (at !== -1 && view.getUint32(at, true) === from) view.setUint32(at, to, true)
+    }
+    return buf
+  }
+
+  it('stops inflating an attachment that is larger than it declares', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    const JSZip = (await import('jszip')).default
+    const zip = new JSZip()
+    zip.file('tasks.json', '[]')
+    // 30 MB of zeros compresses to ~30 KB, and declares 1 byte
+    zip.file('uploads/a.png', new Uint8Array(30 * 1024 * 1024))
+    const buf = await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' })
+    const file = new File([redeclareSize(buf, 30 * 1024 * 1024, 1)], 'backup.zip')
+
+    await expect(processImportZip(file)).rejects.toThrow('too large')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a task file over the size cap', async () => {
+    const big = JSON.stringify([{ title: 'T', description: 'x'.repeat(21 * 1024 * 1024) }])
+    await expect(processImportZip(await zipOf({ 'tasks.json': big }))).rejects.toThrow('too large')
+  })
+
   it('skips entries of unsupported types', async () => {
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
