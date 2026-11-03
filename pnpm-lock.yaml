@@ -29,8 +29,8 @@ importers:
         specifier: ^3.10.2
         version: 3.10.2
       kysely:
-        specifier: ^0.29.7
-        version: 0.29.7
+        specifier: ^0.29.8
+        version: 0.29.8
       mysql2:
         specifier: ^3.24.6
         version: 3.24.6(@types/node@22.20.5)
@@ -2581,8 +2581,8 @@ packages:
   keyv@4.5.4:
     resolution: {integrity: sha512-oxVHkHR/EJf2CNXnWxRLW6mg7JyCCUcG0DtEGmL2ctUo1PNTin1PUil+r/+4r5MpVgC/fn1kjsx7mjSujKqIpw==}
 
-  kysely@0.29.7:
-    resolution: {integrity: sha512-fmIq+7kv4WbFm2tcfznRzikqB4cuNpgZ40PSU2fAJ2/OO5XhojqnTPrmgrCjYSRJVwBln03XcRXJGnw9H099IQ==}
+  kysely@0.29.8:
+    resolution: {integrity: sha512-ixHU1H4R+LeC5Y0nAhYgiGRFpFRHm2DXKEmJSs/vbes9sKXyssyzxzE/NYiOJX5fY0BL28biCre3GqlCqUwyXQ==}
     engines: {node: '>=22.0.0'}
 
   language-subtag-registry@0.3.23:
@@ -6677,7 +6677,7 @@ snapshots:
     dependencies:
       json-buffer: 3.0.1
 
-  kysely@0.29.7: {}
+  kysely@0.29.8: {}
 
   language-subtag-registry@0.3.23: {}
 
