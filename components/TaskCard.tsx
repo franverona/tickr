@@ -4,6 +4,7 @@ import { forwardRef } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import TagBadge from './TagBadge'
 import { formatDueDate, formatTimestamp, getDueStatus } from '@/lib/dates'
+import { checklistProgress } from '@/lib/checklist'
 
 interface TaskCardProps {
   task: Task
@@ -48,6 +49,7 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
 
   const dueStatus = getDueStatus(task.dueDate, task.completed)
   const doneAt = task.completed ? task.completedAt : null
+  const checklist = checklistProgress(task.description)
 
   return (
     <div className="group/card relative h-full">
@@ -109,6 +111,7 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
         </div>
 
         {(task.tags.length > 0 ||
+          checklist.total > 0 ||
           task.dueDate ||
           doneAt ||
           (showStatus && (task.archived || task.completed))) && (
@@ -122,6 +125,31 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
               const tag = tags.find((t) => t.id === tagId)
               return tag ? <TagBadge key={tagId} tag={tag} size="sm" /> : null
             })}
+            {checklist.total > 0 && (
+              <span
+                title={`${checklist.done} of ${checklist.total} checklist items done`}
+                className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium ${
+                  checklist.done === checklist.total
+                    ? 'border-emerald-600 bg-emerald-950 text-emerald-300'
+                    : 'border-surface-600 bg-surface-700 text-surface-300'
+                }`}
+              >
+                <svg
+                  width="9"
+                  height="9"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                {checklist.done}/{checklist.total}
+              </span>
+            )}
             {doneAt ? (
               <span className="border-surface-600 bg-surface-700 text-surface-300 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[11px] font-medium">
                 Done {formatTimestamp(doneAt)}

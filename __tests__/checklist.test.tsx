@@ -1,7 +1,7 @@
 import MarkdownPreview from '@uiw/react-markdown-preview'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { remarkChecklistLines, toggleChecklistLine } from '../lib/checklist'
+import { checklistProgress, remarkChecklistLines, toggleChecklistLine } from '../lib/checklist'
 
 function linesOf(source: string) {
   const lines: number[] = []
@@ -29,5 +29,28 @@ describe('checklist lines', () => {
     expect(toggleChecklistLine(source, 5)).toBe(
       '```\n- [ ] sample\n```\n> - [ ] quoted\n- [ ] done',
     )
+  })
+})
+
+describe('checklistProgress', () => {
+  it('counts done and total boxes, skipping code fences', () => {
+    const source = [
+      '- [x] one',
+      '* [X] two',
+      '1. [ ] three',
+      '> - [ ] quoted',
+      '```md',
+      '- [x] in a fence',
+      '````',
+      '~~~',
+      '- [ ] in a tilde fence',
+      '~~~',
+      '- plain item',
+    ].join('\n')
+    expect(checklistProgress(source)).toEqual({ done: 2, total: 4 })
+  })
+
+  it('reports no checklist for plain text', () => {
+    expect(checklistProgress('just notes')).toEqual({ done: 0, total: 0 })
   })
 })
