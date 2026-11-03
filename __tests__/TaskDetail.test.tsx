@@ -571,6 +571,23 @@ describe('TaskDetail', () => {
       expect(editor).toHaveValue('Great 😊')
     })
 
+    it.each(['Steps:', 'Steps :', 'at 12:30'])(
+      'does not suggest an emoji for %j, so Enter still adds a line',
+      async (value) => {
+        const task = makeTask()
+        renderTaskDetail(task)
+        fireEvent.click(screen.getByText('Edit'))
+        const editor = screen.getByTestId('md-editor')
+
+        fireEvent.change(editor, { target: { value } })
+        fireEvent.keyUp(editor, { key: value.at(-1) })
+        await new Promise((r) => setTimeout(r, 0))
+
+        expect(screen.queryByText(/^:[a-z]/, { selector: 'button *' })).not.toBeInTheDocument()
+        expect(fireEvent.keyDown(editor, { key: 'Enter' })).toBe(true)
+      },
+    )
+
     it('shows a snippet suggestion and inserts its template', async () => {
       const task = makeTask()
       renderTaskDetail(task)
