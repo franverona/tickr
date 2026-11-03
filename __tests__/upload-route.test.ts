@@ -1,4 +1,6 @@
+import { rm } from 'fs/promises'
 import { NextRequest } from 'next/server'
+import path from 'path'
 import { describe, expect, it } from 'vitest'
 import { POST } from '../app/api/upload/route'
 
@@ -33,5 +35,42 @@ describe('POST /api/upload', () => {
     const res = await upload({ origin: 'http://localhost:9876', 'content-length': '7' })
     expect(res.status).toBe(400)
     expect(await res.json()).toEqual({ error: 'No file provided' })
+  })
+
+  describe('file types', () => {
+    async function uploadFile(file: File) {
+      const body = new FormData()
+      body.append('file', file)
+      const res = await POST(
+        new NextRequest('http://localhost:9876/api/upload', {
+          method: 'POST',
+          headers: { host: 'localhost:9876', 'content-length': '1000' },
+          body,
+        }),
+      )
+      const json = await res.json()
+      if (json.url) await rm(path.join(process.cwd(), 'public', json.url))
+      return { status: res.status, json }
+    }
+
+    it('falls back to the extension when the browser sends no type', async () => {
+      const { status, json } = await uploadFile(new File(['# hi'], 'notes.md', { type: '' }))
+      expect(status).toBe(200)
+      expect(json.url).toMatch(/^\/uploads\/[\w-]+\.md$/)
+    })
+
+    it('names a file by its declared type first', async () => {
+      const { json } = await uploadFile(new File(['x'], 'photo.jpeg', { type: 'image/jpeg' }))
+      expect(json.url).toMatch(/\.jpg$/)
+    })
+
+    it.each([
+      ['run.exe', 'application/x-msdownload'],
+      ['x.constructor', ''],
+    ])('rejects %s', async (name, type) => {
+      const { status, json } = await uploadFile(new File(['x'], name, { type }))
+      expect(status).toBe(400)
+      expect(json).toEqual({ error: 'Unsupported file type' })
+    })
   })
 })
