@@ -13,7 +13,14 @@ const schema: Options = {
   tagNames: [...(defaultSchema.tagNames ?? []), 'svg', 'path'],
   attributes: {
     ...defaultSchema.attributes,
-    '*': [...(defaultSchema.attributes?.['*'] ?? []), 'className', 'class'],
+    // No `name`: with no clobberPrefix, <img name="getElementById"> would
+    // shadow that document property (document's named properties override
+    // built-ins), and nothing the preview generates needs it
+    '*': [
+      ...(defaultSchema.attributes?.['*'] ?? []).filter((a) => a !== 'name'),
+      'className',
+      'class',
+    ],
     a: [...(defaultSchema.attributes?.a ?? []), 'ariaHidden', 'tabIndex'],
     div: [...(defaultSchema.attributes?.div ?? []), 'data-code', 'dataCode'],
     svg: ['ariaHidden', 'viewBox', 'fill', 'height', 'width', 'version'],
