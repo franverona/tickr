@@ -18,6 +18,8 @@ describe('sanitizeMarkdown', () => {
     ['form', '<form action="/x"><button formaction="/y">go</button></form>', /<form|formaction/i],
     ['event handler', '<img src="/a.png" onerror="alert(1)">', /onerror/i],
     ['javascript: link', '<a href="javascript:alert(1)">x</a>', /javascript:/],
+    ['name (DOM clobbering)', '<img src="/a.png" name="getElementById">', /name=/],
+    ['name on a form control', '<input name="cookie">', /name=/],
   ])('removes %s', (_, source, forbidden) => {
     expect(render(source)).not.toMatch(forbidden)
   })
