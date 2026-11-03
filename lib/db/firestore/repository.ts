@@ -399,30 +399,38 @@ export class FirestoreTaskRepository implements TaskRepository {
     }
 
     // The wipe and the writes share one list, so an import within Firestore's
-    // 500-write cap commits as a single atomic batch. Over the cap, each chunk
+    // caps (500 writes, ~10 MiB) commits as a single atomic batch. Over them, each chunk
     // commits independently and a failure partway leaves partial data: an
     // accepted trade-off, since transactions share the same cap. The wipe runs
     // only now, after every write above was built, so a bad item fails before
     // anything is deleted.
-    const writes: Array<(batch: WriteBatch) => void> = []
+    // `bytes` is a JSON-size estimate of each write, for chunk()'s byte cap
+    const writes: Array<{ apply: (batch: WriteBatch) => void; bytes: number }> = []
     if (overrideAll) {
       const [taskRefs, tagRefs] = await Promise.all([
         this.tasksCol.listDocuments(),
         this.tagsCol.listDocuments(),
       ])
-      for (const ref of [...taskRefs, ...tagRefs]) writes.push((batch) => batch.delete(ref))
+      for (const ref of [...taskRefs, ...tagRefs]) {
+        writes.push({ apply: (batch) => batch.delete(ref), bytes: ref.path.length + 100 })
+      }
     }
     for (const tag of tagsToCreate) {
-      writes.push((batch) =>
-        batch.set(this.tagsCol.doc(tag.id), { label: tag.label, color: tag.color, createdAt: now }),
-      )
+      const data = { label: tag.label, color: tag.color, createdAt: now }
+      writes.push({
+        apply: (batch) => batch.set(this.tagsCol.doc(tag.id), data),
+        bytes: Buffer.byteLength(JSON.stringify(data)) + 200,
+      })
     }
     for (const w of taskWrites) {
-      writes.push((batch) => batch.set(this.tasksCol.doc(w.id), w.data))
+      writes.push({
+        apply: (batch) => batch.set(this.tasksCol.doc(w.id), w.data),
+        bytes: Buffer.byteLength(JSON.stringify(w.data)) + 200,
+      })
     }
-    for (const group of chunk(writes)) {
+    for (const group of chunk(writes, 500, (w) => w.bytes)) {
       const batch = db.batch()
-      for (const write of group) write(batch)
+      for (const write of group) write.apply(batch)
       await batch.commit()
     }
 
