@@ -1,5 +1,9 @@
 # Local Postgres/MySQL/Firestore emulator for testing DB_TYPE=postgres / mysql / firestore. Dev-only:
 # fixed weak credentials are fine since these are bound to localhost.
+# Fixed project name, so volumes are always tickr_<volume> (the README's
+# commands name them) whatever folder the repo is cloned into
+name: tickr
+
 services:
   postgres:
     image: postgres:16-alpine
