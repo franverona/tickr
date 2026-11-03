@@ -235,14 +235,18 @@ export function makeImageHandlers(
   onError: (message: string) => void,
 ) {
   async function handleFiles(files: File[], textarea: HTMLTextAreaElement) {
-    for (const file of files) {
-      const placeholder = uploadPlaceholder(file.name)
-      setValue(insertAtCursor(textarea, placeholder))
+    // One insert for all files: the textarea's DOM value is stale until React
+    // re-renders, so inserting per file would overwrite the earlier swaps
+    const placeholders = files.map((f) => uploadPlaceholder(f.name))
+    setValue(insertAtCursor(textarea, placeholders.join('')))
+    for (const [i, file] of files.entries()) {
+      const placeholder = placeholders[i]
       try {
         const url = await uploadFile(file)
         const isImage = file.type.startsWith('image/')
         const markdown = isImage ? `![${file.name}](${url})` : `[${file.name}](${url})`
-        setValue((v) => v.replace(placeholder, markdown))
+        // Function replacer, so `$&` etc. in a file name stay literal
+        setValue((v) => v.replace(placeholder, () => markdown))
       } catch (err) {
         setValue((v) => v.replace(placeholder, ''))
         onError(`Couldn't upload ${file.name}: ${err instanceof Error ? err.message : err}`)
