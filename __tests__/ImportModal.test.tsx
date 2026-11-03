@@ -14,7 +14,17 @@ vi.mock('@/lib/import', () => ({ processImportZip, ImportUploadError }))
 const { importTasks } = vi.hoisted(() => ({ importTasks: vi.fn() }))
 vi.mock('@/app/actions', () => ({ importTasks }))
 
-const items: ImportedTask[] = []
+const items: ImportedTask[] = [
+  {
+    title: 'T',
+    description: '',
+    tags: [],
+    completed: false,
+    archived: false,
+    dueDate: null,
+    links: [],
+  },
+]
 const result = { imported: 0, tasks: [], tags: [] }
 const parsed = { tasks: items, tags: [] }
 
@@ -80,6 +90,19 @@ describe('ImportModal', () => {
 
     await vi.waitFor(() => expect(onImported).toHaveBeenCalledWith(result))
     expect(importTasks).toHaveBeenCalledWith(items, true, [])
+  })
+
+  it('refuses to override with a file that has no tasks', async () => {
+    processImportZip.mockResolvedValueOnce({ tasks: [], tags: [] })
+
+    render(<ImportModal file={makeFile()} onClose={() => {}} onImported={() => {}} />)
+    fireEvent.click(screen.getByRole('radio', { name: /Replace all existing data/ }))
+    fireEvent.change(screen.getByPlaceholderText('DELETE'), { target: { value: 'DELETE' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Replace & Import' }))
+
+    expect(await screen.findByText(/This file has no tasks/)).toBeInTheDocument()
+    expect(importTasks).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Replace & Import' })).not.toBeDisabled()
   })
 
   it('shows an inline error and re-enables Import when the import fails', async () => {

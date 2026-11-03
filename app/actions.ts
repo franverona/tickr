@@ -134,5 +134,7 @@ export async function importTasks(
   overrideAll = false,
   tags: ImportedTag[] = [],
 ): Promise<{ imported: number; tasks: Task[]; tags: Tag[] }> {
+  // An empty file (e.g. an empty backup) would turn an override into a plain wipe
+  if (overrideAll && items.length === 0) throw new Error('Nothing to import: no tasks')
   return getRepository().importTasks(items, overrideAll, tags)
 }
