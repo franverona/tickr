@@ -27,7 +27,7 @@ describe('POST /api/upload', () => {
   })
 
   it('rejects a declared body over the limit before parsing it', async () => {
-    const res = await upload({ origin: 'http://localhost:9876', 'content-length': '50000000' })
+    const res = await upload({ origin: 'http://localhost:9876', 'content-length': '500000000' })
     expect(res.status).toBe(413)
   })
 
@@ -62,6 +62,16 @@ describe('POST /api/upload', () => {
     it('names a file by its declared type first', async () => {
       const { json } = await uploadFile(new File(['x'], 'photo.jpeg', { type: 'image/jpeg' }))
       expect(json.url).toMatch(/\.jpg$/)
+    })
+
+    it.each([
+      ['clip.mov', 'video/quicktime'],
+      ['clip.mp4', 'video/mp4'],
+      ['clip.webm', 'video/webm'],
+    ])('accepts the video %s', async (name, type) => {
+      const { status, json } = await uploadFile(new File(['x'], name, { type }))
+      expect(status).toBe(200)
+      expect(json.url).toMatch(new RegExp(`\\.${name.split('.')[1]}$`))
     })
 
     it.each([

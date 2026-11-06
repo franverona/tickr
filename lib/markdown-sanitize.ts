@@ -34,7 +34,7 @@ const schema: Options = {
   // Keep heading ids as rehype-slug wrote them
   clobberPrefix: '',
   strip: ['script', 'style'],
-  tagNames: [...(defaultSchema.tagNames ?? []), 'svg', 'path'],
+  tagNames: [...(defaultSchema.tagNames ?? []), 'svg', 'path', 'video'],
   attributes: {
     ...defaultSchema.attributes,
     // No `name`: with no clobberPrefix, <img name="getElementById"> would
@@ -49,6 +49,8 @@ const schema: Options = {
     div: [...(defaultSchema.attributes?.div ?? []), 'data-code', 'dataCode'],
     svg: ['ariaHidden', 'viewBox', 'fill', 'height', 'width', 'version'],
     path: ['fillRule', 'd'],
+    // No autoplay or poster: a description can't play sound or load other images on open
+    video: ['src', 'controls', 'width'],
   },
 }
 

@@ -29,7 +29,7 @@ A local task management app for tracking work.
 - **Mark complete / reopen / archive / unarchive / delete**, with complete and reopen also available right on the card
 - **Drag-and-drop reordering** of active tasks
 - **Due date indicators** — color-coded badges for overdue, due today, and due soon (within 3 days), plus a colored card border for overdue and due today
-- **Attachments** — drag-and-drop or paste files into a task's description (once the task exists, not in the New Task dialog): images show inline; PDF, text, Markdown, CSV, JSON and ZIP files are added as links (up to 10 MB each, stored in `public/uploads/`)
+- **Attachments** — drag-and-drop or paste files into a task's description (once the task exists, not in the New Task dialog): images show inline, videos (MOV, MP4, WebM) as a player; PDF, text, Markdown, CSV, JSON and ZIP files are added as links (up to 100 MB each, stored in `public/uploads/`)
 - **Task search** — filter tasks by title, description, tag, or link label or URL in real time, across tabs
 - **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any task or action from the keyboard
 - **Keyboard shortcuts** — full set of shortcuts for navigation and actions; press `?` for the cheat sheet
@@ -155,6 +155,6 @@ pm2 save
 
 ## Uploads
 
-Uploaded files are stored at `public/uploads/` (gitignored). Accepted types are images (PNG, JPEG, GIF, WebP), PDF, plain text, Markdown, CSV, JSON and ZIP, up to 10 MB each. Files referenced from task descriptions are included automatically when using the Export feature.
+Uploaded files are stored at `public/uploads/` (gitignored). Accepted types are images (PNG, JPEG, GIF, WebP), PDF, plain text, Markdown, CSV, JSON, ZIP and video (MOV, MP4, WebM), up to 100 MB each. Files referenced from task descriptions are included automatically when using the Export feature.
 
 Nothing deletes an upload when its task or image goes away, so unreferenced files pile up. `pnpm uploads:prune` lists them (same backend as the app, like `pnpm backup`) without deleting anything; `pnpm uploads:prune --apply` deletes them. Files under a day old are always kept, since a recent upload may not be saved into its description yet, and it refuses to run when the backend has no tasks (usually the wrong `DB_TYPE`, where every upload would look unreferenced). Take a backup first if in doubt.

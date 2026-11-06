@@ -36,6 +36,16 @@ describe('sanitizeMarkdown', () => {
     )
   })
 
+  it('keeps uploaded videos, without autoplay', () => {
+    const html = render('<video src="/uploads/a.mp4" controls autoplay></video>')
+    expect(html).toMatch(/<video[^>]*src="\/uploads\/a\.mp4"[^>]*controls/)
+    expect(html).not.toMatch(/autoplay/)
+  })
+
+  it('drops a javascript: video src', () => {
+    expect(render('<video src="javascript:alert(1)" controls></video>')).not.toMatch(/javascript:/)
+  })
+
   it('keeps collapsible sections', () => {
     const html = render('<details>\n<summary>More</summary>\n\nBody\n\n</details>')
     expect(html).toContain('<details>')

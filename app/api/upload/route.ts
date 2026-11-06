@@ -5,7 +5,7 @@ import path from 'path'
 import { UPLOAD_EXT_TO_MIME } from '@/lib/upload-types'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
-const MAX_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
+const MAX_SIZE_BYTES = 100 * 1024 * 1024 // 100 MB, room for short videos
 
 // Reversed so the first extension listed for a type wins (jpg over jpeg)
 const MIME_TO_EXT = Object.fromEntries(
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Content-Length required' }, { status: 411 })
   }
   if (contentLength > MAX_BODY_BYTES) {
-    return NextResponse.json({ error: 'File exceeds 10 MB limit' }, { status: 413 })
+    return NextResponse.json({ error: 'File exceeds 100 MB limit' }, { status: 413 })
   }
 
   const formData = await req.formData()
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unsupported file type' }, { status: 400 })
   }
   if (file.size > MAX_SIZE_BYTES) {
-    return NextResponse.json({ error: 'File exceeds 10 MB limit' }, { status: 400 })
+    return NextResponse.json({ error: 'File exceeds 100 MB limit' }, { status: 400 })
   }
 
   const filename = `${randomUUID()}.${ext}`

@@ -52,6 +52,7 @@ describe('makeImageHandlers', () => {
         files: [
           new File(['a'], 'a.png', { type: 'image/png' }),
           new File(['b'], 'b$&.pdf', { type: 'application/pdf' }),
+          new File(['c'], 'c.mp4', { type: 'video/mp4' }),
         ],
       },
       currentTarget: document.createElement('textarea'),
@@ -59,7 +60,9 @@ describe('makeImageHandlers', () => {
     } as never)
 
     await vi.waitFor(() =>
-      expect(value).toBe('![a.png](/uploads/a.png)[b$&.pdf](/uploads/b$&.pdf)'),
+      expect(value).toBe(
+        '![a.png](/uploads/a.png)[b$&.pdf](/uploads/b$&.pdf)<video src="/uploads/c.mp4" controls></video>',
+      ),
     )
     expect(onError).not.toHaveBeenCalled()
   })

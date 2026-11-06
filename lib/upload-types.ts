@@ -7,10 +7,13 @@ export const UPLOAD_EXT_TO_MIME: Record<string, string> = {
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   webp: 'image/webp',
+  mov: 'video/quicktime',
+  mp4: 'video/mp4',
   pdf: 'application/pdf',
   txt: 'text/plain',
   md: 'text/markdown',
   csv: 'text/csv',
   json: 'application/json',
+  webm: 'video/webm',
   zip: 'application/zip',
 }
