@@ -11,8 +11,8 @@ const nextConfig: NextConfig = {
       bodySizeLimit: '20mb',
     },
     // proxy.ts makes Next buffer every request body, cut at 10 MB by default,
-    // which would truncate 10 MB uploads and 20 MB actions before they arrive
-    proxyClientMaxBodySize: '25mb',
+    // which would truncate 100 MB uploads and 20 MB actions before they arrive
+    proxyClientMaxBodySize: '110mb',
   },
   // No login, so a framed copy of the app is fully working: block clickjacking.
   // X-Frame-Options for browsers without CSP frame-ancestors support. Uploads

@@ -243,8 +243,12 @@ export function makeImageHandlers(
       const placeholder = placeholders[i]
       try {
         const url = await uploadFile(file)
-        const isImage = file.type.startsWith('image/')
-        const markdown = isImage ? `![${file.name}](${url})` : `[${file.name}](${url})`
+        // Markdown has no video syntax, so videos go in as HTML (the sanitizer allows <video>)
+        const markdown = file.type.startsWith('image/')
+          ? `![${file.name}](${url})`
+          : file.type.startsWith('video/')
+            ? `<video src="${url}" controls></video>`
+            : `[${file.name}](${url})`
         // Function replacer, so `$&` etc. in a file name stay literal
         setValue((v) => v.replace(placeholder, () => markdown))
       } catch (err) {

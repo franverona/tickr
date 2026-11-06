@@ -278,10 +278,10 @@ describe('processImportZip', () => {
     const JSZip = (await import('jszip')).default
     const zip = new JSZip()
     zip.file('tasks.json', '[]')
-    // 30 MB of zeros compresses to ~30 KB, and declares 1 byte
-    zip.file('uploads/a.png', new Uint8Array(30 * 1024 * 1024))
+    // 110 MB of zeros compresses to ~110 KB, and declares 1 byte
+    zip.file('uploads/a.png', new Uint8Array(110 * 1024 * 1024))
     const buf = await zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' })
-    const file = new File([redeclareSize(buf, 30 * 1024 * 1024, 1)], 'backup.zip')
+    const file = new File([redeclareSize(buf, 110 * 1024 * 1024, 1)], 'backup.zip')
 
     await expect(processImportZip(file)).rejects.toThrow('too large')
     expect(fetchMock).not.toHaveBeenCalled()

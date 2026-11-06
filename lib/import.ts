@@ -277,7 +277,7 @@ export function parseTagsContent(content: string): ImportedTag[] {
 const MAX_ZIP_ATTACHMENTS = 5000
 const MAX_ZIP_ATTACHMENT_BYTES = 5 * 1024 * 1024 * 1024
 // /api/upload's cap: a bigger attachment would fail to upload anyway
-const MAX_ZIP_ENTRY_BYTES = 10 * 1024 * 1024
+const MAX_ZIP_ENTRY_BYTES = 100 * 1024 * 1024
 // importTasks' 20 MB body limit (next.config.ts) bounds what's worth parsing
 const MAX_ZIP_DATA_FILE_BYTES = 20 * 1024 * 1024
 
