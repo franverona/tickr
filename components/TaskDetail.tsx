@@ -1063,68 +1063,71 @@ export default function TaskDetail({
             </svg>
           </h2>
         )}
-        <div className="flex shrink-0 items-center gap-1.5">
-          {task.archived ? (
-            <button
-              onClick={toggleArchived}
-              className="bg-surface-600 text-surface-200 hover:bg-surface-500 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            >
-              <ButtonIcon>
-                <polyline points="21 8 21 21 3 21 3 8" />
-                <rect x="1" y="3" width="22" height="5" />
-                <line x1="10" y1="12" x2="14" y2="12" />
-              </ButtonIcon>
-              Unarchive
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={toggleComplete}
-                title={task.completed ? 'Reopen task' : 'Mark task as done'}
-                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  task.completed
-                    ? 'bg-surface-600 text-surface-200 hover:bg-surface-500'
-                    : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
-                }`}
-              >
-                <ButtonIcon>
-                  {task.completed ? (
-                    <>
-                      <polyline points="1 4 1 10 7 10" />
-                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                    </>
-                  ) : (
-                    <polyline points="20 6 9 17 4 12" />
-                  )}
-                </ButtonIcon>
-                {task.completed ? 'Reopen' : 'Done'}
-              </button>
+        {/* Task actions and Close are hidden while editing: Save is the way out of the editor */}
+        {!isEditingDescription && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            {task.archived ? (
               <button
                 onClick={toggleArchived}
-                className="bg-surface-700 text-surface-300 hover:bg-surface-600 hover:text-surface-100 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-                title="Archive task"
+                className="bg-surface-600 text-surface-200 hover:bg-surface-500 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
               >
                 <ButtonIcon>
                   <polyline points="21 8 21 21 3 21 3 8" />
                   <rect x="1" y="3" width="22" height="5" />
                   <line x1="10" y1="12" x2="14" y2="12" />
                 </ButtonIcon>
-                Archive
+                Unarchive
               </button>
-            </>
-          )}
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="bg-surface-700 text-surface-300 hover:bg-surface-600 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors hover:text-red-400"
-          >
-            <ButtonIcon>
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-              <path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-            </ButtonIcon>
-            Delete
-          </button>
-        </div>
+            ) : (
+              <>
+                <button
+                  onClick={toggleComplete}
+                  title={task.completed ? 'Reopen task' : 'Mark task as done'}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    task.completed
+                      ? 'bg-surface-600 text-surface-200 hover:bg-surface-500'
+                      : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
+                  }`}
+                >
+                  <ButtonIcon>
+                    {task.completed ? (
+                      <>
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </>
+                    ) : (
+                      <polyline points="20 6 9 17 4 12" />
+                    )}
+                  </ButtonIcon>
+                  {task.completed ? 'Reopen' : 'Done'}
+                </button>
+                <button
+                  onClick={toggleArchived}
+                  className="bg-surface-700 text-surface-300 hover:bg-surface-600 hover:text-surface-100 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                  title="Archive task"
+                >
+                  <ButtonIcon>
+                    <polyline points="21 8 21 21 3 21 3 8" />
+                    <rect x="1" y="3" width="22" height="5" />
+                    <line x1="10" y1="12" x2="14" y2="12" />
+                  </ButtonIcon>
+                  Archive
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              className="bg-surface-700 text-surface-300 hover:bg-surface-600 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors hover:text-red-400"
+            >
+              <ButtonIcon>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </ButtonIcon>
+              Delete
+            </button>
+          </div>
+        )}
         {showDeleteConfirm && (
           <ConfirmModal
             title="Delete task?"
@@ -1134,13 +1137,15 @@ export default function TaskDetail({
             onCancel={() => setShowDeleteConfirm(false)}
           />
         )}
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="text-surface-400 hover:text-surface-100 shrink-0 text-xl leading-none transition-colors"
-        >
-          ×
-        </button>
+        {!isEditingDescription && (
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-surface-400 hover:text-surface-100 shrink-0 text-xl leading-none transition-colors"
+          >
+            ×
+          </button>
+        )}
       </div>
 
       {/* flex-row-reverse: metadata stays first when stacked, but sits in a right rail on xl */}

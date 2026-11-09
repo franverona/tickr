@@ -285,16 +285,29 @@ describe('TaskDetail', () => {
 
   it("doesn't save an unsaved description after the task is deleted", async () => {
     deleteTask.mockResolvedValueOnce(undefined)
+    // A failed Save still leaves the editor, with the edit unsaved
+    updateTask.mockRejectedValueOnce(new Error('offline'))
     const { props, unmount } = renderTaskDetail(makeTask({ description: 'Notes' }))
     fireEvent.click(screen.getByText('Edit'))
     fireEvent.change(screen.getByTestId('md-editor'), { target: { value: 'Notes, edited' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await vi.waitFor(() => expect(screen.queryByTestId('md-editor')).not.toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
     await vi.waitFor(() => expect(props.onDelete).toHaveBeenCalledWith('task-1'))
     unmount()
 
-    expect(updateTask).not.toHaveBeenCalled()
+    expect(updateTask).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides the task actions and Close while editing the description', () => {
+    renderTaskDetail(makeTask())
+    fireEvent.click(screen.getByText('Edit'))
+
+    for (const name of ['Done', 'Archive', 'Delete', 'Close']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    }
   })
 
   it.each(['Copy link', 'Copy Slack review message'])(
