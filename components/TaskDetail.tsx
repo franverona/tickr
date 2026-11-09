@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } from '@/app/actions'
 import TagSelector from './TagSelector'
+import ConfirmModal from './ConfirmModal'
 import {
   MDEditor,
   MDPreview,
@@ -207,6 +208,25 @@ type Suggestion =
   | { kind: 'emoji'; items: ReadonlyArray<readonly [string, string]> }
   | { kind: 'mention'; items: Task[] }
   | { kind: 'snippet'; items: ReadonlyArray<Snippet> }
+
+function ButtonIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg
+      aria-hidden="true"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      {children}
+    </svg>
+  )
+}
 
 function LinkAction({
   label,
@@ -1047,55 +1067,73 @@ export default function TaskDetail({
           {task.archived ? (
             <button
               onClick={toggleArchived}
-              className="bg-surface-600 text-surface-200 hover:bg-surface-500 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              className="bg-surface-600 text-surface-200 hover:bg-surface-500 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
             >
+              <ButtonIcon>
+                <polyline points="21 8 21 21 3 21 3 8" />
+                <rect x="1" y="3" width="22" height="5" />
+                <line x1="10" y1="12" x2="14" y2="12" />
+              </ButtonIcon>
               Unarchive
             </button>
           ) : (
             <>
               <button
                 onClick={toggleComplete}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                title={task.completed ? 'Reopen task' : 'Mark task as done'}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                   task.completed
                     ? 'bg-surface-600 text-surface-200 hover:bg-surface-500'
                     : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
                 }`}
               >
-                {task.completed ? 'Reopen' : 'Mark Complete'}
+                <ButtonIcon>
+                  {task.completed ? (
+                    <>
+                      <polyline points="1 4 1 10 7 10" />
+                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                    </>
+                  ) : (
+                    <polyline points="20 6 9 17 4 12" />
+                  )}
+                </ButtonIcon>
+                {task.completed ? 'Reopen' : 'Done'}
               </button>
               <button
                 onClick={toggleArchived}
-                className="bg-surface-700 text-surface-300 hover:bg-surface-600 hover:text-surface-100 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                className="bg-surface-700 text-surface-300 hover:bg-surface-600 hover:text-surface-100 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
                 title="Archive task"
               >
+                <ButtonIcon>
+                  <polyline points="21 8 21 21 3 21 3 8" />
+                  <rect x="1" y="3" width="22" height="5" />
+                  <line x1="10" y1="12" x2="14" y2="12" />
+                </ButtonIcon>
                 Archive
               </button>
             </>
           )}
-          {showDeleteConfirm ? (
-            <>
-              <button
-                onClick={handleDelete}
-                className="rounded-md bg-red-700 px-2.5 py-1 text-xs font-medium text-red-100 transition-colors hover:bg-red-600"
-              >
-                Confirm Delete
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setShowDeleteConfirm(true)}
-              className="bg-surface-700 text-surface-300 hover:bg-surface-600 rounded-md px-2.5 py-1 text-xs font-medium transition-colors hover:text-red-400"
-            >
-              Delete
-            </button>
-          )}
+          <button
+            onClick={() => setShowDeleteConfirm(true)}
+            className="bg-surface-700 text-surface-300 hover:bg-surface-600 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors hover:text-red-400"
+          >
+            <ButtonIcon>
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+              <path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+            </ButtonIcon>
+            Delete
+          </button>
         </div>
+        {showDeleteConfirm && (
+          <ConfirmModal
+            title="Delete task?"
+            message={`"${task.title}" will be permanently deleted.`}
+            confirmLabel="Delete"
+            onConfirm={handleDelete}
+            onCancel={() => setShowDeleteConfirm(false)}
+          />
+        )}
         <button
           onClick={onClose}
           aria-label="Close"
@@ -1397,7 +1435,8 @@ export default function TaskDetail({
         <div
           className={`min-w-0 ${isEditingDescription ? 'flex-1' : 'w-full max-w-5xl xl:flex-1'}`}
         >
-          <div className="mb-2 flex items-center justify-between">
+          {/* Sticky so Edit/Done stay reachable while scrolling a long description */}
+          <div className="bg-surface-900 sticky top-0 z-10 flex items-center justify-between pb-2">
             <label className="text-surface-400 text-xs tracking-wide uppercase">Description</label>
             <div className="flex items-center gap-2">
               {isEditingDescription ? (
@@ -1416,6 +1455,7 @@ export default function TaskDetail({
                   )}
                   <button
                     onClick={handleDone}
+                    title="Finish editing description"
                     disabled={autoSaveStatus === 'saving'}
                     className="bg-surface-600 text-surface-100 hover:bg-surface-500 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
                   >

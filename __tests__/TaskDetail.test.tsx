@@ -250,7 +250,7 @@ describe('TaskDetail', () => {
     updateTask.mockResolvedValueOnce(updated)
     const { props } = renderTaskDetail(task)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mark Complete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
 
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
     expect(updateTask).toHaveBeenCalledWith('task-1', { completed: true })
@@ -268,16 +268,16 @@ describe('TaskDetail', () => {
     expect(updateTask).toHaveBeenCalledWith('task-1', { archived: true })
   })
 
-  it('requires a second click to confirm delete', async () => {
+  it('asks for confirmation in a modal before deleting', async () => {
     const task = makeTask()
     deleteTask.mockResolvedValueOnce(undefined)
     const { props } = renderTaskDetail(task)
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(screen.getByRole('button', { name: 'Confirm Delete' })).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog', { name: 'Delete task?' })
     expect(deleteTask).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm Delete' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     await vi.waitFor(() => expect(props.onDelete).toHaveBeenCalledWith('task-1'))
     expect(deleteTask).toHaveBeenCalledWith('task-1')
@@ -290,7 +290,7 @@ describe('TaskDetail', () => {
     fireEvent.change(screen.getByTestId('md-editor'), { target: { value: 'Notes, edited' } })
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm Delete' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
     await vi.waitFor(() => expect(props.onDelete).toHaveBeenCalledWith('task-1'))
     unmount()
 
@@ -330,10 +330,24 @@ describe('TaskDetail', () => {
     renderTaskDetail(task)
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(deleteTask).not.toHaveBeenCalled()
+  })
+
+  it('closes the delete confirmation on Escape without closing the panel', () => {
+    const onWindowKeyDown = vi.fn()
+    window.addEventListener('keydown', onWindowKeyDown)
+    renderTaskDetail(makeTask())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(onWindowKeyDown).not.toHaveBeenCalled()
+    expect(deleteTask).not.toHaveBeenCalled()
+    window.removeEventListener('keydown', onWindowKeyDown)
   })
 
   it('auto-saves the description after the debounce elapses', async () => {
@@ -436,7 +450,7 @@ describe('TaskDetail', () => {
     fireEvent.click(screen.getByText('Edit'))
     const editor = screen.getByTestId('md-editor')
     fireEvent.change(editor, { target: { value: 'Finished notes' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByTitle('Finish editing description'))
 
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
     expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'Finished notes' })
