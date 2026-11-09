@@ -1441,8 +1441,8 @@ export default function TaskDetail({
           {/* Sticky so Edit stays reachable while scrolling a long description; the editor
               scrolls internally, so it isn't sticky there (the editor would slide under it) */}
           <div
-            className={`flex items-center justify-between pb-2 ${
-              isEditingDescription ? 'pt-5' : 'bg-surface-900 sticky top-0 z-10 pt-3'
+            className={`flex items-center justify-between pt-3 pb-2 ${
+              isEditingDescription ? '' : 'bg-surface-900 sticky top-0 z-10'
             }`}
           >
             <label className="text-surface-400 text-xs tracking-wide uppercase">Description</label>
@@ -1473,7 +1473,8 @@ export default function TaskDetail({
               ) : (
                 <button
                   onClick={() => setIsEditingDescription(true)}
-                  className="text-surface-400 hover:text-surface-200 text-xs transition-colors"
+                  // py-1 matches the edit-mode Done button, so the row keeps its height
+                  className="text-surface-400 hover:text-surface-200 py-1 text-xs transition-colors"
                 >
                   Edit
                 </button>
@@ -1488,7 +1489,7 @@ export default function TaskDetail({
                   <MDEditor
                     value={descriptionDraft}
                     onChange={(val) => setDescriptionDraft(val || '')}
-                    height="max(360px, calc(100dvh - 11.5rem))"
+                    height="max(360px, calc(100dvh - 11rem))"
                     visibleDragbar={false}
                     preview="live"
                     textareaProps={suggestionTextareaProps}
