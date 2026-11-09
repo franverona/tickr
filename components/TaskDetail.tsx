@@ -1145,14 +1145,14 @@ export default function TaskDetail({
 
       {/* flex-row-reverse: metadata stays first when stacked, but sits in a right rail on xl */}
       <div
-        className={`flex flex-1 flex-col gap-4 overflow-y-auto p-5 xl:flex-row-reverse xl:items-start xl:gap-8 ${
+        className={`flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5 xl:flex-row-reverse xl:items-start xl:gap-8 ${
           isEditingDescription ? '' : 'xl:justify-center'
         }`}
       >
         {/* Compact metadata rows: Tags, Links */}
         {/* Hidden, not unmounted, so open link forms survive; editing gets the full width */}
         <div
-          className={`space-y-2.5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0 ${
+          className={`space-y-2.5 pt-5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0 ${
             isEditingDescription ? 'hidden' : ''
           }`}
         >
@@ -1433,7 +1433,9 @@ export default function TaskDetail({
         {!isEditingDescription && <div className="border-surface-700/70 border-t xl:hidden" />}
 
         <div
-          className={`min-w-0 ${isEditingDescription ? 'flex-1' : 'w-full max-w-5xl xl:flex-1'}`}
+          // Top padding lives on the children, not the scroll container: sticky insets
+          // count from the container's padding edge, which left a gap above the header
+          className={`min-w-0 ${isEditingDescription ? 'flex-1 pt-5' : 'w-full max-w-5xl xl:flex-1 xl:pt-5'}`}
         >
           {/* Sticky so Edit/Done stay reachable while scrolling a long description */}
           <div className="bg-surface-900 sticky top-0 z-10 flex items-center justify-between pb-2">
