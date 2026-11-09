@@ -1463,11 +1463,10 @@ export default function TaskDetail({
                   )}
                   <button
                     onClick={handleDone}
-                    title="Finish editing description"
                     disabled={autoSaveStatus === 'saving'}
                     className="bg-surface-600 text-surface-100 hover:bg-surface-500 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
                   >
-                    Done
+                    Save
                   </button>
                 </>
               ) : (

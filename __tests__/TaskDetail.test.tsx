@@ -441,7 +441,7 @@ describe('TaskDetail', () => {
     expect(props.onUpdate).toHaveBeenCalledWith(updated)
   })
 
-  it('saves the description immediately when Done is clicked', async () => {
+  it('saves the description immediately when Save is clicked', async () => {
     const task = makeTask()
     const updated = makeTask({ description: 'Finished notes' })
     updateTask.mockResolvedValueOnce(updated)
@@ -450,7 +450,7 @@ describe('TaskDetail', () => {
     fireEvent.click(screen.getByText('Edit'))
     const editor = screen.getByTestId('md-editor')
     fireEvent.change(editor, { target: { value: 'Finished notes' } })
-    fireEvent.click(screen.getByTitle('Finish editing description'))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
     expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'Finished notes' })
