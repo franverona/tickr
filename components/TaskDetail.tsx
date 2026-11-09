@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useMemo } from 'react'
 import type { Tag, Task } from '@/lib/types'
 import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } from '@/app/actions'
 import TagSelector from './TagSelector'
+import ConfirmModal from './ConfirmModal'
 import {
   MDEditor,
   MDPreview,
@@ -207,6 +208,25 @@ type Suggestion =
   | { kind: 'emoji'; items: ReadonlyArray<readonly [string, string]> }
   | { kind: 'mention'; items: Task[] }
   | { kind: 'snippet'; items: ReadonlyArray<Snippet> }
+
+function ButtonIcon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg
+      aria-hidden="true"
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+    >
+      {children}
+    </svg>
+  )
+}
 
 function LinkAction({
   label,
@@ -1043,78 +1063,101 @@ export default function TaskDetail({
             </svg>
           </h2>
         )}
-        <div className="flex shrink-0 items-center gap-1.5">
-          {task.archived ? (
-            <button
-              onClick={toggleArchived}
-              className="bg-surface-600 text-surface-200 hover:bg-surface-500 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-            >
-              Unarchive
-            </button>
-          ) : (
-            <>
-              <button
-                onClick={toggleComplete}
-                className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                  task.completed
-                    ? 'bg-surface-600 text-surface-200 hover:bg-surface-500'
-                    : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
-                }`}
-              >
-                {task.completed ? 'Reopen' : 'Mark Complete'}
-              </button>
+        {/* Task actions and Close are hidden while editing: Save is the way out of the editor */}
+        {!isEditingDescription && (
+          <div className="flex shrink-0 items-center gap-1.5">
+            {task.archived ? (
               <button
                 onClick={toggleArchived}
-                className="bg-surface-700 text-surface-300 hover:bg-surface-600 hover:text-surface-100 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-                title="Archive task"
+                className="bg-surface-600 text-surface-200 hover:bg-surface-500 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
               >
-                Archive
+                <ButtonIcon>
+                  <polyline points="21 8 21 21 3 21 3 8" />
+                  <rect x="1" y="3" width="22" height="5" />
+                  <line x1="10" y1="12" x2="14" y2="12" />
+                </ButtonIcon>
+                Unarchive
               </button>
-            </>
-          )}
-          {showDeleteConfirm ? (
-            <>
-              <button
-                onClick={handleDelete}
-                className="rounded-md bg-red-700 px-2.5 py-1 text-xs font-medium text-red-100 transition-colors hover:bg-red-600"
-              >
-                Confirm Delete
-              </button>
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="bg-surface-700 text-surface-200 hover:bg-surface-600 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
+            ) : (
+              <>
+                <button
+                  onClick={toggleComplete}
+                  title={task.completed ? 'Reopen task' : 'Mark task as done'}
+                  className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                    task.completed
+                      ? 'bg-surface-600 text-surface-200 hover:bg-surface-500'
+                      : 'bg-emerald-800 text-emerald-100 hover:bg-emerald-700'
+                  }`}
+                >
+                  <ButtonIcon>
+                    {task.completed ? (
+                      <>
+                        <polyline points="1 4 1 10 7 10" />
+                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                      </>
+                    ) : (
+                      <polyline points="20 6 9 17 4 12" />
+                    )}
+                  </ButtonIcon>
+                  {task.completed ? 'Reopen' : 'Done'}
+                </button>
+                <button
+                  onClick={toggleArchived}
+                  className="bg-surface-700 text-surface-300 hover:bg-surface-600 hover:text-surface-100 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+                  title="Archive task"
+                >
+                  <ButtonIcon>
+                    <polyline points="21 8 21 21 3 21 3 8" />
+                    <rect x="1" y="3" width="22" height="5" />
+                    <line x1="10" y1="12" x2="14" y2="12" />
+                  </ButtonIcon>
+                  Archive
+                </button>
+              </>
+            )}
             <button
               onClick={() => setShowDeleteConfirm(true)}
-              className="bg-surface-700 text-surface-300 hover:bg-surface-600 rounded-md px-2.5 py-1 text-xs font-medium transition-colors hover:text-red-400"
+              className="bg-surface-700 text-surface-300 hover:bg-surface-600 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors hover:text-red-400"
             >
+              <ButtonIcon>
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </ButtonIcon>
               Delete
             </button>
-          )}
-        </div>
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className="text-surface-400 hover:text-surface-100 shrink-0 text-xl leading-none transition-colors"
-        >
-          ×
-        </button>
+          </div>
+        )}
+        {showDeleteConfirm && (
+          <ConfirmModal
+            title="Delete task?"
+            message={`"${task.title}" will be permanently deleted.`}
+            confirmLabel="Delete"
+            onConfirm={handleDelete}
+            onCancel={() => setShowDeleteConfirm(false)}
+          />
+        )}
+        {!isEditingDescription && (
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="text-surface-400 hover:text-surface-100 shrink-0 text-xl leading-none transition-colors"
+          >
+            ×
+          </button>
+        )}
       </div>
 
       {/* flex-row-reverse: metadata stays first when stacked, but sits in a right rail on xl */}
       <div
-        className={`flex flex-1 flex-col gap-4 overflow-y-auto p-5 xl:flex-row-reverse xl:items-start xl:gap-8 ${
+        className={`flex flex-1 flex-col gap-4 overflow-y-auto px-5 pb-5 xl:flex-row-reverse xl:items-start xl:gap-8 ${
           isEditingDescription ? '' : 'xl:justify-center'
         }`}
       >
         {/* Compact metadata rows: Tags, Links */}
         {/* Hidden, not unmounted, so open link forms survive; editing gets the full width */}
         <div
-          className={`space-y-2.5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0 ${
+          className={`space-y-2.5 pt-5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0 xl:pt-3 ${
             isEditingDescription ? 'hidden' : ''
           }`}
         >
@@ -1395,9 +1438,18 @@ export default function TaskDetail({
         {!isEditingDescription && <div className="border-surface-700/70 border-t xl:hidden" />}
 
         <div
-          className={`min-w-0 ${isEditingDescription ? 'flex-1' : 'w-full max-w-5xl xl:flex-1'}`}
+          // Top padding lives on the children, not the scroll container: sticky insets
+          // count from the container's padding edge, which left a gap above the header.
+          // The header carries its own top spacing, so it sticks without moving first.
+          className={`min-w-0 ${isEditingDescription ? 'flex-1' : '-mt-3 w-full max-w-5xl xl:mt-0 xl:flex-1'}`}
         >
-          <div className="mb-2 flex items-center justify-between">
+          {/* Sticky so Edit stays reachable while scrolling a long description; the editor
+              scrolls internally, so it isn't sticky there (the editor would slide under it) */}
+          <div
+            className={`flex items-center justify-between pt-3 pb-2 ${
+              isEditingDescription ? '' : 'bg-surface-900 sticky top-0 z-10'
+            }`}
+          >
             <label className="text-surface-400 text-xs tracking-wide uppercase">Description</label>
             <div className="flex items-center gap-2">
               {isEditingDescription ? (
@@ -1419,13 +1471,14 @@ export default function TaskDetail({
                     disabled={autoSaveStatus === 'saving'}
                     className="bg-surface-600 text-surface-100 hover:bg-surface-500 rounded-md px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50"
                   >
-                    Done
+                    Save
                   </button>
                 </>
               ) : (
                 <button
                   onClick={() => setIsEditingDescription(true)}
-                  className="text-surface-400 hover:text-surface-200 text-xs transition-colors"
+                  // py-1 matches the edit-mode Done button, so the row keeps its height
+                  className="text-surface-400 hover:text-surface-200 py-1 text-xs transition-colors"
                 >
                   Edit
                 </button>
@@ -1440,7 +1493,7 @@ export default function TaskDetail({
                   <MDEditor
                     value={descriptionDraft}
                     onChange={(val) => setDescriptionDraft(val || '')}
-                    height="max(360px, calc(100dvh - 11.5rem))"
+                    height="max(360px, calc(100dvh - 11rem))"
                     visibleDragbar={false}
                     preview="live"
                     textareaProps={suggestionTextareaProps}

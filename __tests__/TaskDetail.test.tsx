@@ -250,7 +250,7 @@ describe('TaskDetail', () => {
     updateTask.mockResolvedValueOnce(updated)
     const { props } = renderTaskDetail(task)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mark Complete' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
 
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
     expect(updateTask).toHaveBeenCalledWith('task-1', { completed: true })
@@ -268,16 +268,16 @@ describe('TaskDetail', () => {
     expect(updateTask).toHaveBeenCalledWith('task-1', { archived: true })
   })
 
-  it('requires a second click to confirm delete', async () => {
+  it('asks for confirmation in a modal before deleting', async () => {
     const task = makeTask()
     deleteTask.mockResolvedValueOnce(undefined)
     const { props } = renderTaskDetail(task)
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    expect(screen.getByRole('button', { name: 'Confirm Delete' })).toBeInTheDocument()
+    const dialog = screen.getByRole('dialog', { name: 'Delete task?' })
     expect(deleteTask).not.toHaveBeenCalled()
 
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm Delete' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }))
 
     await vi.waitFor(() => expect(props.onDelete).toHaveBeenCalledWith('task-1'))
     expect(deleteTask).toHaveBeenCalledWith('task-1')
@@ -285,16 +285,29 @@ describe('TaskDetail', () => {
 
   it("doesn't save an unsaved description after the task is deleted", async () => {
     deleteTask.mockResolvedValueOnce(undefined)
+    // A failed Save still leaves the editor, with the edit unsaved
+    updateTask.mockRejectedValueOnce(new Error('offline'))
     const { props, unmount } = renderTaskDetail(makeTask({ description: 'Notes' }))
     fireEvent.click(screen.getByText('Edit'))
     fireEvent.change(screen.getByTestId('md-editor'), { target: { value: 'Notes, edited' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    await vi.waitFor(() => expect(screen.queryByTestId('md-editor')).not.toBeInTheDocument())
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Confirm Delete' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Delete' }))
     await vi.waitFor(() => expect(props.onDelete).toHaveBeenCalledWith('task-1'))
     unmount()
 
-    expect(updateTask).not.toHaveBeenCalled()
+    expect(updateTask).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides the task actions and Close while editing the description', () => {
+    renderTaskDetail(makeTask())
+    fireEvent.click(screen.getByText('Edit'))
+
+    for (const name of ['Done', 'Archive', 'Delete', 'Close']) {
+      expect(screen.queryByRole('button', { name })).not.toBeInTheDocument()
+    }
   })
 
   it.each(['Copy link', 'Copy Slack review message'])(
@@ -330,10 +343,24 @@ describe('TaskDetail', () => {
     renderTaskDetail(task)
 
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Cancel' }))
 
-    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
     expect(deleteTask).not.toHaveBeenCalled()
+  })
+
+  it('closes the delete confirmation on Escape without closing the panel', () => {
+    const onWindowKeyDown = vi.fn()
+    window.addEventListener('keydown', onWindowKeyDown)
+    renderTaskDetail(makeTask())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' })
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(onWindowKeyDown).not.toHaveBeenCalled()
+    expect(deleteTask).not.toHaveBeenCalled()
+    window.removeEventListener('keydown', onWindowKeyDown)
   })
 
   it('auto-saves the description after the debounce elapses', async () => {
@@ -427,7 +454,7 @@ describe('TaskDetail', () => {
     expect(props.onUpdate).toHaveBeenCalledWith(updated)
   })
 
-  it('saves the description immediately when Done is clicked', async () => {
+  it('saves the description immediately when Save is clicked', async () => {
     const task = makeTask()
     const updated = makeTask({ description: 'Finished notes' })
     updateTask.mockResolvedValueOnce(updated)
@@ -436,7 +463,7 @@ describe('TaskDetail', () => {
     fireEvent.click(screen.getByText('Edit'))
     const editor = screen.getByTestId('md-editor')
     fireEvent.change(editor, { target: { value: 'Finished notes' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Done' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
 
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
     expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'Finished notes' })
