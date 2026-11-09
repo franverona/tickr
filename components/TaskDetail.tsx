@@ -1152,7 +1152,7 @@ export default function TaskDetail({
         {/* Compact metadata rows: Tags, Links */}
         {/* Hidden, not unmounted, so open link forms survive; editing gets the full width */}
         <div
-          className={`space-y-2.5 pt-5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0 ${
+          className={`space-y-2.5 pt-5 xl:sticky xl:top-0 xl:w-80 xl:shrink-0 xl:pt-3 ${
             isEditingDescription ? 'hidden' : ''
           }`}
         >
@@ -1435,8 +1435,8 @@ export default function TaskDetail({
         <div
           // Top padding lives on the children, not the scroll container: sticky insets
           // count from the container's padding edge, which left a gap above the header.
-          // The header's own pt-3 is taken out of this spacing so the resting layout is unchanged.
-          className={`min-w-0 ${isEditingDescription ? 'flex-1 pt-2' : '-mt-3 w-full max-w-5xl xl:mt-0 xl:flex-1 xl:pt-2'}`}
+          // In view mode the header's own pt-3 is the only top spacing, so it sticks without moving first.
+          className={`min-w-0 ${isEditingDescription ? 'flex-1 pt-2' : '-mt-3 w-full max-w-5xl xl:mt-0 xl:flex-1'}`}
         >
           {/* Sticky so Edit stays reachable while scrolling a long description; the editor
               scrolls internally, so it isn't sticky there (the editor would slide under it) */}
