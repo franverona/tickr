@@ -1,12 +1,7 @@
 import type { Tag, Task } from '../types'
 import type { ImportedTag, ImportedTask } from '../import'
 
-// ── Kysely schema ────────────────────────────────────────────────────────────
-// completed/archived are stored as 0|1 on SQLite/MySQL (neither driver
-// auto-converts JS booleans) and as native boolean on Postgres. TasksTable is
-// generic over that column type so lib/db/shared/sql-repository.ts can share
-// one implementation across all three; the default (`number`) keeps every
-// existing `TasksTable`/`DbSchema` usage (SQLite, MySQL) unchanged.
+// completed/archived: 0|1 on SQLite/MySQL, boolean on Postgres
 
 export interface TasksTable<Bool = number> {
   id: string
@@ -50,14 +45,7 @@ export interface DbSchema {
   task_tags: TaskTagsTable
 }
 
-// ── Backend selection ────────────────────────────────────────────────────────
-
 export type DbType = 'sqlite' | 'postgres' | 'mysql' | 'firestore'
-
-// ── Repository interface ─────────────────────────────────────────────────────
-// Implemented once per backend. Transactions are internal to each
-// implementation — transaction semantics are backend-specific, so the
-// interface has no transaction-related surface.
 
 export interface TaskRepository {
   getTags(): Promise<Tag[]>

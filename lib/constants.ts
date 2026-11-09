@@ -1,8 +1,6 @@
 import type { Tag } from './types'
 
-// Predefined tags, seeded only into a fresh database (no tags and no tasks),
-// so a predefined tag the user edited or deleted never comes back. Adding one
-// here only affects new databases; existing ones need it created in the app.
+// Seeded only into a fresh database: adding one here doesn't reach existing ones
 export const PREDEFINED_TAGS: Tag[] = [
   {
     id: 'wip',
@@ -31,8 +29,7 @@ export const PREDEFINED_TAGS: Tag[] = [
   },
 ]
 
-// Color options for new tags. All class strings appear literally here so
-// Tailwind includes them in the CSS bundle even when applied dynamically.
+// Literal class strings, so Tailwind bundles them
 export const COLOR_PALETTE = [
   {
     name: 'Blue',

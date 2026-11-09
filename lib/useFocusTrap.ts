@@ -11,12 +11,7 @@ function getFocusable(container: HTMLElement): HTMLElement[] {
   )
 }
 
-/**
- * Traps Tab/Shift+Tab focus cycling within the returned container ref, moves
- * initial focus into it on mount (a specific element if given, otherwise the
- * first focusable one), and restores focus to whatever was focused before on
- * unmount. Intended for modal dialogs (role="dialog" aria-modal="true").
- */
+/** Focus trap for modals: restores the previous focus on unmount */
 export function useFocusTrap<T extends HTMLElement>(
   initialFocusRef?: RefObject<HTMLElement | null>,
 ) {

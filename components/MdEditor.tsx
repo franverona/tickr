@@ -11,9 +11,8 @@ import {
   wrapSelectionAsLink,
 } from '@/lib/paste-utils'
 
-// Remark plugin: finds "X.X. text" sub-items that were merged into a parent
-// list item's paragraph (because "1.1." is not a valid markdown list marker)
-// and restructures them as a proper nested ordered list in the AST.
+// Remark plugin: "1.1." isn't a list marker, so such sub-items end up in the
+// parent item's paragraph; rebuild them as a nested ordered list
 export function remarkOutlineList() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (tree: any) => {

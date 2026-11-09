@@ -22,20 +22,12 @@ vi.mock('@/app/actions', () => ({
   updateTaskUrl,
 }))
 
-// Mock for @/components/MdEditor — MDEditor/MarkdownLink/etc. copied from
-// CreateTaskModal.test.tsx. MDPreview is enhanced here: it scans `source`
-// for markdown checklist lines (mirroring TaskDetail.tsx's own
-// CHECKLIST_ITEM_RE) and renders each one through the real `input` render
-// prop TaskDetail passes in, so clicking a checkbox exercises the same
-// handleToggleChecklist wiring the app uses — not just a dumb <div>.
+// MDPreview renders checklist lines through TaskDetail's real `input` renderer,
+// so checkbox clicks exercise the app's toggle wiring
 const CHECKLIST_LINE_RE = /^(\s*(?:[-*+]|\d+[.)])\s+)\[([ xX])\](.*)$/gm
 
 vi.mock('@/components/MdEditor', () => ({
-  // textareaProps is forwarded onto the real textarea (autoFocus/onKeyDown/
-  // onKeyUp/onClick) so the description-autocomplete tests below exercise
-  // TaskDetail's actual detectSuggestion/selectSuggestion wiring, not a
-  // dumb stand-in — value/onChange still come from the explicit props so
-  // TaskDetail's own state stays authoritative.
+  // textareaProps is forwarded so the autocomplete tests exercise the real handlers
   MDEditor: ({
     value,
     onChange,
@@ -106,8 +98,6 @@ function makeTask(overrides: Partial<Task> = {}): Task {
   return {
     id: 'task-1',
     title: 'Fix the flaky test',
-    // Empty description: TaskDetail renders "No description." instead of
-    // MDPreview, so no MDEditor mock is needed for this plan's slice.
     description: '',
     tags: [],
     completed: false,
@@ -444,8 +434,7 @@ describe('TaskDetail', () => {
     const editor = screen.getByTestId('md-editor')
     fireEvent.change(editor, { target: { value: 'Switched away mid-edit' } })
 
-    // Simulates switching tasks or closing the panel within the 1.5s
-    // debounce window — page.tsx remounts TaskDetail via key={task.id}.
+    // Switching tasks within the debounce window remounts TaskDetail
     unmount()
 
     await vi.waitFor(() =>
@@ -476,7 +465,6 @@ describe('TaskDetail', () => {
     addTaskUrl.mockResolvedValueOnce(updated)
     const { props } = renderTaskDetail(task)
 
-    // Links section starts expanded (showUrlLinks defaults to true).
     fireEvent.click(screen.getByRole('button', { name: '+ Add' }))
     fireEvent.change(screen.getByPlaceholderText('URL'), { target: { value: 'not-a-real-url' } })
     fireEvent.change(screen.getByPlaceholderText('Label (optional)'), {
@@ -656,11 +644,7 @@ describe('TaskDetail', () => {
 
   describe('description autocomplete', () => {
     beforeEach(() => {
-      // Editing the description in these tests leaves it "dirty" relative
-      // to lastSavedDescRef when the component unmounts at test end, which
-      // triggers the flush-on-unmount save (see the autosave-flush fix) —
-      // give it something to resolve to so that fire-and-forget call
-      // doesn't reject/crash after the test has already finished asserting.
+      // The unmount flush saves the dirty draft after the test ends
       updateTask.mockResolvedValue(makeTask())
     })
 

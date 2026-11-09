@@ -14,10 +14,7 @@ on:
 permissions:
   contents: read
 
-# A new push to a PR cancels its stale run. Every other run (pushes to main,
-# schedule, manual) gets its own group, so each commit on main is tested and a
-# break can be traced to it. cancel-in-progress: false wouldn't do: a group
-# still keeps only one pending run and cancels the older ones.
+# Only PR runs cancel stale ones; every main run gets its own group, so each commit is tested
 concurrency:
   group: ci-${{ github.event_name == 'pull_request' && github.ref || github.run_id }}
   cancel-in-progress: true

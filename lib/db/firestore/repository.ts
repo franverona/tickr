@@ -10,8 +10,6 @@ import { slugify, uniqueSlug } from '../slug'
 import { ensureSeeded } from './seed'
 import { chunk } from './chunk'
 
-// Firestore field names match the Task/Tag domain types directly (no
-// snake_case translation layer needed, unlike the SQL adapters).
 interface FirestoreTaskDoc {
   title: string
   description: string
@@ -70,8 +68,6 @@ export class FirestoreTaskRepository implements TaskRepository {
     return this.db.collection('tags')
   }
 
-  // ── Tags ─────────────────────────────────────────────────────────────────
-
   async getTags(): Promise<Tag[]> {
     await this.ready()
     const snap = await this.tagsCol.orderBy('createdAt', 'asc').get()
@@ -129,11 +125,8 @@ export class FirestoreTaskRepository implements TaskRepository {
     return { id, label, color }
   }
 
-  // No FK cascade in Firestore: deleting a tag also has to strip it out of
-  // every task that references it, fanned out across batched writes. The tag
-  // doc goes last: if a batch fails, the tag still exists and a retry finishes
-  // the job, instead of tasks keeping an id that a new tag with the same slug
-  // would silently reattach to.
+  // No cascade: strip the tag from every task first. The tag doc goes last, so a
+  // failed batch leaves it in place for a retry rather than dangling ids.
   async deleteTag(id: string): Promise<void> {
     const db = await this.ready()
     const affected = await this.tasksCol.where('tags', 'array-contains', id).get()
@@ -147,8 +140,6 @@ export class FirestoreTaskRepository implements TaskRepository {
 
     await this.tagsCol.doc(id).delete()
   }
-
-  // ── Tasks ────────────────────────────────────────────────────────────────
 
   async getTasks(): Promise<Task[]> {
     await this.ready()
@@ -188,9 +179,7 @@ export class FirestoreTaskRepository implements TaskRepository {
       sortOrder: 0,
     }
 
-    // Requires a composite index (completed + sortOrder) — Firestore throws
-    // a FAILED_PRECONDITION error with a Console link to create it on first
-    // run; this cannot be created from application code.
+    // Needs a composite index (completed + sortOrder); the first error links to create it
     await db.runTransaction(async (trx) => {
       const minSnap = await trx.get(
         this.tasksCol.where('completed', '==', false).orderBy('sortOrder', 'asc').limit(1),
@@ -248,10 +237,8 @@ export class FirestoreTaskRepository implements TaskRepository {
   async reorderTasks(orderedIds: string[]): Promise<void> {
     const db = await this.ready()
     const entries = orderedIds.map((id, i) => ({ id, sortOrder: i * 1000 }))
-    // Skip ids deleted meanwhile (e.g. from another tab), like the SQL
-    // backends do: update() on a missing doc fails the whole batch, and
-    // set(merge) would recreate it as a sortOrder-only doc. Read and write in
-    // one transaction so a delete can't slip in between.
+    // Skip ids deleted meanwhile: update() on a missing doc fails the batch and
+    // set(merge) would recreate it. One transaction so no delete slips in between.
     for (const group of chunk(entries)) {
       await db.runTransaction(async (tx) => {
         const snaps = await tx.getAll(...group.map(({ id }) => this.tasksCol.doc(id)))
@@ -264,12 +251,8 @@ export class FirestoreTaskRepository implements TaskRepository {
 
   async deleteTask(id: string): Promise<void> {
     await this.ready()
-    // Nothing to cascade — urls are embedded and tag membership is just an
-    // id array on this doc, both removed along with the doc itself.
     await this.tasksCol.doc(id).delete()
   }
-
-  // ── Task URLs ────────────────────────────────────────────────────────────
 
   async addTaskUrl(taskId: string, data: { url: string; label: string }): Promise<Task> {
     await this.ready()
@@ -312,8 +295,6 @@ export class FirestoreTaskRepository implements TaskRepository {
     return docToTask(updated)
   }
 
-  // ── Import ───────────────────────────────────────────────────────────────
-
   async importTasks(
     items: ImportedTask[],
     overrideAll = false,
@@ -333,7 +314,6 @@ export class FirestoreTaskRepository implements TaskRepository {
       existingIds.add(doc.id)
     }
 
-    // Determine which tags need to be created
     const allTags = [...items.flatMap((item) => item.tags), ...extraTags]
     const validColors = new Set<string>(COLOR_PALETTE.map((c) => c.classes))
     const tagsToCreate: Array<{ id: string; label: string; color: string }> = []
@@ -398,13 +378,9 @@ export class FirestoreTaskRepository implements TaskRepository {
       imported++
     }
 
-    // The wipe and the writes share one list, so an import within Firestore's
-    // caps (500 writes, ~10 MiB) commits as a single atomic batch. Over them, each chunk
-    // commits independently and a failure partway leaves partial data: an
-    // accepted trade-off, since transactions share the same cap. The wipe runs
-    // only now, after every write above was built, so a bad item fails before
-    // anything is deleted.
-    // `bytes` is a JSON-size estimate of each write, for chunk()'s byte cap
+    // Within Firestore's caps the wipe and writes commit as one atomic batch; beyond
+    // them chunks commit independently (transactions share the cap). Every write is
+    // built before the wipe, so a bad item fails before anything is deleted.
     const writes: Array<{ apply: (batch: WriteBatch) => void; bytes: number }> = []
     if (overrideAll) {
       const [taskRefs, tagRefs] = await Promise.all([

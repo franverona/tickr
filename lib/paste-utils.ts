@@ -25,7 +25,6 @@ export function wrapSelectionAsLink(sel: TextSelection, url: string): string {
   )
 }
 
-// Quote-aware delimited text parser (handles embedded delimiters/newlines in "quoted" fields).
 export function parseDelimitedRows(text: string, delimiter: string): string[][] {
   const rows: string[][] = []
   let row: string[] = []
@@ -77,9 +76,7 @@ export function detectTableDelimiter(text: string): '\t' | ',' | null {
   return ','
 }
 
-// Converts outline-style X.X. numbered lists to standard markdown nested lists.
-// "1.1. Foo" → "   1. Foo" (3-space indent per level). Only fires when at least
-// one sub-numbered line (X.X.) is present; bullet lists already render correctly.
+// "1.1. Foo" → "   1. Foo": outline numbering to nested markdown lists
 export function convertOutlineList(text: string): string | null {
   const lines = text.split(/\r?\n/)
   if (!lines.some((l) => /^\s*\d+\.\d+\./.test(l))) return null

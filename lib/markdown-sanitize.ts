@@ -1,15 +1,9 @@
 import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 import type { Options } from 'rehype-sanitize'
 
-// The preview always enables rehype-raw, so without this any HTML in a
-// description (including from an imported backup) runs in the app's origin.
-// Starts from GitHub's allowlist, plus what the preview itself generates: the
-// copy button and heading icons (svg/path, class names, data-code).
-// The classes the preview's own plugins add before sanitizing (GFM task lists
-// and footnotes, alerts, heading icons, the copy button, code languages);
-// Prism's token classes come after. Any other class is dropped, so a
-// description can't borrow the app's Tailwind classes (`fixed inset-0 z-50`)
-// to draw over the UI.
+// The preview enables rehype-raw, so without this description HTML runs in the
+// app's origin. Only the preview's own classes survive, so a description can't
+// borrow Tailwind classes to draw over the UI.
 const PREVIEW_CLASSES = [
   'contains-task-list',
   'task-list-item',
@@ -37,9 +31,7 @@ const schema: Options = {
   tagNames: [...(defaultSchema.tagNames ?? []), 'svg', 'path', 'video'],
   attributes: {
     ...defaultSchema.attributes,
-    // No `name`: with no clobberPrefix, <img name="getElementById"> would
-    // shadow that document property (document's named properties override
-    // built-ins), and nothing the preview generates needs it
+    // No `name`: <img name="getElementById"> would shadow document properties
     '*': [
       ...(defaultSchema.attributes?.['*'] ?? []).filter((a) => a !== 'name'),
       ['className', ...PREVIEW_CLASSES],

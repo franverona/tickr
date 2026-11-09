@@ -14,10 +14,8 @@ const nextConfig: NextConfig = {
     // which would truncate 100 MB uploads and 20 MB actions before they arrive
     proxyClientMaxBodySize: '110mb',
   },
-  // No login, so a framed copy of the app is fully working: block clickjacking.
-  // X-Frame-Options for browsers without CSP frame-ancestors support. Uploads
-  // are left out because a header here replaces the route's own CSP (sandbox);
-  // /api/uploads sets these itself.
+  // No login, so block framing. Not uploads: a header here would replace their
+  // sandbox CSP, so /api/uploads sets these itself.
   async headers() {
     return [
       {

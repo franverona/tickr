@@ -2,12 +2,8 @@ import { Kysely, sql } from 'kysely'
 import type { DbSchema } from '../types'
 import { PREDEFINED_TAGS } from '../../constants'
 
-// Module-level cache — reset on every hot-reload (module re-evaluation), so
-// migrations re-run idempotently against the cached globalThis connection.
-// Caching the in-flight promise (not just a boolean) means concurrent first
-// calls (e.g. a page's simultaneous getTasks()/getTags() requests) await the
-// same run instead of racing each other through the DDL below; clearing it on
-// failure lets the next call retry instead of getting stuck.
+// The in-flight promise is cached so concurrent first calls share one run;
+// cleared on failure so the next call retries
 let _migration: Promise<void> | null = null
 
 export function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
@@ -20,9 +16,6 @@ export function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
   return _migration
 }
 
-// Unlike sqlite/migrate.ts, there's no incremental-migration history to
-// replay here — a fresh MySQL database creates the current target schema
-// directly, in one shot (same approach as postgres/migrate.ts).
 // Binary collation on id/FK columns: MySQL's default (utf8mb4_0900_ai_ci) is
 // accent-insensitive, so slugs like `café` and `cafe` would collide
 const ID = sql`varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`
@@ -36,12 +29,8 @@ const ID_COLUMNS: Array<[table: string, column: string]> = [
 ]
 
 async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
-  // id/FK columns use varchar(255) rather than text — MySQL can't index a
-  // TEXT/BLOB column (primary/foreign keys included) without an explicit key
-  // length. completed/archived use boolean, which MySQL stores as
-  // TINYINT(1); the mysql2 driver reads it back as a JS number (0|1), same
-  // as better-sqlite3, hence reusing sqlite's DbSchema/TasksTable (number,
-  // not boolean) instead of a postgres-style dedicated schema.
+  // varchar(255) ids: MySQL can't index TEXT without a key length. mysql2 reads
+  // boolean (TINYINT(1)) back as 0|1, hence sqlite's DbSchema.
   await db.schema
     .createTable('tasks')
     .ifNotExists()
@@ -120,11 +109,8 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     })
   }
 
-  // Seed predefined tags only into a fresh database (no tags, no tasks), so a
-  // predefined tag the user deleted doesn't come back on the next start.
-  // MySQL has no `ON CONFLICT` — `.ignore()` compiles to `INSERT IGNORE`,
-  // which still guards concurrent first starts. Fixed placeholder timestamp
-  // so predefined tags always sort first (ascending created_at).
+  // Fresh databases only, so deleted predefined tags don't come back. INSERT IGNORE
+  // guards concurrent first starts; the fixed timestamp sorts them first.
   const anyTag = await db.selectFrom('tags').select('id').limit(1).executeTakeFirst()
   const anyTask = await db.selectFrom('tasks').select('id').limit(1).executeTakeFirst()
   if (anyTag || anyTask) return

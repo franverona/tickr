@@ -6,9 +6,7 @@ import Page from '../app/page'
 import type { Tag, Task } from '../lib/types'
 import { quickDueDate } from '../lib/dates'
 
-// Reusable mock for @/components/MdEditor — see CreateTaskModal.test.tsx.
-// Needed here because pressing 'n' renders CreateTaskModal, which renders
-// MDEditor unconditionally.
+// Pressing 'n' renders CreateTaskModal, which renders MDEditor
 vi.mock('@/components/MdEditor', () => ({
   MDEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
     <textarea data-testid="md-editor" value={value} onChange={(e) => onChange(e.target.value)} />
@@ -280,8 +278,6 @@ describe('bulk actions', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Complete' }))
 
     expect(await screen.findByText('Updated 2 tasks')).toBeInTheDocument()
-    // Select mode exited: the bulk-action toolbar (with its "Cancel" button
-    // and "N selected" label) is gone.
     await waitFor(() => expect(screen.queryByText(/selected$/)).not.toBeInTheDocument())
     expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
   })

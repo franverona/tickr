@@ -283,10 +283,8 @@ const MAX_ZIP_DATA_FILE_BYTES = 20 * 1024 * 1024
 
 const ZIP_TOO_LARGE = 'ZIP has too many attachments, or they are too large'
 
-// Inflates an entry while counting real bytes: the size a ZIP declares can
-// lie, and JSZip only checks it after inflating everything. `budget` is shared
-// across entries for a total cap. pause() takes effect between 16 KB input
-// blocks, so a read can overshoot by one block's output (~16 MB at most).
+// Counts real inflated bytes: a ZIP's declared size can lie. `budget` is shared
+// across entries; a read can overshoot by one 16 KB input block's output.
 interface ZipStream {
   on(event: 'data', cb: (chunk: Uint8Array) => void): ZipStream
   on(event: 'error', cb: (err: Error) => void): ZipStream

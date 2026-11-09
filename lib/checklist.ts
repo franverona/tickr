@@ -2,12 +2,10 @@ import { visit } from 'unist-util-visit'
 
 const CHECKLIST_LINE_RE = /^([\s>]*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/
 
-// Remark plugin: records the source line of each checkbox, in render order, so
-// a clicked box maps to its line even with `- [ ]` inside code fences (never
-// rendered) or blockquotes. Fills `lines` in place because the parser only
-// runs inside the preview.
-// shortcut: raw HTML <input type="checkbox"> isn't recorded and shifts later
-// boxes, upgrade by reading the line from the rendered node if that shows up.
+// Remark plugin: each checkbox's source line in render order, so clicks map to
+// lines despite `- [ ]` in code fences or blockquotes.
+// shortcut: raw HTML checkboxes aren't recorded and shift later boxes; read the
+// line from the rendered node if that shows up.
 export function remarkChecklistLines(lines: number[]) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return () => (tree: any) => {
@@ -30,9 +28,7 @@ export function toggleChecklistLine(source: string, line: number): string {
 
 const FENCE_RE = /^\s*(`{3,}|~{3,})/
 
-// Done/total checkboxes for the card's progress badge. A line scan rather than
-// a Markdown parse, since every card runs it; skips fenced code like the
-// preview does.
+// A line scan, not a Markdown parse, since every card runs it
 export function checklistProgress(source: string): { done: number; total: number } {
   let done = 0
   let total = 0

@@ -66,8 +66,6 @@ describe('TaskCard', () => {
         onClick={() => {}}
       />,
     )
-    // getDueStatus's overdue/today/soon coloring is covered by dates.test.ts —
-    // this just confirms the badge text renders using the same formatter.
     expect(screen.getByText(formatDueDate(dueDateStr))).toBeInTheDocument()
   })
 

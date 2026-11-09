@@ -2,8 +2,7 @@ export type DueStatus = 'overdue' | 'today' | 'soon'
 
 const SOON_THRESHOLD_DAYS = 3
 
-// dueDate is a "YYYY-MM-DD" string with no time component, so it's compared
-// against the local calendar date rather than a UTC instant.
+// dueDate is a local calendar day, not a UTC instant
 export function getDueStatus(dueDate: string | null, completed: boolean): DueStatus | null {
   if (!dueDate || completed) return null
 
@@ -18,8 +17,7 @@ export function getDueStatus(dueDate: string | null, completed: boolean): DueSta
   return null
 }
 
-// Due dates for the context menu's and bulk bar's quick picks. Next Monday is
-// a week away on a Monday, never today.
+// Next Monday is never today
 export function quickDueDate(kind: 'tomorrow' | 'next-monday', now: Date = new Date()): string {
   const d = new Date(now)
   d.setDate(d.getDate() + (kind === 'tomorrow' ? 1 : (8 - d.getDay()) % 7 || 7))

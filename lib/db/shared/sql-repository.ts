@@ -7,9 +7,7 @@ import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
 import { slugify, uniqueSlug } from '../slug'
 
-// The 4-table shape shared by every SQL backend (SQLite/Postgres/MySQL),
-// generic over how each stores completed/archived (native boolean on
-// Postgres, 0|1 on SQLite/MySQL).
+// Generic over how completed/archived is stored: boolean on Postgres, 0|1 elsewhere
 export interface SqlSchema<Bool> {
   tasks: TasksTable<Bool>
   tags: TagsTable
@@ -18,11 +16,10 @@ export interface SqlSchema<Bool> {
 }
 
 export interface SqlRepositoryConfig<Bool> {
-  /** The backend's own migrate.ts ensureSchema — migration caching stays per-backend. */
   ensureSchema: (kysely: Kysely<SqlSchema<Bool>>) => Promise<void>
   boolIn: (b: boolean) => Bool
   boolOut: (v: Bool) => boolean
-  /** How duplicate-tag inserts (during import) are ignored: Postgres/SQLite use ON CONFLICT, MySQL has none and uses INSERT IGNORE. */
+  /** MySQL has no ON CONFLICT */
   tagConflictStrategy: 'onConflict' | 'ignore'
 }
 
@@ -37,11 +34,8 @@ export function createSqlTaskRepository<Bool>(
     return kysely
   }
 
-  // Kysely wraps generic column types in conditional SelectType/InsertType/
-  // UpdateType machinery that can't statically resolve back to a bare `Bool`
-  // type parameter, even though at every concrete instantiation (number or
-  // boolean) they're identical. `unknown` + a cast in boolOut sidesteps that
-  // false mismatch without weakening the public TaskRepository return types.
+  // `unknown` + a cast in boolOut: Kysely's column-type wrappers can't resolve
+  // back to a bare `Bool` type parameter
   type TaskRow = Omit<TasksTable<Bool>, 'completed' | 'archived'> & {
     completed: unknown
     archived: unknown
@@ -133,8 +127,6 @@ export function createSqlTaskRepository<Bool>(
   }
 
   return {
-    // ── Tags ─────────────────────────────────────────────────────────────
-
     async getTags(): Promise<Tag[]> {
       const db = await ready()
       return db
@@ -194,8 +186,6 @@ export function createSqlTaskRepository<Bool>(
         await trx.deleteFrom('tags').where('id', '=', id).execute()
       })
     },
-
-    // ── Tasks ────────────────────────────────────────────────────────────
 
     async getTasks(): Promise<Task[]> {
       const db = await ready()
@@ -285,13 +275,8 @@ export function createSqlTaskRepository<Bool>(
       const db = await ready()
       const now = new Date().toISOString()
 
-      // Only the columns actually provided are included in the SET clause —
-      // no read-then-merge. Two concurrent calls touching different fields
-      // (e.g. a description autosave alongside a status toggle) each patch
-      // only their own columns instead of one clobbering the other's change
-      // with a stale value read before either write committed. (Two calls
-      // racing to set the *same* field is still last-write-wins, same as any
-      // concurrent write without optimistic locking — not attempted here.)
+      // Only the given columns, no read-then-merge, so concurrent saves of
+      // different fields don't clobber each other
       const patch: Record<string, unknown> = { updated_at: now }
       if (data.title !== undefined) patch.title = data.title
       if (data.description !== undefined) patch.description = data.description
@@ -347,12 +332,8 @@ export function createSqlTaskRepository<Bool>(
     async reorderTasks(orderedIds: string[]): Promise<void> {
       if (orderedIds.length === 0) return
       const db = await ready()
-      // A single UPDATE ... CASE, not one round trip per task — the prior
-      // sequential-loop version was fine on local SQLite but meant one
-      // network round trip per task on Postgres/MySQL, so reordering a
-      // list of a few hundred tasks was a few hundred sequential awaits.
-      // sql.lit inlines the (server-computed) integers: as untyped params, Postgres
-      // resolves the CASE as text and refuses to assign it to the integer column.
+      // One UPDATE ... CASE, not a round trip per task. sql.lit: as untyped params,
+      // Postgres resolves the CASE as text and refuses it for an integer column.
       const whenClauses = orderedIds.map((id, i) => sql`WHEN ${id} THEN ${sql.lit(i * 1000)}`)
       await sql`
         UPDATE tasks
@@ -365,8 +346,6 @@ export function createSqlTaskRepository<Bool>(
       const db = await ready()
       await db.deleteFrom('tasks').where('id', '=', id).execute()
     },
-
-    // ── Task URLs ────────────────────────────────────────────────────────
 
     async addTaskUrl(taskId: string, data: { url: string; label: string }): Promise<Task> {
       return changeTaskUrls(taskId, (trx, now) =>
@@ -404,8 +383,6 @@ export function createSqlTaskRepository<Bool>(
       )
     },
 
-    // ── Import ───────────────────────────────────────────────────────────
-
     async importTasks(
       items: ImportedTask[],
       overrideAll = false,
@@ -427,7 +404,6 @@ export function createSqlTaskRepository<Bool>(
           await trx.deleteFrom('tags').execute()
         }
 
-        // Resolve existing tags by label
         const existingTags = await trx
           .selectFrom('tags')
           .select(['id', 'label', 'color'])
@@ -441,7 +417,6 @@ export function createSqlTaskRepository<Bool>(
 
         const takenIds = new Set(existingTags.map((t) => t.id))
 
-        // Determine which tags need to be created
         const validColors = new Set<string>(COLOR_PALETTE.map((c) => c.classes))
         const tagsToCreate: Array<{ id: string; label: string; color: string }> = []
         for (const { label, color: importedColor } of importedTags) {
