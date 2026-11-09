@@ -140,6 +140,20 @@ describe('detail panel', () => {
   })
 })
 
+describe('quick add', () => {
+  it('opens the new task in the detail panel', async () => {
+    await renderReady([makeTask({ id: 'a', title: 'Alpha' })])
+    createTask.mockResolvedValueOnce(makeTask({ id: 'b', title: 'Beta' }))
+
+    const input = await screen.findByRole('textbox', { name: 'Quick add task' })
+    fireEvent.change(input, { target: { value: 'Beta' } })
+    fireEvent.submit(input)
+
+    expect(await screen.findByRole('heading', { name: 'Beta' })).toBeInTheDocument()
+    expect(input).toHaveValue('')
+  })
+})
+
 describe('actions on search results', () => {
   it('offers the actions of the task, not of the tab', async () => {
     await renderReady([makeTask({ id: 'a', title: 'Alpha', completed: true })])

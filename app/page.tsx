@@ -616,6 +616,7 @@ export default function Page() {
         tags: tagFilter ? [tagFilter] : [],
       })
       setTasks((prev) => [task, ...prev])
+      setSelectedTaskId(task.id)
       setQuickTitle('')
     } catch {
       showToast('Failed to create task', 'error')
