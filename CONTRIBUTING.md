@@ -14,10 +14,6 @@ Search the existing issues first. If it's new, open an issue with:
 
 Open an issue describing the problem it solves before writing code. Tickr is a small, local tool, so features that add configuration or narrow use cases may be declined. Agreeing on the idea first saves you wasted work.
 
-## Security issues
-
-Don't open a public issue. Report it privately through the repository's **Security** tab ("Report a vulnerability").
-
 ## Pull requests
 
 1. For anything beyond a small fix, open or comment on an issue first.
