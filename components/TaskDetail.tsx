@@ -1434,11 +1434,12 @@ export default function TaskDetail({
 
         <div
           // Top padding lives on the children, not the scroll container: sticky insets
-          // count from the container's padding edge, which left a gap above the header
-          className={`min-w-0 ${isEditingDescription ? 'flex-1 pt-5' : 'w-full max-w-5xl xl:flex-1 xl:pt-5'}`}
+          // count from the container's padding edge, which left a gap above the header.
+          // The header's own pt-3 is taken out of this spacing so the resting layout is unchanged.
+          className={`min-w-0 ${isEditingDescription ? 'flex-1 pt-2' : '-mt-3 w-full max-w-5xl xl:mt-0 xl:flex-1 xl:pt-2'}`}
         >
           {/* Sticky so Edit/Done stay reachable while scrolling a long description */}
-          <div className="bg-surface-900 sticky top-0 z-10 flex items-center justify-between pb-2">
+          <div className="bg-surface-900 sticky top-0 z-10 flex items-center justify-between pt-3 pb-2">
             <label className="text-surface-400 text-xs tracking-wide uppercase">Description</label>
             <div className="flex items-center gap-2">
               {isEditingDescription ? (
