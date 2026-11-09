@@ -14,17 +14,7 @@ import { exportToCSV, exportToJSON } from '../lib/export'
 import { parseCSVContent, parseJSONContent } from '../lib/import'
 import type { Tag, Task } from '../lib/types'
 
-// Proves the export/import contract is backend-agnostic: seed a source
-// repository, export it, import into a *different* repository instance
-// (a different backend, in the postgres/mysql cases), and assert the data is
-// equivalent modulo backend-regenerated ids/timestamps.
-
-// lib/db/sqlite/migrate.ts caches its "schema is ready" promise at module
-// scope — correct for production's one process-wide connection, but it means
-// two independently-created in-memory databases in the same test run would
-// otherwise share one cached "already migrated" flag and the second db's
-// tables would never actually get created. Re-importing the module fresh
-// per repo sidesteps that.
+// migrate.ts caches its run per module, so each in-memory DB needs a fresh module
 async function makeSqliteRepo(): Promise<TaskRepository> {
   vi.resetModules()
   const { SqliteTaskRepository } = await import('../lib/db/sqlite/repository')
@@ -34,9 +24,7 @@ async function makeSqliteRepo(): Promise<TaskRepository> {
   return new SqliteTaskRepository(kysely)
 }
 
-// Test-only variables, never the app's DATABASE_URL: these tests wipe every
-// task and tag in the database they point at. The defaults use a dedicated
-// tickr_test database, created on demand, so the dev `tickr` database is safe.
+// Never the app's DATABASE_URL: these tests wipe the database they point at
 const POSTGRES_URL =
   process.env.POSTGRES_TEST_URL ?? 'postgresql://postgres:postgres@localhost:5432/tickr_test'
 
@@ -112,10 +100,7 @@ async function isFirestoreAvailable(): Promise<boolean> {
 }
 
 async function seedSource(repo: TaskRepository): Promise<void> {
-  // Wipe first: the postgres/mysql-backed repos in this file point at a
-  // real, persistent docker-compose database, not a fresh in-memory one, so
-  // a repeated test run would otherwise collide with tags left over from
-  // the last run.
+  // Postgres/MySQL persist between runs
   await repo.importTasks([], true)
 
   const bug = await repo.createTag({
@@ -149,9 +134,7 @@ async function assertRoundTrip(source: TaskRepository, destination: TaskReposito
   const sourceTasks = await source.getTasks()
   const sourceTags = await source.getTags()
 
-  // overrideAll=true so a destination pointing at a real, persistent
-  // database (e.g. the docker-compose postgres) starts clean regardless of
-  // what a previous test run left behind.
+  // Override, since persistent destinations keep the last run's data
   const jsonItems = parseJSONContent(exportToJSON(sourceTasks, sourceTags))
   const { tasks: destTasks, tags: destTags } = await destination.importTasks(jsonItems, true)
 

@@ -44,15 +44,12 @@ describe('ensureSchema', () => {
     raw
       .prepare('INSERT INTO task_urls (id, task_id, url, label, created_at) VALUES (?, ?, ?, ?, ?)')
       .run('u1', 't1', 'https://example.com', 'Example', '2026-01-01')
-    // A URL row referencing a task that was already deleted — possible
-    // because task_urls.task_id has no FK in the old schema (the exact
-    // pre-existing bug this rebuild fixes), so real databases can have these.
+    // An orphan, possible without the old schema's FK
     raw
       .prepare('INSERT INTO task_urls (id, task_id, url, label, created_at) VALUES (?, ?, ?, ?, ?)')
       .run('u2', 'deleted-task', 'https://orphaned.example.com', 'Orphan', '2026-01-01')
 
-    // Simulate the exact broken state: an orphaned task_urls_new left behind
-    // by a previously interrupted migration attempt (the bug the user hit).
+    // Leftover from an interrupted migration
     raw.exec(`
       CREATE TABLE task_urls_new (
         id TEXT PRIMARY KEY,
@@ -65,9 +62,7 @@ describe('ensureSchema', () => {
 
     const db = new Kysely<DbSchema>({ dialect: new SqliteDialect({ database: raw }) })
 
-    // Calling it twice concurrently also exercises the promise-cache dedup
-    // (two near-simultaneous callers, e.g. a page's getTasks()+getTags() on
-    // mount, must not each independently race through the migration).
+    // Concurrent calls must share one run
     await expect(Promise.all([ensureSchema(db), ensureSchema(db)])).resolves.toBeDefined()
 
     const tables = raw.prepare("SELECT name FROM sqlite_master WHERE type='table'").all() as {

@@ -2,12 +2,8 @@ import { Kysely, sql } from 'kysely'
 import type { DbSchema } from '../types'
 import { PREDEFINED_TAGS } from '../../constants'
 
-// Module-level cache — reset on every hot-reload (module re-evaluation), so
-// migrations re-run idempotently against the cached globalThis connection.
-// Caching the in-flight promise (not just a boolean) means concurrent first
-// calls (e.g. a page's simultaneous getTasks()/getTags() requests) await the
-// same run instead of racing each other through the DDL below; clearing it on
-// failure lets the next call retry instead of getting stuck.
+// The in-flight promise is cached so concurrent first calls share one run;
+// cleared on failure so the next call retries
 let _migration: Promise<void> | null = null
 
 export function ensureSchema(db: Kysely<DbSchema>): Promise<void> {
@@ -88,12 +84,8 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     )
   `.execute(db)
 
-  // task_urls may pre-date the ON DELETE CASCADE constraint above (SQLite can't
-  // ALTER TABLE to add a foreign key). Rebuild it if it's missing one. SQLite's
-  // DDL is transactional, so wrapping the whole rebuild means a failure partway
-  // through rolls back cleanly instead of leaving an orphaned task_urls_new
-  // that collides with the CREATE TABLE on the next retry; the DROP TABLE IF
-  // EXISTS also self-heals any such leftover from before this fix existed.
+  // Rebuild task_urls if it predates its FK (SQLite can't ALTER one in). In a
+  // transaction so a failure rolls back; DROP IF EXISTS clears older leftovers.
   const urlFks = await sql<{ table: string }>`
     SELECT "table" FROM pragma_foreign_key_list('task_urls')
   `.execute(db)
@@ -109,10 +101,7 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
           created_at TEXT NOT NULL
         )
       `.execute(trx)
-      // task_urls.task_id never had a FK before this rebuild, so rows whose
-      // task was already deleted can exist (the exact orphan bug this rebuild
-      // fixes) — drop them here rather than let them violate the new
-      // constraint on insert.
+      // Orphans from before the FK would violate it
       await sql`
         INSERT INTO task_urls_new (id, task_id, url, label, created_at)
         SELECT id, task_id, url, label, created_at FROM task_urls
@@ -152,14 +141,8 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     )
   `.execute(db)
 
-  // One-time cutover: backfill task_tags from the legacy tasks.tags JSON
-  // column, then drop it. Guarded by column existence (not a version table,
-  // consistent with the ADD COLUMN migrations above) since a stray read after
-  // the drop would throw, unlike the try/catch-swallowed ADD COLUMN pattern.
-  // The backfill and the DROP COLUMN share one transaction (SQLite's DDL is
-  // transactional) so a failure partway through can't leave the column
-  // dropped without the backfill, or vice versa; onConflict doNothing makes a
-  // retry after a pre-fix partial failure safe too.
+  // One-time cutover from the legacy tasks.tags JSON column. Backfill and DROP
+  // share a transaction, so neither happens without the other.
   const taskCols = await sql<{ name: string }>`SELECT name FROM pragma_table_info('tasks')`.execute(
     db,
   )
@@ -193,11 +176,8 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     })
   }
 
-  // Seed predefined tags only into a fresh database (no tags, no tasks), so a
-  // predefined tag the user deleted doesn't come back on the next start.
-  // onConflict doNothing still guards concurrent first starts. Fixed
-  // placeholder timestamp so predefined tags always sort first (ascending
-  // created_at).
+  // Fresh databases only, so deleted predefined tags don't come back. onConflict
+  // guards concurrent first starts; the fixed timestamp sorts them first.
   await db.transaction().execute(async (trx) => {
     const anyTag = await trx.selectFrom('tags').select('id').limit(1).executeTakeFirst()
     const anyTask = await trx.selectFrom('tasks').select('id').limit(1).executeTakeFirst()

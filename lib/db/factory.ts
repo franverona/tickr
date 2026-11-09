@@ -4,12 +4,7 @@ import { getPostgresRepository } from './postgres'
 import { getMysqlRepository } from './mysql'
 import { getFirestoreRepository } from './firestore'
 
-// DB_TYPE selects the backend, defaulting to "sqlite" so existing deployments
-// keep working with zero config. Postgres/MySQL share a Kysely-based SQL
-// layer and read a single DATABASE_URL connection string. Firestore is
-// schemaless and reads a single FIRESTORE_SERVICE_ACCOUNT_KEY connection
-// string instead. Unimplemented backends throw here rather than silently
-// falling back to SQLite.
+// Unknown backends throw rather than silently falling back to SQLite
 export function getRepository(): TaskRepository {
   const dbType = (process.env.DB_TYPE ?? 'sqlite').trim().toLowerCase()
 

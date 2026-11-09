@@ -10,9 +10,7 @@ const { getTestDb } = vi.hoisted(() => {
   return { getTestDb: () => db }
 })
 
-// Builds the in-memory DB through the real schema/migration code path (rather
-// than a hand-duplicated DDL copy) so the test fixture can't drift from the
-// production schema.
+// Real ensureSchema(), so the fixture can't drift from production
 vi.mock('../lib/db', async () => {
   const { Kysely, SqliteDialect } = await import('kysely')
   const { ensureSchema } = await import('../lib/db/sqlite/migrate')

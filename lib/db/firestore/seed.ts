@@ -1,11 +1,8 @@
 import type { Firestore } from '@google-cloud/firestore'
 import { PREDEFINED_TAGS } from '../../constants'
 
-// Firestore has no DDL/schema, only default data to seed — analogous to the
-// SQL adapters' ensureSchema(), but there are no tables to create. Caching
-// the in-flight promise (not just a boolean) means concurrent first calls
-// await the same run instead of racing; clearing it on failure lets the next
-// call retry instead of getting stuck.
+// The in-flight promise is cached so concurrent first calls share one run;
+// cleared on failure so the next call retries
 let _seeding: Promise<void> | null = null
 
 export function ensureSeeded(db: Firestore): Promise<void> {
@@ -18,10 +15,8 @@ export function ensureSeeded(db: Firestore): Promise<void> {
   return _seeding
 }
 
-// Seeds only a fresh database (no tags, no tasks), so a predefined tag the
-// user deleted doesn't come back on the next start. create() fails atomically
-// with ALREADY_EXISTS (gRPC code 6) if the doc exists, which still guards
-// concurrent first starts — direct analog to SQL's .onConflict().doNothing().
+// Fresh databases only, so deleted predefined tags don't come back. create()
+// guards concurrent first starts.
 async function seedPredefinedTags(db: Firestore): Promise<void> {
   const tagsCol = db.collection('tags')
   const now = '2000-01-01T00:00:00.000Z'

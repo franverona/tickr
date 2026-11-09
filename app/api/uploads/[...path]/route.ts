@@ -26,8 +26,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
     const contentType = UPLOAD_EXT_TO_MIME[ext] ?? 'application/octet-stream'
 
-    // Video players fetch in byte ranges to seek, and Safari won't play a video
-    // without them. Only a single `bytes=start-end` range; anything else gets the whole file.
+    // Video seeking needs ranges, and Safari won't play without them. Single range only.
     const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.get('range') ?? '')
     let status = 200
     let start = 0
@@ -58,9 +57,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
         'Cache-Control': 'public, max-age=31536000, immutable',
         'Accept-Ranges': 'bytes',
         ...(status === 206 && { 'Content-Range': `bytes ${start}-${end}/${size}` }),
-        // Served from the app's origin: never let a browser sniff a file into
-        // HTML, and sandbox it so nothing in it can run as this app. PDFs are
-        // exempt because Chrome won't render a PDF under a sandbox CSP.
+        // Served from the app's origin, so no sniffing and sandboxed. Not PDFs:
+        // Chrome won't render one under a sandbox CSP.
         'X-Content-Type-Options': 'nosniff',
         // next.config.ts's anti-framing headers skip uploads, so they're set here
         'X-Frame-Options': 'DENY',

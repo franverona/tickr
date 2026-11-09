@@ -106,13 +106,7 @@ export default function Page() {
       .catch(() => setLoadError(true))
   }, [])
 
-  // Restore last-viewed tab/task on mount rather than in useState initializers,
-  // so the client's first render still matches the server-rendered HTML
-  // (avoids a hydration mismatch) — this trades a one-frame flash of the
-  // defaults for correctness. That's exactly the case the disabled rule
-  // below warns about, but it's the React-docs-recommended fix for values
-  // that can only be known on the client (react.dev/reference/react/useEffect
-  // #displaying-different-content-on-the-server-and-client).
+  // Restored after mount, not in useState initializers, to avoid a hydration mismatch
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
     const savedTab = localStorage.getItem(TAB_STORAGE_KEY)
@@ -123,8 +117,7 @@ export default function Page() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
 
-  // Opening or closing a task reflows the grid, which can push the card off-screen.
-  // Optional call: jsdom has no scrollIntoView.
+  // Opening or closing a task reflows the grid. Optional call: jsdom has no scrollIntoView.
   useEffect(() => {
     cardRefs.current
       .get(selectedTaskId ?? activeCardId ?? '')
@@ -144,9 +137,7 @@ export default function Page() {
     else localStorage.removeItem(SELECTED_TASK_STORAGE_KEY)
   }, [selectedTaskId])
 
-  // Notify at most once per calendar day (tracked in localStorage, not just
-  // sessionStorage, so reloading later the same day doesn't re-prompt) about
-  // tasks due today or overdue.
+  // At most once per calendar day, so a same-day reload doesn't re-prompt
   useEffect(() => {
     if (isLoading || typeof Notification === 'undefined') return
     const today = localDateKey()
@@ -249,9 +240,7 @@ export default function Page() {
         return
       }
 
-      // ⌘K/Ctrl+K toggles the command palette from anywhere, including while
-      // typing — the one shortcut here that isn't gated on isTyping, matching
-      // the convention in every other app that has one.
+      // The only shortcut that also works while typing
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         if (isOtherModalOpen) return
         e.preventDefault()
@@ -353,9 +342,7 @@ export default function Page() {
 
   const query = searchQuery.trim().toLowerCase()
   const tagLabelById = new Map(tags.map((t) => [t.id, t.label.toLowerCase()]))
-  // A non-empty query searches across every tab (not just the current one) —
-  // otherwise a task you know exists can silently fail to show up just
-  // because it's archived while you're viewing Active.
+  // A query searches every tab, so archived tasks still turn up from Active
   const isSearching = query.length > 0
   const standupSummary = tab === 'done' && !isSearching ? doneLastWeekSummary(tasks) : null
 
@@ -410,10 +397,6 @@ export default function Page() {
       return 0
     })
 
-  // Roving tabindex: only one card is a Tab stop at a time (falls back to
-  // the first visible card if the last-active one scrolled out of the
-  // current tab/search filter), so Tab moves in/out of the list as a single
-  // stop and ArrowUp/ArrowDown/Home/End move within it.
   // Search spans all tabs, so actions follow the tasks themselves, not the tab
   const contextTask = tasks.find((t) => t.id === contextMenu?.taskId)
   // Only visible selected tasks count: a search, tab or tag-filter change can
@@ -421,6 +404,7 @@ export default function Page() {
   const selectedTasks = filteredTasks.filter((t) => selectedIds.has(t.id))
   const bulkStatuses = new Set(isSearching ? selectedTasks.map(taskStatus) : [tab])
 
+  // Roving tabindex: the list is one Tab stop, arrows move within it
   const rovingCardId = filteredTasks.some((t) => t.id === activeCardId)
     ? activeCardId
     : (filteredTasks[0]?.id ?? null)
@@ -488,10 +472,7 @@ export default function Page() {
 
     if (src === null || over === null || src === over || over === src + 1) return
 
-    // Must match filteredTasks' active-tab set exactly (same filter, same
-    // order) since src/over are indices into that array — reorder is only
-    // ever triggered with no search query or tag filter applied (see draggable
-    // below), so filteredTasks here is just tasks filtered, unsorted.
+    // src/over index filteredTasks, which is unfiltered here (drag is off while searching or filtering)
     const active = tasks.filter((t) => !t.completed && !t.archived)
     const reordered = [...active]
     const [item] = reordered.splice(src, 1)
@@ -549,9 +530,6 @@ export default function Page() {
       e.preventDefault()
       focusCardAt(filteredTasks.length - 1)
     } else if (e.key === 'ContextMenu' || (e.key === 'F10' && e.shiftKey)) {
-      // Standard OS convention for opening a context menu via keyboard —
-      // otherwise TaskContextMenu (Complete/Archive/Delete) is unreachable
-      // without a mouse.
       e.preventDefault()
       const rect = e.currentTarget.getBoundingClientRect()
       setContextMenu({ taskId: task.id, x: rect.left, y: rect.bottom })
@@ -1050,7 +1028,6 @@ export default function Page() {
                   )}
                 </div>
                 {bulkStatuses.has('active') && (
-                  // A native select: a short fixed list, with no menu state to manage
                   <select
                     aria-label="Set due date"
                     value=""

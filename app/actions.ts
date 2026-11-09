@@ -4,8 +4,6 @@ import { getRepository } from '@/lib/db'
 import type { Tag, Task } from '@/lib/types'
 import type { ImportedTag, ImportedTask } from '@/lib/import'
 
-// ── Tags ─────────────────────────────────────────────────────────────────────
-
 export async function getTags(): Promise<Tag[]> {
   return getRepository().getTags()
 }
@@ -24,8 +22,6 @@ export async function updateTag(
 export async function deleteTag(id: string): Promise<void> {
   return getRepository().deleteTag(id)
 }
-
-// ── Tasks ─────────────────────────────────────────────────────────────────────
 
 export async function getTasks(): Promise<Task[]> {
   return getRepository().getTasks()
@@ -63,9 +59,7 @@ export async function deleteTask(id: string): Promise<void> {
   return getRepository().deleteTask(id)
 }
 
-// ponytail: parallel per-item ops via Promise.allSettled, not real bulk SQL —
-// fine up to normal selection sizes; upgrade to a batched query per backend
-// only if selections regularly reach into the hundreds.
+// shortcut: per-item Promise.allSettled, not bulk SQL; batch per backend if selections reach the hundreds
 export interface BulkUpdateResult {
   succeeded: Task[]
   failedIds: string[]

@@ -5,10 +5,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import CreateTaskModal from '../components/CreateTaskModal'
 import type { Task } from '../lib/types'
 
-// Reusable mock for @/components/MdEditor — copy this block into future test
-// files (e.g. TaskDetail.test.tsx) that render MDEditor/MDPreview. Stubs all
-// six named exports so any importer works, even if a given test only
-// exercises a subset of them.
 vi.mock('@/components/MdEditor', () => ({
   MDEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
     <textarea data-testid="md-editor" value={value} onChange={(e) => onChange(e.target.value)} />
@@ -100,7 +96,6 @@ describe('CreateTaskModal', () => {
     render(
       <CreateTaskModal tags={[]} onCreated={() => {}} onClose={onClose} onTagCreated={() => {}} />,
     )
-    // Title input is auto-focused on mount (useFocusTrap).
     expect(screen.getByPlaceholderText('Task title')).toHaveFocus()
 
     fireEvent.keyDown(window, { key: 'Escape' })
@@ -150,14 +145,7 @@ describe('CreateTaskModal', () => {
     expect(onClose).not.toHaveBeenCalled()
     expect(screen.queryByText('Discard this task?')).not.toBeInTheDocument()
     expect(screen.getByPlaceholderText('Task title')).toHaveValue('Write docs')
-    // NOT a regression guard for the bug that motivated the footer buttons'
-    // `key`s (confirmed by testing): jsdom's synthetic click doesn't
-    // reproduce the real-browser timing where React reconciling "Keep
-    // Editing" (type="button") into the same-position "Create Task"
-    // (type="submit") in place, mid-click, made the browser submit the
-    // form. This assertion still passes without the `key`s in jsdom. Kept
-    // as a basic sanity check; the `key` fix itself was only verified live
-    // in an actual browser.
+    // Sanity check only: jsdom can't reproduce the bug the footer buttons' `key`s fix
     expect(createTask).not.toHaveBeenCalled()
   })
 

@@ -1,8 +1,5 @@
-// Firestore caps WriteBatch/transactions at 500 operations and a commit
-// request at 10 MiB. Used anywhere a batch could exceed that (reorderTasks,
-// deleteTag's fan-out, importTasks). `bytes` estimates each item's size, for
-// callers whose items can be large; a single item over `maxBytes` still gets
-// its own chunk, where Firestore rejects it.
+// Firestore caps a batch at 500 operations and a commit at 10 MiB. An item over
+// `maxBytes` gets its own chunk, where Firestore rejects it.
 export function chunk<T>(
   items: T[],
   size = 500,

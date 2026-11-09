@@ -112,9 +112,7 @@ function createResizableImg(onResize: (src: string, w: number) => void) {
   }
 }
 
-// Links come from user input and imports with no scheme check, unlike
-// description links, which the sanitizer filters. Anything else (vscode:,
-// javascript:, …) renders as plain text instead of launching a handler.
+// Links skip the sanitizer, so other schemes (javascript:, vscode:) render as plain text
 const SAFE_LINK_PROTOCOLS = new Set(['http:', 'https:', 'mailto:'])
 function safeLinkHref(url: string): string | undefined {
   try {
@@ -319,7 +317,6 @@ export default function TaskDetail({
     : `open for ${days(daysBetween(task.createdAt, new Date().toISOString()))}`
   const imageHandlers = makeImageHandlers(setDescriptionDraft, onError)
 
-  // setDescriptionDraft is stable (from useState) — safe to capture with empty deps
   const EditModeImg = useMemo(
     () =>
       createResizableImg((src, w) =>
@@ -497,8 +494,7 @@ export default function TaskDetail({
     },
   }
 
-  // task.id changes are handled by key={task.id} in the parent, which remounts
-  // this component entirely — no manual state reset needed here.
+  // The parent remounts this per task (key={task.id}), so no state reset on task change
 
   useEffect(() => {
     if (isEditingTitle) {
@@ -558,7 +554,6 @@ export default function TaskDetail({
 
     const LIST_RE = /^\s*([-*+]|\d+\.)\s/
 
-    // Returns true when lineStart sits inside an open fenced code block.
     function isInsideCodeFence(value: string, lineStart: number): boolean {
       const lines = value.slice(0, lineStart).split('\n')
       let inFence = false
@@ -600,8 +595,7 @@ export default function TaskDetail({
       e.preventDefault()
       e.stopPropagation()
 
-      // Single top-level ordered item → convert to X.X. subitem using the
-      // previous line to determine the parent number and subitem counter.
+      // Top-level ordered item → X.X. subitem, numbered from the previous line
       if (lines.length === 1 && /^\d+\.[ \t]/.test(lines[0])) {
         const content = lines[0].replace(/^\d+\.[ \t]*/, '')
         const prevLine =
@@ -657,9 +651,8 @@ export default function TaskDetail({
       if (!ta || document.activeElement !== ta) return
 
       e.preventDefault()
-      // Stop capture from reaching textarea so the library's bubble-phase
-      // listener never fires (it has a bug: inserts spaces for Shift+Tab
-      // when there is no multi-line selection).
+      // Keep the library's listener from firing: it inserts spaces on Shift+Tab
+      // without a multi-line selection
       e.stopPropagation()
 
       const { value, selectionStart, selectionEnd } = ta
@@ -830,14 +823,8 @@ export default function TaskDetail({
   }, [])
 
   useEffect(() => {
-    // Flush a pending debounced description save on unmount instead of
-    // silently discarding it. TaskDetail is remounted (key={task.id} in
-    // page.tsx) whenever the user switches tasks or closes the panel, which
-    // unmounts this instance — the timer-clearing cleanup above only
-    // cancels the *future* save, so without this, editing a description and
-    // clicking away within the 1.5s debounce window lost the edit with no
-    // warning. Empty deps: this only fires on true unmount, not on every
-    // keystroke re-render (unlike the debounce effect above).
+    // Flush a pending debounced save on unmount (switching or closing tasks),
+    // which the cleanup above would otherwise drop
     return () => {
       const draft = stripUploadPlaceholders(descriptionDraftRef.current)
       if (!deletedRef.current && draft !== lastSavedDescRef.current) {
@@ -1438,9 +1425,8 @@ export default function TaskDetail({
         {!isEditingDescription && <div className="border-surface-700/70 border-t xl:hidden" />}
 
         <div
-          // Top padding lives on the children, not the scroll container: sticky insets
-          // count from the container's padding edge, which left a gap above the header.
-          // The header carries its own top spacing, so it sticks without moving first.
+          // Top padding on the children, not the scroll container: sticky insets count
+          // from its padding edge, which left a gap above the header
           className={`min-w-0 ${isEditingDescription ? 'flex-1' : '-mt-3 w-full max-w-5xl xl:mt-0 xl:flex-1'}`}
         >
           {/* Sticky so Edit stays reachable while scrolling a long description; the editor
@@ -1576,10 +1562,7 @@ export default function TaskDetail({
             >
               {task.description ? (
                 (() => {
-                  // react-markdown-preview invokes component renderers more than once per
-                  // node (e.g. React Strict Mode double-render), so a plain incrementing
-                  // counter assigns inconsistent indices to the same checkbox across calls.
-                  // Cache the index per AST node (stable identity within one render pass).
+                  // Renderers run more than once per node, so the index is cached per AST node
                   let nextChecklistIndex = 0
                   const checklistIndices = new WeakMap<object, number>()
                   return (

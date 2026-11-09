@@ -12,67 +12,40 @@ A local task management app for tracking work.
 
 ## Stack
 
-- **Next.js 16** (App Router, Server Actions)
-- **SQLite** (default), **Postgres**, **MySQL**, or **Firestore** — pluggable via `DB_TYPE`
-- **Tailwind CSS v4**
-- **TypeScript**
-- **@uiw/react-md-editor** for markdown descriptions
+Next.js 16, TypeScript, Tailwind CSS v4, and SQLite (default), Postgres, MySQL or Firestore.
 
 ## Features
 
-- **Active / Done / Archived** task tabs with counts; Done and Archived are grouped by week
-- **Card grid** — tasks fill the page, then collapse into a compact sidebar while one is open
-- **Quick add** — type a title at the top of the Active tab and press Enter, no dialog needed
-- **Tag filters** — narrow the current tab to a single tag
-- **Inline editing** — title, description (Markdown), tags, due date
-- **Tag system** — create tags with a color picker; rename, recolor, or delete tags via the Tags modal
-- **Mark complete / reopen / archive / unarchive / delete**, with complete and reopen also available right on the card
-- **Drag-and-drop reordering** of active tasks
-- **Due date indicators** — color-coded badges for overdue, due today, and due soon (within 3 days), plus a colored card border for overdue and due today
-- **Attachments** — drag-and-drop or paste files into a task's description (once the task exists, not in the New Task dialog): images show inline, videos (MOV, MP4, WebM) as a player; PDF, text, Markdown, CSV, JSON and ZIP files are added as links (up to 100 MB each, stored in `public/uploads/`)
-- **Task search** — filter tasks by title, description, tag, or link label or URL in real time, across tabs
-- **Command palette** (`Ctrl`/`Cmd`+`K`) — jump to any task or action from the keyboard
-- **Keyboard shortcuts** — full set of shortcuts for navigation and actions; press `?` for the cheat sheet
-- **Bulk actions** — select several tasks to complete, reopen, archive, unarchive, delete, tag, or reschedule them at once
-- **Quick due dates** — set an active task's due date to tomorrow or next Monday (or clear it) from its right-click menu, or for every selected task from the bulk bar
-- **Due-date notifications** — a browser notification once a day, while the app is open, listing tasks that are overdue or due today
-- **Links section** — attach labeled URLs to any task; MR/PR links get a one-click copy of a Slack review message. Jira tickets, GitLab MRs and GitHub PRs also show on the task's card as badges (`NDC-123`, `MR !42`, `PR #7`) that open the link directly
-- **Standup summary** — on the Done tab, copy the tasks completed in the last 7 days, with their MR/PR links, as a Markdown list
-- **Editor enhancements** (in the task detail editor) — paste rich content (web pages, Notion, Docs) and it's converted to Markdown automatically; paste a URL over selected text to wrap it as a Markdown link; paste CSV/TSV data to insert a formatted Markdown table; emoji (`:name`), task mention (`@`), and snippet (`/key`) autocomplete; Tab / Shift+Tab indent and outdent list items (a numbered item becomes an outline sub-item like `2.1.`), and Enter continues nested and outline lists; drag an image's corner in the editor preview to resize it (the width is saved in the Markdown)
-- **Clickable checklists** — tick a description's `- [ ]` boxes straight from the task view, no editing needed; cards show progress (e.g. `3/7`)
-- **Export** — download all tasks as a ZIP containing `tasks.json` or `tasks.csv`, `tags.json` (every tag, including ones no task uses), and every uploaded file the descriptions reference
-- **Import** — restore from an exported ZIP (merge, or replace everything); attachments are re-uploaded, tag labels are matched or created automatically, and timestamps are kept. `@` mention links are re-linked from JSON exports
+- Active / Done / Archived tabs; Done and Archived grouped by week
+- Quick add, drag-and-drop reordering, bulk actions, tag filters and search across tabs
+- Markdown descriptions with clickable checklists, rich paste, CSV-to-table, and `:emoji`, `@mention` and `/snippet` autocomplete
+- Attachments: images and videos inline; PDF, text, Markdown, CSV, JSON and ZIP as links (up to 100 MB)
+- Due dates with overdue/today/soon badges and a daily browser notification
+- Links per task; Jira, GitLab MR and GitHub PR links show as card badges
+- Standup summary: copy last week's completed tasks with their MR/PR links
+- Command palette (`Cmd/Ctrl+K`) and keyboard shortcuts (`?`)
+- Export/import as ZIP (JSON or CSV, with attachments), across any backend
 
-## Getting Started
+## Getting started
 
-Requires **Node 22.22.2 or later** (`engines` in `package.json`; `.nvmrc` only selects the major version) and **pnpm 11** (`corepack enable` picks up the version pinned in `package.json`).
+Requires Node 22.22.2+ and pnpm 11 (`corepack enable`).
 
 ```bash
 pnpm install
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-By default, Tickr uses SQLite — no config needed. On every backend, a fresh database (no tasks and no tags) starts with predefined tags (WIP, UAT, Pipeline, Blocked, Review); you can rename or delete them, and they won't come back. See [Database](#database) below to use Postgres, MySQL, or Firestore instead.
+Open [http://localhost:3000](http://localhost:3000). A fresh database starts with a few predefined tags; deleted ones don't come back.
 
 ## Database
 
-Pluggable via `DB_TYPE`, defaulting to `sqlite`.
+Set `DB_TYPE` (default `sqlite`). See `.env.example`.
 
-### SQLite
+- **SQLite**: `./data/tasks.db`, created on first run. Delete it to reset.
+- **Postgres / MySQL**: set `DATABASE_URL`. Local containers: `docker compose up -d postgres` or `mysql`. To reset one, `docker compose rm -sf <service> && docker volume rm tickr_tickr-<service>-data` (not `down -v`, which wipes both).
+- **Firestore**: set `FIRESTORE_SERVICE_ACCOUNT_KEY` (service-account JSON on one line). This writes to the live project; for local work run `docker compose up -d firestore` and set `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` instead. On a real project, the first task creation fails until you create the composite index linked in the server logs.
 
-Created automatically at `./data/tasks.db` on first run — no config needed. To reset, delete the file and restart the server.
-
-### Postgres
-
-Set `DB_TYPE=postgres` and `DATABASE_URL` (e.g. `postgresql://user:pass@host:5432/dbname`). For a local Postgres to test against: `docker compose up -d postgres` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset the local one: `docker compose rm -sf postgres && docker volume rm tickr_tickr-postgres-data`, then `docker compose up -d postgres` (`docker compose down -v` would also wipe the MySQL volume). For a remote instance, clear the tables directly.
-
-### MySQL
-
-Set `DB_TYPE=mysql` and `DATABASE_URL` (e.g. `mysql://user:pass@host:3306/dbname`). For a local MySQL to test against: `docker compose up -d mysql` (see `docker-compose.yml`), then copy `.env.example` to `.env.local` and uncomment the two variables. To reset the local one: `docker compose rm -sf mysql && docker volume rm tickr_tickr-mysql-data`, then `docker compose up -d mysql` (`docker compose down -v` would also wipe the Postgres volume). For a remote instance, clear the tables directly.
-
-The local container runs MySQL 26.7, which refuses to start on a volume created by MySQL 8.4 (`Cannot upgrade from 80410 to 260700`; the data isn't touched). To keep that data, start it once on 9.7 first:
+MySQL 26.7 won't open a volume created by 8.4. To keep that data, start it once on 9.7:
 
 ```bash
 docker compose stop mysql
@@ -82,71 +55,23 @@ docker stop -t 60 tickr-mysql-hop && docker rm tickr-mysql-hop
 docker compose up -d mysql
 ```
 
-If the data doesn't matter, resetting MySQL as above is simpler.
+## Running with pm2
 
-### Firestore
-
-Set `DB_TYPE=firestore` and `FIRESTORE_SERVICE_ACCOUNT_KEY` (the full service-account JSON from Firebase Console → Project Settings → Service Accounts → Generate new private key, as a single-line string). This connects to the real remote Firestore project, so use a project you don't mind writing test data to, or use the local emulator instead: `docker compose up -d firestore`, then set `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` (no service-account key needed; data is in-memory and gone when the container stops). On a real project, the first task you create fails with "Failed to create task": the error in the server logs (`pm2 logs tickr`, or the `pnpm dev` output) contains a Firebase Console link to create a required composite index. Open it once. The emulator doesn't need this. To reset, clear the `tasks`/`tags` collections directly in the Firebase Console.
-
-## Running as a background service (pm2)
-
-Tickr runs on port **9876** in production mode so it doesn't collide with other dev projects on 3000.
-
-`pnpm dev` and `pnpm start` only listen on `127.0.0.1`, because Tickr has no login: anyone who can reach it can read and delete every task. To use it from another device on a network you trust, run `pnpm exec next start -H 0.0.0.0 -p 9876` instead.
-
-Requests are only served for `localhost`, `127.0.0.1` and `[::1]`, which blocks DNS rebinding attacks. To reach Tickr by another name, list it in `ALLOWED_HOSTS` (comma-separated) in `.env.local`.
-
-**First-time setup:**
+Tickr has no login, so it only listens on `127.0.0.1` and only answers `localhost` hosts. To reach it by another name, add it to `ALLOWED_HOSTS`; to expose it on a trusted network, use `pnpm exec next start -H 0.0.0.0 -p 9876`.
 
 ```bash
 npm install -g pm2
 pnpm build
 pm2 start "pnpm start -p 9876" --name tickr
 pm2 save
-pm2 startup   # follow the printed command to register with launchd
+pm2 startup   # registers with launchd
 ```
 
-Open [http://localhost:9876](http://localhost:9876).
-
-**Day-to-day commands:**
-
-```bash
-pm2 status          # check if tickr is running
-pm2 logs tickr      # tail logs
-pm2 restart tickr   # restart after a rebuild
-pm2 stop tickr      # stop
-pm2 delete tickr    # remove from pm2 entirely
-```
-
-**Updating the app:**
-
-```bash
-git pull
-pnpm install
-pnpm build
-pm2 restart tickr
-```
-
-## Scripts
-
-```bash
-pnpm dev             # Start dev server
-pnpm build           # Production build
-pnpm start           # Serve the production build (on 127.0.0.1)
-pnpm test            # Run unit tests (Vitest)
-pnpm test:watch      # Run tests in watch mode
-pnpm lint            # ESLint
-pnpm format          # Prettier (write)
-pnpm format:check    # Prettier (check)
-pnpm backup          # Write a backup ZIP to backups/ (see Backups)
-pnpm uploads:prune   # List uploads no task references; add --apply to delete them (see Uploads)
-```
+To update: `git pull && pnpm install && pnpm build && pm2 restart tickr`.
 
 ## Backups
 
-`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (gitignored) in the same format as the Export feature: `tasks.json`, `tags.json` and the uploaded files the tasks reference, so it restores with the regular Import. It uses the same backend as the app (it reads `.env.local`), keeps the 30 newest backups (a backup with no tasks, usually the wrong backend, is named `…-empty.zip` and is neither counted nor pruned), and writes to `BACKUP_DIR` instead when that's set (e.g. a synced or external folder).
-
-To run it daily at 03:00 with pm2:
+`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (or into `BACKUP_DIR`) in the export format, so it restores with Import. It keeps the 30 newest; an empty backup (usually the wrong backend) is named `…-empty.zip` and ignored. Daily at 03:00:
 
 ```bash
 pm2 start "pnpm backup" --name tickr-backup --cron "0 3 * * *" --no-autorestart
@@ -155,6 +80,8 @@ pm2 save
 
 ## Uploads
 
-Uploaded files are stored at `public/uploads/` (gitignored). Accepted types are images (PNG, JPEG, GIF, WebP), PDF, plain text, Markdown, CSV, JSON, ZIP and video (MOV, MP4, WebM), up to 100 MB each. Files referenced from task descriptions are included automatically when using the Export feature.
+Stored in `public/uploads/` and never deleted with their task. `pnpm uploads:prune` lists unreferenced files; `--apply` deletes them. Files under a day old are kept, and it refuses to run on a backend with no tasks.
 
-Nothing deletes an upload when its task or image goes away, so unreferenced files pile up. `pnpm uploads:prune` lists them (same backend as the app, like `pnpm backup`) without deleting anything; `pnpm uploads:prune --apply` deletes them. Files under a day old are always kept, since a recent upload may not be saved into its description yet, and it refuses to run when the backend has no tasks (usually the wrong `DB_TYPE`, where every upload would look unreferenced). Take a backup first if in doubt.
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md).

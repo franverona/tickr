@@ -5,9 +5,7 @@ import type { TaskRepository } from './db/types'
 import { localDateKey } from './dates'
 import { exportTagsToJSON, exportToJSON, referencedUploads, relativizeUploads } from './export'
 
-// Writes a ZIP in the same format as the browser export (tasks.json plus the
-// uploads/ its descriptions reference), so it restores with the regular
-// Import. Keeps only the newest `keep` backups in outDir.
+// Same ZIP format as the browser export, so it restores with Import. Keeps the newest `keep`.
 export async function createBackup({
   repo,
   uploadsDir,
@@ -43,9 +41,7 @@ export async function createBackup({
   const time = [now.getHours(), now.getMinutes(), now.getSeconds()]
     .map((n) => String(n).padStart(2, '0'))
     .join('')
-  // An empty backup usually means the wrong backend, so it gets a name the
-  // retention below doesn't match: it must neither push out nor count among
-  // the real ones
+  // An empty backup usually means the wrong backend: name it so retention ignores it
   const suffix = tasks.length === 0 ? '-empty' : ''
   const file = path.join(outDir, `tickr-${localDateKey(now)}-${time}${suffix}.zip`)
   await writeFile(file, await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' }))

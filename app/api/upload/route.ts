@@ -5,7 +5,7 @@ import path from 'path'
 import { UPLOAD_EXT_TO_MIME } from '@/lib/upload-types'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
-const MAX_SIZE_BYTES = 100 * 1024 * 1024 // 100 MB, room for short videos
+const MAX_SIZE_BYTES = 100 * 1024 * 1024
 
 // Reversed so the first extension listed for a type wins (jpg over jpeg)
 const MIME_TO_EXT = Object.fromEntries(
@@ -14,9 +14,8 @@ const MIME_TO_EXT = Object.fromEntries(
     .map(([ext, mime]) => [mime, ext]),
 )
 
-// Browsers often send an empty or vendor type for .md, .csv and .zip, so fall
-// back to the name's extension. Both are client-declared; the files are served
-// with nosniff and a sandbox CSP either way.
+// Browsers often send an empty or vendor type for .md, .csv and .zip. Both are
+// client-declared, but files are served with nosniff and a sandbox CSP anyway.
 function uploadExtension(file: File): string | null {
   if (Object.hasOwn(MIME_TO_EXT, file.type)) return MIME_TO_EXT[file.type]
   const ext = path.extname(file.name).slice(1).toLowerCase()
@@ -27,8 +26,7 @@ function uploadExtension(file: File): string | null {
 const MAX_BODY_BYTES = MAX_SIZE_BYTES + 64 * 1024
 
 export async function POST(req: NextRequest) {
-  // Unlike Server Actions, route handlers get no CSRF check: any site could
-  // auto-submit a multipart form here. Browsers always send Origin on POST.
+  // Route handlers get no CSRF check, unlike Server Actions
   const origin = req.headers.get('origin')
   const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
   if (origin) {
