@@ -9,6 +9,8 @@ import { useFocusTrap } from '@/lib/useFocusTrap'
 
 interface TagManagementModalProps {
   tags: Tag[]
+  /** Tasks per tag id, across every tab */
+  usage: Record<string, number>
   onClose: () => void
   onTagUpdated: (tag: Tag) => void
   onTagDeleted: (id: string) => void
@@ -16,6 +18,7 @@ interface TagManagementModalProps {
 
 export default function TagManagementModal({
   tags,
+  usage,
   onClose,
   onTagUpdated,
   onTagDeleted,
@@ -182,7 +185,10 @@ export default function TagManagementModal({
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2">
                     <p className="text-surface-300 flex-1 text-xs">
-                      Delete <TagBadge tag={tag} size="sm" />? This will remove it from all tasks.
+                      Delete <TagBadge tag={tag} size="sm" />?
+                      {usage[tag.id]
+                        ? ` This will remove it from ${tasksLabel(usage[tag.id])}.`
+                        : ''}
                     </p>
                     <button
                       onClick={() => handleDelete(tag.id)}
@@ -206,6 +212,11 @@ export default function TagManagementModal({
               ) : (
                 <div className="flex items-center gap-2">
                   <TagBadge tag={tag} />
+                  {usage[tag.id] ? (
+                    <span className="text-surface-500 text-xs">{tasksLabel(usage[tag.id])}</span>
+                  ) : (
+                    <span className="text-xs text-amber-400">Unused</span>
+                  )}
                   <div className="ml-auto flex items-center gap-1">
                     <button
                       onClick={() => startEdit(tag)}
@@ -260,4 +271,8 @@ export default function TagManagementModal({
       </div>
     </div>
   )
+}
+
+function tasksLabel(n: number): string {
+  return `${n} ${n === 1 ? 'task' : 'tasks'}`
 }
