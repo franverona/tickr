@@ -87,6 +87,8 @@ export default function Page() {
   } | null>(null)
   const [toastClosing, setToastClosing] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Read by the detail panel's unmount flush, which runs after the task is gone
+  const deletedIdsRef = useRef(new Set<string>())
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
@@ -433,6 +435,7 @@ export default function Page() {
   }
 
   function handleTaskDeleted(id: string) {
+    deletedIdsRef.current.add(id)
     setTasks((prev) => prev.filter((t) => t.id !== id))
     if (selectedTaskId === id) setSelectedTaskId(null)
   }
@@ -658,6 +661,7 @@ export default function Page() {
         const result = await deleteTasks(ids)
         failedIds = result.failedIds
         const succeededIds = new Set(result.succeededIds)
+        for (const id of succeededIds) deletedIdsRef.current.add(id)
         setTasks((prev) => prev.filter((t) => !succeededIds.has(t.id)))
         if (selectedTaskId && succeededIds.has(selectedTaskId)) setSelectedTaskId(null)
       } else {
@@ -1369,6 +1373,7 @@ export default function Page() {
               onTagCreated={handleTagCreated}
               onSelectTask={setSelectedTaskId}
               onError={(message) => showToast(message, 'error')}
+              wasDeleted={(id) => deletedIdsRef.current.has(id)}
               isSidebarCollapsed={isSidebarCollapsed}
               onToggleSidebar={() => setIsSidebarCollapsed((c) => !c)}
             />

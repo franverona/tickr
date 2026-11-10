@@ -136,6 +136,7 @@ function renderTaskDetail(
     onTagCreated: vi.fn(),
     onSelectTask: vi.fn(),
     onError: vi.fn(),
+    wasDeleted: vi.fn(() => false),
     isSidebarCollapsed: false,
     onToggleSidebar: vi.fn(),
     ...overrides,
@@ -441,6 +442,32 @@ describe('TaskDetail', () => {
       expect(updateTask).toHaveBeenCalledWith('task-1', { description: 'Switched away mid-edit' }),
     )
     expect(props.onUpdate).toHaveBeenCalledWith(updated)
+  })
+
+  it('skips the unmount flush when the task was deleted from outside the panel', async () => {
+    const { unmount } = renderTaskDetail(makeTask(), [], { wasDeleted: () => true })
+
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByTestId('md-editor'), { target: { value: 'Unsaved' } })
+    unmount()
+
+    await new Promise((r) => setTimeout(r, 0))
+    expect(updateTask).not.toHaveBeenCalled()
+  })
+
+  it('flushes through the latest onUpdate, not the one from mount', async () => {
+    const task = makeTask()
+    updateTask.mockResolvedValueOnce(makeTask({ description: 'Later' }))
+    const { props, rerender, unmount } = renderTaskDetail(task)
+    const latest = vi.fn()
+    rerender(<TaskDetail {...props} onUpdate={latest} />)
+
+    fireEvent.click(screen.getByText('Edit'))
+    fireEvent.change(screen.getByTestId('md-editor'), { target: { value: 'Later' } })
+    unmount()
+
+    await vi.waitFor(() => expect(latest).toHaveBeenCalled())
+    expect(props.onUpdate).not.toHaveBeenCalled()
   })
 
   it('saves the description immediately when Save is clicked', async () => {
