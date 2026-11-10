@@ -48,7 +48,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'File exceeds 100 MB limit' }, { status: 413 })
   }
 
-  const formData = await req.formData()
+  let formData: FormData
+  try {
+    formData = await req.formData()
+  } catch {
+    return NextResponse.json({ error: 'Malformed upload' }, { status: 400 })
+  }
   const file = formData.get('file')
 
   if (!(file instanceof File)) {

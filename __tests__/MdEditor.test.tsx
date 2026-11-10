@@ -31,6 +31,25 @@ describe('makeImageHandlers', () => {
     expect(value).toBe('')
   })
 
+  it('reports the status when the error response is not JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('Payload Too Large', { status: 413 })),
+    )
+    const onError = vi.fn()
+    const { onDrop } = makeImageHandlers((() => {}) as never, onError)
+
+    onDrop({
+      dataTransfer: { files: [new File(['x'], 'big.png', { type: 'image/png' })] },
+      currentTarget: document.createElement('textarea'),
+      preventDefault: () => {},
+    } as never)
+
+    await vi.waitFor(() =>
+      expect(onError).toHaveBeenCalledWith("Couldn't upload big.png: Upload failed (HTTP 413)"),
+    )
+  })
+
   it('keeps a link for every dropped file', async () => {
     vi.stubGlobal(
       'fetch',

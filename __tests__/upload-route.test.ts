@@ -37,6 +37,23 @@ describe('POST /api/upload', () => {
     expect(await res.json()).toEqual({ error: 'No file provided' })
   })
 
+  it('answers 400, not 500, to a malformed multipart body', async () => {
+    const res = await POST(
+      new NextRequest('http://localhost:9876/api/upload', {
+        method: 'POST',
+        headers: {
+          host: 'localhost:9876',
+          origin: 'http://localhost:9876',
+          'content-type': 'multipart/form-data; boundary=x',
+          'content-length': '7',
+        },
+        body: 'garbage',
+      }),
+    )
+    expect(res.status).toBe(400)
+    expect(await res.json()).toEqual({ error: 'Malformed upload' })
+  })
+
   describe('file types', () => {
     async function uploadFile(file: File) {
       const body = new FormData()
