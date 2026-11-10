@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
   daysBetween,
+  doneSummary,
   formatTimestamp,
   getDueStatus,
   localDateKey,
@@ -87,5 +88,32 @@ describe('quickDueDate', () => {
     ['2026-03-07', 'next-monday', '2026-03-09'],
   ] as const)('from %s, %s is %s', (from, kind, expected) => {
     expect(quickDueDate(kind, new Date(`${from}T15:00:00`))).toBe(expected)
+  })
+})
+
+describe('doneSummary', () => {
+  const t = (createdAt: string, completedAt: string | null) => ({ createdAt, completedAt })
+
+  it('counts the tasks and gives the median days from creation to completion', () => {
+    expect(
+      doneSummary([
+        t('2026-01-01T09:00:00', '2026-01-02T09:00:00'),
+        t('2026-01-01T09:00:00', '2026-01-04T09:00:00'),
+        t('2026-01-01T09:00:00', '2026-01-11T09:00:00'),
+      ]),
+    ).toBe('3 done · median 3d')
+    expect(
+      doneSummary([
+        t('2026-01-01T09:00:00', '2026-01-02T09:00:00'),
+        t('2026-01-01T09:00:00', '2026-01-04T09:00:00'),
+      ]),
+    ).toBe('2 done · median 2d')
+  })
+
+  it('says same day, and skips the median without completion dates', () => {
+    expect(doneSummary([t('2026-01-01T09:00:00', '2026-01-01T17:00:00')])).toBe(
+      '1 done · median same day',
+    )
+    expect(doneSummary([t('2026-01-01T09:00:00', null)])).toBe('1 done')
   })
 })

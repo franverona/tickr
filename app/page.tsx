@@ -22,7 +22,7 @@ import ShortcutsModal from '@/components/ShortcutsModal'
 import CommandPalette from '@/components/CommandPalette'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
-import { getDueStatus, localDateKey, quickDueDate, weekLabel } from '@/lib/dates'
+import { doneSummary, getDueStatus, localDateKey, quickDueDate, weekLabel } from '@/lib/dates'
 import { doneLastWeekSummary } from '@/lib/standup'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
@@ -1323,6 +1323,14 @@ export default function Page() {
                       {startsGroup && (
                         <h3 className="text-surface-500 col-span-full pt-2 text-xs font-medium first:pt-0">
                           {group}
+                          {tab === 'done' && (
+                            <span className="font-normal">
+                              {' · '}
+                              {doneSummary(
+                                filteredTasks.filter((t) => historyGroup(groupAt(t)) === group),
+                              )}
+                            </span>
+                          )}
                         </h3>
                       )}
                       <TaskCard
