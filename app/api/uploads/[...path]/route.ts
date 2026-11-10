@@ -1,6 +1,8 @@
+import { createReadStream } from 'fs'
 import { open } from 'fs/promises'
 import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
+import { Readable } from 'stream'
 import { UPLOAD_EXT_TO_MIME } from '@/lib/upload-types'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads')
@@ -22,7 +24,10 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
     return new NextResponse(null, { status: 404 })
   }
   try {
-    const { size } = await file.stat()
+    const info = await file.stat()
+    // A directory opens fine but can't be streamed
+    if (!info.isFile()) return new NextResponse(null, { status: 404 })
+    const { size } = info
     const ext = filePath.split('.').pop()?.toLowerCase() ?? ''
     const contentType = UPLOAD_EXT_TO_MIME[ext] ?? 'application/octet-stream'
 
@@ -47,15 +52,19 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
       }
       status = 206
     }
-    const data = Buffer.alloc(end - start + 1)
-    await file.read(data, 0, data.length, start)
+    // Streamed, so a 100 MB video isn't buffered in memory per request
+    const body =
+      size === 0
+        ? null
+        : (Readable.toWeb(createReadStream(filePath, { start, end })) as ReadableStream)
 
-    return new NextResponse(data, {
+    return new NextResponse(body, {
       status,
       headers: {
         'Content-Type': contentType,
         'Cache-Control': 'public, max-age=31536000, immutable',
         'Accept-Ranges': 'bytes',
+        'Content-Length': String(end - start + 1),
         ...(status === 206 && { 'Content-Range': `bytes ${start}-${end}/${size}` }),
         // Served from the app's origin, so no sniffing and sandboxed. Not PDFs:
         // Chrome won't render one under a sandbox CSP.
@@ -69,7 +78,6 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ path: strin
       },
     })
   } catch {
-    // e.g. a directory: open() succeeds but reading it fails
     return new NextResponse(null, { status: 404 })
   } finally {
     await file.close()

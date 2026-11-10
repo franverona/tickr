@@ -4,14 +4,19 @@ import { describe, expect, it, vi } from 'vitest'
 const DATA = Buffer.from('0123456789')
 vi.mock('fs/promises', () => ({
   open: vi.fn(async () => ({
-    stat: async () => ({ size: DATA.length }),
-    read: async (buf: Buffer, off: number, len: number, pos: number) => {
-      DATA.copy(buf, off, pos, pos + len)
-      return { bytesRead: len, buffer: buf }
-    },
+    stat: async () => ({ size: DATA.length, isFile: () => true }),
     close: async () => {},
   })),
 }))
+
+vi.mock('fs', async () => {
+  const { Readable } = await import('stream')
+  return {
+    createReadStream: vi.fn((_path: string, { start, end }: { start: number; end: number }) =>
+      Readable.from([DATA.subarray(start, end + 1)]),
+    ),
+  }
+})
 
 import { GET } from '../app/api/uploads/[...path]/route'
 
