@@ -556,6 +556,25 @@ export default function Page() {
     await applyTaskAction(taskId, action)
   }
 
+  async function handleContextMenuDuplicate() {
+    const source = tasks.find((t) => t.id === contextMenu?.taskId)
+    setContextMenu(null)
+    if (!source) return
+    try {
+      const copy = await createTask({
+        title: `${source.title} (copy)`,
+        description: source.description,
+        tags: source.tags,
+        dueDate: source.dueDate,
+        urls: source.urls.map(({ url, label }) => ({ url, label })),
+      })
+      handleTaskCreated(copy)
+      showToast('Task duplicated', 'success')
+    } catch {
+      showToast('Failed to duplicate task', 'error')
+    }
+  }
+
   async function handleContextMenuDueDate(dueDate: string | null) {
     if (!contextMenu) return
     const { taskId } = contextMenu
@@ -1466,6 +1485,7 @@ export default function Page() {
           onArchive={() => handleContextMenuAction('archive')}
           onUnarchive={() => handleContextMenuAction('unarchive')}
           onDelete={() => handleContextMenuAction('delete')}
+          onDuplicate={handleContextMenuDuplicate}
           onClose={() => setContextMenu(null)}
           onSetDueDate={handleContextMenuDueDate}
           hasDueDate={!!contextTask?.dueDate}
