@@ -27,9 +27,24 @@ describe('TagManagementModal', () => {
     deleteTag.mockReset()
   })
 
+  it('shows how many tasks use each tag, and flags unused ones', () => {
+    render(
+      <TagManagementModal
+        tags={[makeTag(), makeTag({ id: 'tag-2', label: 'idea' })]}
+        usage={{ 'tag-1': 3 }}
+        onClose={() => {}}
+        onTagUpdated={() => {}}
+        onTagDeleted={() => {}}
+      />,
+    )
+    expect(screen.getByText('3 tasks')).toBeInTheDocument()
+    expect(screen.getAllByText('Unused')).toHaveLength(1)
+  })
+
   it('shows "No tags yet" when there are no tags', () => {
     render(
       <TagManagementModal
+        usage={{}}
         tags={[]}
         onClose={() => {}}
         onTagUpdated={() => {}}
@@ -42,6 +57,7 @@ describe('TagManagementModal', () => {
   it('has an accessible name for the icon-only close button', () => {
     render(
       <TagManagementModal
+        usage={{}}
         tags={[]}
         onClose={() => {}}
         onTagUpdated={() => {}}
@@ -54,6 +70,7 @@ describe('TagManagementModal', () => {
   it('renders a badge for each existing tag', () => {
     render(
       <TagManagementModal
+        usage={{}}
         tags={[makeTag()]}
         onClose={() => {}}
         onTagUpdated={() => {}}
@@ -66,6 +83,7 @@ describe('TagManagementModal', () => {
   it('reveals the edit form pre-filled with the current label', () => {
     render(
       <TagManagementModal
+        usage={{}}
         tags={[makeTag()]}
         onClose={() => {}}
         onTagUpdated={() => {}}
@@ -83,6 +101,7 @@ describe('TagManagementModal', () => {
 
     render(
       <TagManagementModal
+        usage={{}}
         tags={[makeTag()]}
         onClose={() => {}}
         onTagUpdated={onTagUpdated}
@@ -100,6 +119,7 @@ describe('TagManagementModal', () => {
   it('shows a validation error and does not call updateTag when the label is emptied', () => {
     render(
       <TagManagementModal
+        usage={{}}
         tags={[makeTag()]}
         onClose={() => {}}
         onTagUpdated={() => {}}
@@ -120,6 +140,7 @@ describe('TagManagementModal', () => {
 
     render(
       <TagManagementModal
+        usage={{}}
         tags={[makeTag()]}
         onClose={() => {}}
         onTagUpdated={() => {}}
@@ -138,12 +159,14 @@ describe('TagManagementModal', () => {
     const second = makeTag({ id: 'tag-2', label: 'feature' })
     const props = { onClose: () => {}, onTagUpdated: () => {}, onTagDeleted }
 
-    const { rerender } = render(<TagManagementModal tags={[makeTag(), second]} {...props} />)
+    const { rerender } = render(
+      <TagManagementModal usage={{}} tags={[makeTag(), second]} {...props} />,
+    )
     fireEvent.click(screen.getAllByTitle('Delete tag')[0])
     fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
     await vi.waitFor(() => expect(onTagDeleted).toHaveBeenCalledWith('tag-1'))
 
-    rerender(<TagManagementModal tags={[second]} {...props} />)
+    rerender(<TagManagementModal usage={{}} tags={[second]} {...props} />)
     fireEvent.click(screen.getByTitle('Delete tag'))
     fireEvent.click(await screen.findByRole('button', { name: 'Delete' }))
     await vi.waitFor(() => expect(onTagDeleted).toHaveBeenCalledWith('tag-2'))

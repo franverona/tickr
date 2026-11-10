@@ -388,6 +388,9 @@ export default function Page() {
     (tag) => tag.id === tagFilter || tabTasks.some((t) => t.tags.includes(tag.id)),
   )
 
+  const tagUsage: Record<string, number> = {}
+  for (const task of tasks) for (const id of task.tags) tagUsage[id] = (tagUsage[id] ?? 0) + 1
+
   const filteredTasks = tabTasks
     .filter((task) => !tagFilter || task.tags.includes(tagFilter))
     .sort((a, b) => {
@@ -1158,6 +1161,9 @@ export default function Page() {
                         }`}
                       >
                         {tag.label}
+                        <span className="ml-1 opacity-60">
+                          {tabTasks.filter((t) => t.tags.includes(tag.id)).length}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -1388,6 +1394,7 @@ export default function Page() {
       {isTagsOpen && (
         <TagManagementModal
           tags={tags}
+          usage={tagUsage}
           onClose={() => setIsTagsOpen(false)}
           onTagUpdated={handleTagUpdated}
           onTagDeleted={handleTagDeleted}
