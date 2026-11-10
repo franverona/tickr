@@ -84,6 +84,7 @@ export default function Page() {
   const [toast, setToast] = useState<{
     message: string
     kind: 'loading' | 'success' | 'error'
+    undo?: () => void
   } | null>(null)
   const [toastClosing, setToastClosing] = useState(false)
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -317,12 +318,28 @@ export default function Page() {
     setTimeout(() => setMenuFeedback(null), 4000)
   }
 
-  function showToast(message: string, kind: 'loading' | 'success' | 'error') {
+  function showToast(message: string, kind: 'loading' | 'success' | 'error', undo?: () => void) {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
     setToastClosing(false)
-    setToast({ message, kind })
+    setToast({ message, kind, undo })
     if (kind !== 'loading') {
-      toastTimerRef.current = setTimeout(() => setToastClosing(true), 3000)
+      // Longer with Undo, so there's time to reach the button
+      toastTimerRef.current = setTimeout(() => setToastClosing(true), undo ? 6000 : 3000)
+    }
+  }
+
+  async function undoStatusChange(ids: string[], data: { completed: false } | { archived: false }) {
+    try {
+      if (ids.length === 1) {
+        handleTaskUpdated(await updateTask(ids[0], data))
+      } else {
+        const result = await updateTasks(ids, data)
+        setTasks((prev) => prev.map((t) => result.succeeded.find((u) => u.id === t.id) ?? t))
+        if (result.failedIds.length > 0) throw new Error('partial undo')
+        showToast(`Restored ${ids.length} tasks`, 'success')
+      }
+    } catch {
+      showToast("Couldn't undo", 'error')
     }
   }
 
@@ -423,9 +440,17 @@ export default function Page() {
     const statusChanged =
       previous?.completed !== updated.completed || previous?.archived !== updated.archived
     if (previous && previous.completed !== updated.completed) {
-      showToast(updated.completed ? 'Task marked as done' : 'Task reopened', 'success')
+      if (updated.completed) {
+        showToast('Task marked as done', 'success', () =>
+          undoStatusChange([updated.id], { completed: false }),
+        )
+      } else showToast('Task reopened', 'success')
     } else if (previous && previous.archived !== updated.archived) {
-      showToast(updated.archived ? 'Task archived' : 'Task unarchived', 'success')
+      if (updated.archived) {
+        showToast('Task archived', 'success', () =>
+          undoStatusChange([updated.id], { archived: false }),
+        )
+      } else showToast('Task unarchived', 'success')
     }
     if (updated.id === selectedTaskId && previous && statusChanged && !isSearching) {
       const stillInTab =
@@ -709,7 +734,17 @@ export default function Page() {
 
       const pastVerb = action === 'delete' ? 'Deleted' : 'Updated'
       if (failedIds.length === 0) {
-        showToast(`${pastVerb} ${count} ${noun}`, 'success')
+        const inverse =
+          action === 'complete'
+            ? { completed: false as const }
+            : action === 'archive'
+              ? { archived: false as const }
+              : null
+        showToast(
+          `${pastVerb} ${count} ${noun}`,
+          'success',
+          inverse ? () => undoStatusChange(ids, inverse) : undefined,
+        )
         cancelSelectMode()
       } else if (failedIds.length === count) {
         showToast(`Failed to ${infinitive} ${count} ${noun}`, 'error')
@@ -1472,6 +1507,18 @@ export default function Page() {
           {toast.kind === 'success' && <span className="text-emerald-400">✓</span>}
           {toast.kind === 'error' && <span>⚠</span>}
           <span>{toast.message}</span>
+          {toast.undo && (
+            <button
+              onClick={() => {
+                const undo = toast.undo!
+                setToastClosing(true)
+                undo()
+              }}
+              className="text-accent-500 hover:text-accent-400 ml-1 font-medium transition-colors"
+            >
+              Undo
+            </button>
+          )}
         </div>
       )}
 
