@@ -12,6 +12,7 @@ interface Props {
   onArchive: () => void
   onUnarchive: () => void
   onDelete: () => void
+  onDuplicate: () => void
   onClose: () => void
   /** Quick due dates, shown for active tasks only (completed ones aren't due) */
   onSetDueDate?: (dueDate: string | null) => void
@@ -27,6 +28,7 @@ export default function TaskContextMenu({
   onArchive,
   onUnarchive,
   onDelete,
+  onDuplicate,
   onClose,
   onSetDueDate,
   hasDueDate,
@@ -118,6 +120,9 @@ export default function TaskContextMenu({
             Unarchive
           </button>
         )}
+        <button role="menuitem" onClick={onDuplicate} className={item}>
+          Duplicate
+        </button>
         {tab === 'active' && onSetDueDate && (
           <>
             <div className="border-surface-700 my-1 border-t" />

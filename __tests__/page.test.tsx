@@ -198,6 +198,33 @@ describe('due reminder', () => {
   })
 })
 
+describe('duplicate', () => {
+  it('copies the task from the context menu and opens the copy', async () => {
+    const source = makeTask({
+      id: 'a',
+      title: 'Release',
+      description: '- [ ] tag',
+      tags: ['wip'],
+      dueDate: '2026-05-01',
+      urls: [{ id: 'u1', url: 'https://example.com', label: 'Runbook' }],
+    })
+    await renderReady([source])
+    createTask.mockResolvedValueOnce(makeTask({ id: 'b', title: 'Release (copy)' }))
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /^Release/ }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Duplicate' }))
+
+    expect(await screen.findByRole('heading', { name: 'Release (copy)' })).toBeInTheDocument()
+    expect(createTask).toHaveBeenCalledWith({
+      title: 'Release (copy)',
+      description: '- [ ] tag',
+      tags: ['wip'],
+      dueDate: '2026-05-01',
+      urls: [{ url: 'https://example.com', label: 'Runbook' }],
+    })
+  })
+})
+
 describe('actions on search results', () => {
   it('offers the actions of the task, not of the tab', async () => {
     await renderReady([makeTask({ id: 'a', title: 'Alpha', completed: true })])
