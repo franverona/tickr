@@ -51,6 +51,21 @@ describe('findOrphanUploads', () => {
     expect((await readdir(dir)).sort()).toEqual(['fresh.png', 'used.png'])
   })
 
+  it('keeps uploads mentioned by absolute URL, unquoted attribute or task link', async () => {
+    dir = await mkdtemp(path.join(tmpdir(), 'tickr-uploads-'))
+    const repo = await makeSqliteRepo()
+    const task = await repo.createTask({
+      title: 'T',
+      description: '![a](http://localhost:3000/uploads/abs.png)\n<video src=/uploads/clip.mp4>',
+      tags: [],
+    })
+    await repo.addTaskUrl(task.id, { url: '/uploads/spec.pdf', label: 'Spec' })
+    for (const name of ['abs.png', 'clip.mp4', 'spec.pdf', 'gone.png']) await file(name, 3 * DAY)
+
+    const { orphans } = await findOrphanUploads({ repo, uploadsDir: dir })
+    expect(orphans.map((o) => o.name)).toEqual(['gone.png'])
+  })
+
   it('reports no tasks so the caller can refuse to prune', async () => {
     dir = await mkdtemp(path.join(tmpdir(), 'tickr-uploads-'))
     await file('a.png', 3 * DAY)
