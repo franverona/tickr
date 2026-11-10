@@ -69,3 +69,16 @@ export function weekLabel(iso: string, now: Date = new Date()): string {
   if (weeksAgo === 1) return 'Last week'
   return `Week of ${formatTimestamp(start.toISOString())}`
 }
+
+// "3 done · median 2d" for a week of completed tasks (created → completed, in calendar days)
+export function doneSummary(tasks: { createdAt: string; completedAt: string | null }[]): string {
+  const days = tasks
+    .filter((t) => t.completedAt)
+    .map((t) => daysBetween(t.createdAt, t.completedAt!))
+    .sort((a, b) => a - b)
+  const count = `${tasks.length} done`
+  if (days.length === 0) return count
+  const mid = days.length >> 1
+  const median = days.length % 2 ? days[mid] : Math.round((days[mid - 1] + days[mid]) / 2)
+  return `${count} · median ${median === 0 ? 'same day' : `${median}d`}`
+}
