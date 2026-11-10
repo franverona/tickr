@@ -1,5 +1,5 @@
 import type { Firestore } from '@google-cloud/firestore'
-import { PREDEFINED_TAGS } from '../../constants'
+import { PREDEFINED_TAG_CREATED_AT, PREDEFINED_TAGS } from '../../constants'
 
 // The in-flight promise is cached so concurrent first calls share one run;
 // cleared on failure so the next call retries
@@ -19,7 +19,6 @@ export function ensureSeeded(db: Firestore): Promise<void> {
 // guards concurrent first starts.
 async function seedPredefinedTags(db: Firestore): Promise<void> {
   const tagsCol = db.collection('tags')
-  const now = '2000-01-01T00:00:00.000Z'
 
   const [anyTag, anyTask] = await Promise.all([
     tagsCol.limit(1).get(),
@@ -30,7 +29,9 @@ async function seedPredefinedTags(db: Firestore): Promise<void> {
   await Promise.all(
     PREDEFINED_TAGS.map(async (tag) => {
       try {
-        await tagsCol.doc(tag.id).create({ label: tag.label, color: tag.color, createdAt: now })
+        await tagsCol
+          .doc(tag.id)
+          .create({ label: tag.label, color: tag.color, createdAt: PREDEFINED_TAG_CREATED_AT })
       } catch (err) {
         if ((err as { code?: number }).code === 6) return // ALREADY_EXISTS
         throw err

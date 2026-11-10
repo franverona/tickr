@@ -1,6 +1,6 @@
 import { Kysely, sql } from 'kysely'
 import type { DbSchema } from '../types'
-import { PREDEFINED_TAGS } from '../../constants'
+import { PREDEFINED_TAG_CREATED_AT, PREDEFINED_TAGS } from '../../constants'
 
 // The in-flight promise is cached so concurrent first calls share one run;
 // cleared on failure so the next call retries
@@ -121,7 +121,7 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
         id: tag.id,
         label: tag.label,
         color: tag.color,
-        created_at: '2000-01-01T00:00:00.000Z',
+        created_at: PREDEFINED_TAG_CREATED_AT,
       })
       .ignore()
       .execute()
