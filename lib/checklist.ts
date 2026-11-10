@@ -1,6 +1,7 @@
 import { visit } from 'unist-util-visit'
 
-const CHECKLIST_LINE_RE = /^([\s>]*(?:[-*+]|\d+[.)])\s+)\[([ xX])\]/
+// GFM only renders a checkbox when the box is followed by whitespace and text
+const CHECKLIST_LINE_RE = /^([\s>]*(?:[-*+]|\d+[.)])\s+)\[([ xX])\](?=[ \t]+\S)/
 
 // Remark plugin: each checkbox's source line in render order, so clicks map to
 // lines despite `- [ ]` in code fences or blockquotes.
@@ -26,7 +27,7 @@ export function toggleChecklistLine(source: string, line: number): string {
   return lines.join('\n')
 }
 
-const FENCE_RE = /^\s*(`{3,}|~{3,})/
+const FENCE_RE = /^\s*(`{3,}|~{3,})(.*)$/
 
 // A line scan, not a Markdown parse, since every card runs it
 export function checklistProgress(source: string): { done: number; total: number } {
@@ -34,10 +35,11 @@ export function checklistProgress(source: string): { done: number; total: number
   let total = 0
   let fence = ''
   for (const line of source.split('\n')) {
-    const f = line.match(FENCE_RE)?.[1]
+    const [, f, rest] = line.match(FENCE_RE) ?? []
     if (f) {
       if (!fence) fence = f
-      else if (f[0] === fence[0] && f.length >= fence.length) fence = ''
+      // A closer can't carry an info string: ```js inside a fence is content
+      else if (f[0] === fence[0] && f.length >= fence.length && !rest.trim()) fence = ''
       continue
     }
     if (fence) continue
