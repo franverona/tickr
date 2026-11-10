@@ -174,6 +174,30 @@ describe('new task modal', () => {
   })
 })
 
+describe('due reminder', () => {
+  it('asks for notification permission once, not on every task change', async () => {
+    const requestPermission = vi.fn(async () => 'default')
+    vi.stubGlobal(
+      'Notification',
+      Object.assign(vi.fn(), { permission: 'default', requestPermission }),
+    )
+    try {
+      await renderReady([makeTask({ id: 'a', title: 'Alpha', dueDate: '2000-01-01' })])
+      await waitFor(() => expect(requestPermission).toHaveBeenCalled())
+      createTask.mockResolvedValueOnce(makeTask({ id: 'b', title: 'Beta' }))
+
+      const input = await screen.findByRole('textbox', { name: 'Quick add task' })
+      fireEvent.change(input, { target: { value: 'Beta' } })
+      fireEvent.submit(input)
+      expect(await screen.findByRole('heading', { name: 'Beta' })).toBeInTheDocument()
+
+      expect(requestPermission).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+})
+
 describe('actions on search results', () => {
   it('offers the actions of the task, not of the tab', async () => {
     await renderReady([makeTask({ id: 'a', title: 'Alpha', completed: true })])

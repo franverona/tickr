@@ -89,6 +89,7 @@ export default function Page() {
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Read by the detail panel's unmount flush, which runs after the task is gone
   const deletedIdsRef = useRef(new Set<string>())
+  const askedNotifyRef = useRef(false)
   const [dragSrcIdx, setDragSrcIdx] = useState<number | null>(null)
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null)
   const dragSrcIdxRef = useRef<number | null>(null)
@@ -167,7 +168,10 @@ export default function Page() {
     }
 
     if (Notification.permission === 'granted') notify()
-    else if (Notification.permission === 'default') {
+    else if (Notification.permission === 'default' && !askedNotifyRef.current) {
+      // This effect reruns on every task change; asking each time re-prompts
+      // until the browser quietly blocks the site
+      askedNotifyRef.current = true
       Notification.requestPermission().then((permission) => {
         if (permission === 'granted') notify()
       })
