@@ -141,8 +141,11 @@ export async function exportToZip(
   const imagePaths = referencedUploads(tasks)
   if (imagePaths.length > 0) {
     const uploadsFolder = zip.folder('uploads')!
-    await Promise.all(
-      imagePaths.map(async (imagePath) => {
+    // A few at a time: uploads can be 100 MB videos, and thousands of parallel
+    // fetches stall the tab and the server
+    const queue = [...imagePaths]
+    const worker = async () => {
+      for (let imagePath; (imagePath = queue.shift());) {
         const name = imagePath.split('/').pop()!
         try {
           const res = await fetch(imagePath)
@@ -151,8 +154,9 @@ export async function exportToZip(
         } catch {
           skipped.push(name)
         }
-      }),
-    )
+      }
+    }
+    await Promise.all(Array.from({ length: 4 }, worker))
   }
 
   const blob = await zip.generateAsync({
