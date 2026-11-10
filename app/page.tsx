@@ -441,6 +441,10 @@ export default function Page() {
     setTasks((prev) => [task, ...prev])
     setTab('active')
     setTagFilter(null)
+    // Otherwise a non-matching search hides the task that just opened
+    setSearchQuery('')
+    setIsSearchOpen(false)
+    cancelSelectMode()
     setSelectedTaskId(task.id)
     setIsCreateOpen(false)
   }

@@ -152,6 +152,28 @@ describe('quick add', () => {
   })
 })
 
+describe('new task modal', () => {
+  it('clears a search that would hide the new task', async () => {
+    await renderReady([makeTask({ id: 'a', title: 'Alpha' })])
+    fireEvent.keyDown(document, { key: '/' })
+    fireEvent.change(await screen.findByPlaceholderText('Search tasks…'), {
+      target: { value: 'alpha' },
+    })
+    createTask.mockResolvedValueOnce(makeTask({ id: 'b', title: 'Beta' }))
+    // Clicking away keeps a non-empty search open, and frees `n`
+    ;(document.activeElement as HTMLElement).blur()
+
+    fireEvent.keyDown(document, { key: 'n' })
+    const title = await screen.findByPlaceholderText('Task title')
+    fireEvent.change(title, { target: { value: 'Beta' } })
+    fireEvent.submit(title)
+
+    expect(await screen.findByRole('heading', { name: 'Beta' })).toBeInTheDocument()
+    expect(screen.queryByPlaceholderText('Search tasks…')).toBeNull()
+    expect(screen.getByRole('button', { name: 'Beta' })).toBeInTheDocument()
+  })
+})
+
 describe('actions on search results', () => {
   it('offers the actions of the task, not of the tab', async () => {
     await renderReady([makeTask({ id: 'a', title: 'Alpha', completed: true })])
