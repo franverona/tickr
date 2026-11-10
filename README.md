@@ -71,7 +71,7 @@ To update: `git pull && pnpm install && pnpm build && pm2 restart tickr`.
 
 ## Backups
 
-`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (or into `BACKUP_DIR`) in the export format, so it restores with Import. It keeps the 30 newest; an empty backup (usually the wrong backend) is named `…-empty.zip` and ignored. Daily at 03:00:
+`pnpm backup` writes `backups/tickr-<date>-<time>.zip` (or into `BACKUP_DIR`) in the export format, so it restores with Import. It keeps the 30 newest; an empty backup (usually the wrong backend) is named `…-empty.zip` and never counts toward or gets removed by that rotation, so delete those by hand. Daily at 03:00:
 
 ```bash
 pm2 start "pnpm backup" --name tickr-backup --cron "0 3 * * *" --no-autorestart
