@@ -50,6 +50,19 @@ describe('checklistProgress', () => {
     expect(checklistProgress(source)).toEqual({ done: 2, total: 4 })
   })
 
+  it('counts only boxes GFM renders', () => {
+    const source = [
+      '- [x]no space',
+      '- [ ]',
+      '- [x] done',
+      '```',
+      '```js',
+      '- [ ] still fenced',
+      '```',
+    ].join('\n')
+    expect(checklistProgress(source)).toEqual({ done: 1, total: 1 })
+  })
+
   it('reports no checklist for plain text', () => {
     expect(checklistProgress('just notes')).toEqual({ done: 0, total: 0 })
   })
