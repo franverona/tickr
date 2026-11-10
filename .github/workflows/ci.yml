@@ -66,6 +66,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # PRs are squash-merged, so the title becomes the commit on main; the
+      # commit-msg hook only sees local commits. Dependabot's titles come from
+      # dependabot.yml's prefixes, and long image names overrun the length cap.
+      - name: Lint PR title
+        if: github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]'
+        run: echo "$PR_TITLE" | pnpm exec commitlint
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+
       - run: pnpm lint
 
       - run: pnpm format:check
