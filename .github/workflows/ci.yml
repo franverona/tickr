@@ -22,6 +22,9 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-latest
+    # A run takes ~2.5 minutes; a hung DB connection shouldn't hold the runner
+    # (and Dependabot auto-merge) for the 6-hour default
+    timeout-minutes: 15
     # Same images and credentials as docker-compose.yml, so the cross-backend
     # tests' default connection URLs work unchanged
     services:
