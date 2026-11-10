@@ -32,6 +32,8 @@ interface TaskDetailProps {
   onTagCreated: (tag: Tag) => void
   onSelectTask: (id: string) => void
   onError: (message: string) => void
+  // Deleted from outside the panel (context menu, bulk bar), so the unmount flush skips it
+  wasDeleted: (id: string) => boolean
   isSidebarCollapsed: boolean
   onToggleSidebar: () => void
 }
@@ -268,6 +270,7 @@ export default function TaskDetail({
   onTagCreated,
   onSelectTask,
   onError,
+  wasDeleted,
   isSidebarCollapsed,
   onToggleSidebar,
 }: TaskDetailProps) {
@@ -302,6 +305,12 @@ export default function TaskDetail({
   const descriptionDraftRef = useRef(task.description)
   // Set once the task is deleted, so no pending save runs on it afterwards
   const deletedRef = useRef(false)
+  // The unmount flush runs after the last render, so it needs that render's callbacks,
+  // not the ones from mount (which compare against stale task state)
+  const callbacksRef = useRef({ onUpdate, onError, wasDeleted })
+  useEffect(() => {
+    callbacksRef.current = { onUpdate, onError, wasDeleted }
+  })
   const editorWrapperRef = useRef<HTMLDivElement>(null)
   const dueStatus = getDueStatus(task.dueDate, task.completed)
   const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`
@@ -827,7 +836,8 @@ export default function TaskDetail({
     // which the cleanup above would otherwise drop
     return () => {
       const draft = stripUploadPlaceholders(descriptionDraftRef.current)
-      if (!deletedRef.current && draft !== lastSavedDescRef.current) {
+      const { onUpdate, onError, wasDeleted } = callbacksRef.current
+      if (!deletedRef.current && !wasDeleted(task.id) && draft !== lastSavedDescRef.current) {
         updateTask(task.id, { description: draft })
           .then(onUpdate)
           .catch(() => onError('Failed to save description'))
