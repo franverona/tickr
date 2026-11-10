@@ -225,6 +225,38 @@ describe('duplicate', () => {
   })
 })
 
+describe('undo', () => {
+  it('undoes completing a task from the toast', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha' })
+    await renderReady([a])
+    updateTask.mockResolvedValueOnce({ ...a, completed: true })
+    updateTask.mockResolvedValueOnce(a)
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /^Alpha/ }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Mark as Complete' }))
+    expect(await screen.findByText('Task marked as done')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Alpha/ })).toBeNull())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+
+    await waitFor(() => expect(updateTask).toHaveBeenLastCalledWith('a', { completed: false }))
+    expect(await screen.findByRole('button', { name: /^Alpha/ })).toBeInTheDocument()
+  })
+
+  it('offers no undo for reopening', async () => {
+    const a = makeTask({ id: 'a', title: 'Alpha', completed: true })
+    localStorage.setItem('tickr:tab', 'done')
+    await renderReady([a])
+    updateTask.mockResolvedValueOnce({ ...a, completed: false })
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /^Alpha/ }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Reopen' }))
+
+    expect(await screen.findByText('Task reopened')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Undo' })).toBeNull()
+  })
+})
+
 describe('actions on search results', () => {
   it('offers the actions of the task, not of the tab', async () => {
     await renderReady([makeTask({ id: 'a', title: 'Alpha', completed: true })])
