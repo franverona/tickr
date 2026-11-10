@@ -98,8 +98,12 @@ async function uploadFile(file: File): Promise<string> {
   body.append('file', file)
   const res = await fetch('/api/upload', { method: 'POST', body })
   if (!res.ok) {
-    const { error } = await res.json()
-    throw new Error(error ?? 'Upload failed')
+    // A proxy 413 or a crash page isn't JSON
+    const error = await res
+      .json()
+      .then((b: { error?: string }) => b.error)
+      .catch(() => undefined)
+    throw new Error(error ?? `Upload failed (HTTP ${res.status})`)
   }
   const { url } = await res.json()
   return url as string
