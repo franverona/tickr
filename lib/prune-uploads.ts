@@ -1,7 +1,20 @@
 import { readdir, rm, stat } from 'fs/promises'
 import path from 'path'
 import type { TaskRepository } from './db/types'
-import { referencedUploads } from './export'
+import type { Task } from './types'
+
+// Looser than export's LOCAL_UPLOAD_RE: deleting is irreversible, so any mention
+// (absolute URL, unquoted attribute, a task link) keeps the file
+const ANY_UPLOAD_RE = /\/uploads\/([\w.-]+)/g
+
+function mentionedUploads(tasks: Task[]): Set<string> {
+  const names = new Set<string>()
+  for (const task of tasks) {
+    const text = [task.description, ...task.urls.map((u) => u.url)].join('\n')
+    for (const [, name] of text.matchAll(ANY_UPLOAD_RE)) names.add(name)
+  }
+  return names
+}
 
 // A file this new may belong to an upload whose description isn't saved yet
 // (autosave pending, import mid-way), so it's never treated as orphaned
@@ -18,7 +31,7 @@ export async function findOrphanUploads({
   now?: number
 }): Promise<{ taskCount: number; orphans: { name: string; bytes: number }[] }> {
   const tasks = await repo.getTasks()
-  const referenced = new Set(referencedUploads(tasks).map((p) => path.basename(p)))
+  const referenced = mentionedUploads(tasks)
 
   let names: string[]
   try {
