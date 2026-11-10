@@ -311,6 +311,9 @@ export default function TaskDetail({
   useEffect(() => {
     callbacksRef.current = { onUpdate, onError, wasDeleted }
   })
+  const [dueDraft, setDueDraft] = useState<string | null>(null)
+  const dueTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const dueSeqRef = useRef(0)
   const editorWrapperRef = useRef<HTMLDivElement>(null)
   const dueStatus = getDueStatus(task.dueDate, task.completed)
   const days = (n: number) => `${n} day${n === 1 ? '' : 's'}`
@@ -545,15 +548,34 @@ export default function TaskDetail({
   }
 
   async function saveDueDate(dueDate: string) {
+    if (dueTimerRef.current) clearTimeout(dueTimerRef.current)
+    dueTimerRef.current = null
+    const seq = ++dueSeqRef.current
     setSavingSection('due')
     try {
       const updated = await updateTask(task.id, { dueDate: dueDate || null })
+      // An older save finishing late mustn't overwrite a newer one
+      if (seq !== dueSeqRef.current) return
       onUpdate(updated)
+      setDueDraft(null)
     } catch {
       onError('Failed to save due date')
     } finally {
-      setSavingSection(null)
+      if (seq === dueSeqRef.current) setSavingSection(null)
     }
+  }
+
+  // Typing a date fires a change per keystroke (year 0002, 0020…) and "" while a
+  // segment is cleared, so only complete dates save, after a pause or on blur
+  function handleDueChange(value: string) {
+    setDueDraft(value)
+    if (dueTimerRef.current) clearTimeout(dueTimerRef.current)
+    dueTimerRef.current = value ? setTimeout(() => saveDueDate(value), 600) : null
+  }
+
+  function handleDueBlur() {
+    if (dueTimerRef.current && dueDraft) saveDueDate(dueDraft)
+    else if (!dueDraft) setDueDraft(null)
   }
 
   useEffect(() => {
@@ -1184,8 +1206,9 @@ export default function TaskDetail({
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <input
                 type="date"
-                value={task.dueDate ?? ''}
-                onChange={(e) => saveDueDate(e.target.value)}
+                value={dueDraft ?? task.dueDate ?? ''}
+                onChange={(e) => handleDueChange(e.target.value)}
+                onBlur={handleDueBlur}
                 className={`border-surface-600 bg-surface-700 text-surface-100 focus:border-surface-400 rounded-md border px-2 py-1 text-sm focus:outline-none ${
                   dueStatus === 'overdue'
                     ? 'text-red-400'

@@ -218,9 +218,41 @@ describe('TaskDetail', () => {
 
     const dateInput = container.querySelector('input[type="date"]')!
     fireEvent.change(dateInput, { target: { value: '2026-02-01' } })
+    fireEvent.blur(dateInput)
 
     await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
     expect(updateTask).toHaveBeenCalledWith('task-1', { dueDate: '2026-02-01' })
+  })
+
+  it('saves only the final date while typing, and never a half-cleared one', async () => {
+    vi.useFakeTimers()
+    try {
+      updateTask.mockResolvedValue(makeTask({ dueDate: '2026-03-04' }))
+      const { container } = renderTaskDetail(makeTask({ dueDate: '2026-02-01' }))
+      const dateInput = container.querySelector('input[type="date"]')!
+
+      fireEvent.change(dateInput, { target: { value: '' } })
+      for (const year of ['0002', '0020', '0202', '2026']) {
+        fireEvent.change(dateInput, { target: { value: `${year}-03-04` } })
+      }
+      await vi.advanceTimersByTimeAsync(1000)
+
+      expect(updateTask).toHaveBeenCalledTimes(1)
+      expect(updateTask).toHaveBeenCalledWith('task-1', { dueDate: '2026-03-04' })
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('restores the saved date when a cleared field loses focus', () => {
+    const { container } = renderTaskDetail(makeTask({ dueDate: '2026-02-01' }))
+    const dateInput = container.querySelector<HTMLInputElement>('input[type="date"]')!
+
+    fireEvent.change(dateInput, { target: { value: '' } })
+    fireEvent.blur(dateInput)
+
+    expect(dateInput.value).toBe('2026-02-01')
+    expect(updateTask).not.toHaveBeenCalled()
   })
 
   it('clears the due date', async () => {
