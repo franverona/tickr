@@ -15,12 +15,13 @@ jobs:
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
 
-      # Not docker-compose: Dependabot doesn't update ci.yml's service images,
-      # so CI would pass on the old image and the bump would merge untested
+      # npm only. Not docker-compose: Dependabot doesn't update ci.yml's service
+      # images, so CI would pass on the old image and the bump would merge untested.
+      # Not github_actions: CI never runs most bumped actions, and this job runs
+      # the bumped fetch-metadata with a write token, so those get a human review.
       - name: Enable auto-merge for patch and minor updates
         if: |
-          (steps.metadata.outputs.package-ecosystem == 'npm_and_yarn' ||
-           steps.metadata.outputs.package-ecosystem == 'github_actions') &&
+          steps.metadata.outputs.package-ecosystem == 'npm_and_yarn' &&
           (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
            steps.metadata.outputs.update-type == 'version-update:semver-minor')
         run: |

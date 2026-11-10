@@ -1,6 +1,6 @@
 # Tickr — Claude Code instructions
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) for the PR checks and commit rules. Dependabot auto-merges patch/minor updates except 0.x minor bumps; docker-compose bumps never auto-merge, so sync `ci.yml`'s service images by hand.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) for the PR checks and commit rules. Dependabot auto-merges npm patch/minor updates except 0.x minor bumps. GitHub Actions and docker-compose bumps never auto-merge; for docker-compose, sync `ci.yml`'s service images by hand.
 
 ## Next.js 16
 
