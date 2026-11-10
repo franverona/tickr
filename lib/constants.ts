@@ -1,5 +1,9 @@
 import type { Tag } from './types'
 
+// Tags list by created_at, so a fixed date in the past keeps the predefined ones
+// first, ahead of any tag the user creates
+export const PREDEFINED_TAG_CREATED_AT = '2000-01-01T00:00:00.000Z'
+
 // Seeded only into a fresh database: adding one here doesn't reach existing ones
 export const PREDEFINED_TAGS: Tag[] = [
   {
