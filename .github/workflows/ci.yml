@@ -20,9 +20,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ci:
+  # Needs the database services; everything else runs in parallel in `build`
+  test:
     runs-on: ubuntu-latest
-    # A run takes ~2.5 minutes; a hung DB connection shouldn't hold the runner
+    # A run takes ~2 minutes; a hung DB connection shouldn't hold the runner
     # (and Dependabot auto-merge) for the 6-hour default
     timeout-minutes: 15
     # Same images and credentials as docker-compose.yml, so the cross-backend
@@ -53,12 +54,33 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Not a service: services can't take the start command the image needs.
-      # Started early so it boots while dependencies install.
+      # Backgrounded so the image pull and boot overlap the dependency install.
       - name: Start Firestore emulator
         run: >-
           docker run -d --name firestore -p 127.0.0.1:8080:8080
           gcr.io/google.com/cloudsdktool/google-cloud-cli:591.0.0-emulators
           gcloud emulators firestore start --host-port=0.0.0.0:8080
+          > firestore.log 2>&1 &
+
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Wait for Firestore emulator
+        run: timeout 120 bash -c 'until curl -sf http://127.0.0.1:8080; do sleep 2; done' || { cat firestore.log; docker logs firestore; exit 1; }
+
+      - run: pnpm test
+
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
 
@@ -84,11 +106,6 @@ jobs:
 
       - run: pnpm exec tsc --noEmit
 
-      - name: Wait for Firestore emulator
-        run: timeout 120 bash -c 'until curl -sf http://127.0.0.1:8080; do sleep 2; done'
-
-      - run: pnpm test
-
       - run: pnpm build
 
       # The build passing doesn't mean the server runs: this catches a broken
@@ -101,3 +118,13 @@ jobs:
           mkdir -p public/uploads && echo ok > public/uploads/ci-smoke.txt
           test "$(curl -sf http://127.0.0.1:9876/uploads/ci-smoke.txt)" = ok
           test "$(curl -s -o /dev/null -w '%{http_code}' -H 'Host: evil.test' http://127.0.0.1:9876/)" = 403
+
+  # The `main` ruleset requires a check named "ci". always() matters: a job
+  # skipped because a need failed counts as passing for required checks.
+  ci:
+    if: always()
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
