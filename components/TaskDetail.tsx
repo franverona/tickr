@@ -38,6 +38,50 @@ interface TaskDetailProps {
   onToggleSidebar: () => void
 }
 
+// Uses a detached anchor because the preview's click handler opens every in-tree <a> in a new tab
+function DownloadImageButton({ src }: { src: unknown }) {
+  if (typeof src !== 'string') return null
+  return (
+    <button
+      type="button"
+      title="Download image"
+      aria-label="Download image"
+      onClick={(e) => {
+        e.stopPropagation()
+        const a = document.createElement('a')
+        a.href = src
+        a.download = decodeURIComponent(new URL(src, location.href).pathname.split('/').pop() ?? '')
+        a.click()
+      }}
+      className="bg-surface-900/80 absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-md opacity-0 ring-1 ring-white/20 transition-opacity group-hover/img:opacity-100 focus-visible:opacity-100"
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="white"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M6 1v7M3 5l3 3 3-3M1.5 11h9" />
+      </svg>
+    </button>
+  )
+}
+
+function DownloadableImg({ src, alt, width, title }: React.ComponentPropsWithoutRef<'img'>) {
+  return (
+    <span className="group/img relative inline-block max-w-full">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt ?? ''} width={width} title={title} />
+      <DownloadImageButton src={src} />
+    </span>
+  )
+}
+
 function createResizableImg(onResize: (src: string, w: number) => void) {
   return function ResizableImg({ src, alt, width }: React.ComponentPropsWithoutRef<'img'>) {
     const [displayWidth, setDisplayWidth] = useState<number | undefined>(
@@ -90,6 +134,7 @@ function createResizableImg(onResize: (src: string, w: number) => void) {
             maxWidth: '100%',
           }}
         />
+        <DownloadImageButton src={src} />
         <span
           data-resize-handle="true"
           className="bg-surface-900/80 absolute right-0 bottom-0 flex h-6 w-6 cursor-se-resize items-center justify-center rounded-tl-md opacity-0 ring-1 ring-white/20 transition-opacity group-hover/img:opacity-100"
@@ -1609,6 +1654,7 @@ export default function TaskDetail({
                         components={{
                           table: ScrollableTable,
                           a: MarkdownLink,
+                          img: DownloadableImg,
                           input: ({ node, ...props }) => {
                             if (props.type !== 'checkbox') return <input {...props} />
                             let index = node ? checklistIndices.get(node) : undefined
