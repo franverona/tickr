@@ -24,6 +24,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 60s
+      start_interval: 1s
 
   mysql:
     image: mysql:26.7
@@ -37,10 +39,14 @@ services:
     volumes:
       - tickr-mysql-data:/var/lib/mysql
     healthcheck:
-      test: ['CMD-SHELL', 'mysqladmin ping -h localhost -u root -pmysql']
+      # 127.0.0.1 forces TCP: the entrypoint's init server only listens on the
+      # socket, so a socket ping would pass before the real server is up
+      test: ['CMD-SHELL', 'mysqladmin ping -h 127.0.0.1 -u root -pmysql']
       interval: 5s
       timeout: 5s
       retries: 5
+      start_period: 60s
+      start_interval: 1s
 
   # Firestore emulator for DB_TYPE=firestore without a live project. In-memory:
   # data is gone when the container stops.
@@ -55,7 +61,9 @@ services:
       test: ['CMD-SHELL', 'curl -sf http://localhost:8080 || exit 1']
       interval: 5s
       timeout: 5s
-      retries: 20
+      retries: 5
+      start_period: 120s
+      start_interval: 1s
 
 volumes:
   tickr-postgres-data:
