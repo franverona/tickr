@@ -23,7 +23,7 @@ jobs:
   # Needs the database services; everything else runs in parallel in `build`
   test:
     runs-on: ubuntu-latest
-    # A run takes ~2 minutes; a hung DB connection shouldn't hold the runner
+    # A run takes ~1.5 minutes; a hung DB connection shouldn't hold the runner
     # (and Dependabot auto-merge) for the 6-hour default
     timeout-minutes: 15
     steps:
