@@ -1390,19 +1390,45 @@ export default function Page() {
                   const startsGroup =
                     group !== null &&
                     (i === 0 || historyGroup(groupAt(filteredTasks[i - 1])) !== group)
+                  const groupTasks = startsGroup
+                    ? filteredTasks.filter((t) => historyGroup(groupAt(t)) === group)
+                    : []
+                  const groupSelected = groupTasks.every((t) => selectedIds.has(t.id))
                   return (
                     <Fragment key={task.id}>
                       {startsGroup && (
                         <h3 className="text-surface-500 col-span-full pt-2 text-xs font-medium first:pt-0">
-                          {group}
-                          {tab === 'done' && (
-                            <span className="font-normal">
-                              {' · '}
-                              {doneSummary(
-                                filteredTasks.filter((t) => historyGroup(groupAt(t)) === group),
+                          <label
+                            className={`inline-flex items-center gap-2 ${isSelectMode ? 'cursor-pointer' : ''}`}
+                          >
+                            {isSelectMode && (
+                              <input
+                                type="checkbox"
+                                checked={groupSelected}
+                                aria-label={`Select all in ${group}`}
+                                onChange={() =>
+                                  setSelectedIds((prev) => {
+                                    const next = new Set(prev)
+                                    for (const t of groupTasks) {
+                                      if (groupSelected) next.delete(t.id)
+                                      else next.add(t.id)
+                                    }
+                                    return next
+                                  })
+                                }
+                                className="accent-accent-500 h-3.5 w-3.5 cursor-pointer"
+                              />
+                            )}
+                            <span>
+                              {group}
+                              {tab === 'done' && (
+                                <span className="font-normal">
+                                  {' · '}
+                                  {doneSummary(groupTasks)}
+                                </span>
                               )}
                             </span>
-                          )}
+                          </label>
                         </h3>
                       )}
                       <TaskCard
