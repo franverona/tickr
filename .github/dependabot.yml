@@ -27,8 +27,8 @@ updates:
       commitlint:
         patterns: ['@commitlint/*']
 
-  # ci.yml's service images aren't covered: sync them by hand when this updates.
-  # dependabot-automerge.yml never auto-merges these PRs for that reason.
+  # CI starts these same images. dependabot-automerge.yml still never
+  # auto-merges these PRs.
   - package-ecosystem: docker-compose
     directory: /
     schedule:

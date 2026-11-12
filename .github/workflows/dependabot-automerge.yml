@@ -15,8 +15,8 @@ jobs:
         id: metadata
         uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
 
-      # npm only. Not docker-compose: Dependabot doesn't update ci.yml's service
-      # images, so CI would pass on the old image and the bump would merge untested.
+      # npm only. Not docker-compose: a database image bump can change the data
+      # format of local volumes, so it gets a human review.
       # Not github_actions: CI never runs most bumped actions, and this job runs
       # the bumped fetch-metadata with a write token, so those get a human review.
       - name: Enable auto-merge for patch and minor updates
