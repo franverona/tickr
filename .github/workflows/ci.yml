@@ -20,37 +20,56 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Needs the database services; everything else runs in parallel in `build`
-  test:
+  # The only test that needs the databases. Skipped on PRs that can't affect it
+  # (the steps, not the job: a separate check job would delay it); always
+  # runs on main and the weekly run. Every other test runs in `build`.
+  db-test:
     runs-on: ubuntu-latest
     # A run takes ~1.5 minutes; a hung DB connection shouldn't hold the runner
     # (and Dependabot auto-merge) for the 6-hour default
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # PR runs check out a merge commit, so HEAD^1 is the base branch
+          fetch-depth: 2
+
+      - name: Check for database-relevant changes
+        run: |
+          if [ "$EVENT" != pull_request ] || ! git diff --quiet HEAD^1 HEAD -- lib/ __tests__/cross-backend-import-export.test.ts package.json pnpm-lock.yaml vitest.config.ts docker-compose.yml .github/workflows/ci.yml; then
+            echo DB_TESTS=true >> "$GITHUB_ENV"
+          fi
+        env:
+          EVENT: ${{ github.event_name }}
 
       # docker-compose.yml rather than job services: services block the job
       # until healthy, while this pulls and boots in the background during the
       # Node setup. The exit code goes to a file for the wait step.
       - name: Start database services
+        if: env.DB_TESTS
         run: (docker compose up -d --wait; echo $? > compose.exit) > compose.log 2>&1 &
 
       - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+        if: env.DB_TESTS
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: env.DB_TESTS
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
+        if: env.DB_TESTS
 
       - name: Wait for database services
+        if: env.DB_TESTS
         run: |
           timeout 300 bash -c 'until [ -f compose.exit ]; do sleep 1; done' || true
           cat compose.log
           test "$(cat compose.exit 2>/dev/null)" = 0 || { docker compose logs; exit 1; }
 
-      - run: pnpm test
+      - run: pnpm test cross-backend-import-export
+        if: env.DB_TESTS
 
   build:
     runs-on: ubuntu-latest
@@ -82,6 +101,8 @@ jobs:
 
       - run: pnpm exec tsc --noEmit
 
+      - run: pnpm test --exclude __tests__/cross-backend-import-export.test.ts
+
       - run: pnpm build
 
       # The build passing doesn't mean the server runs: this catches a broken
@@ -99,7 +120,7 @@ jobs:
   # skipped because a need failed counts as passing for required checks.
   ci:
     if: always()
-    needs: [test, build]
+    needs: [db-test, build]
     runs-on: ubuntu-latest
     steps:
       - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
