@@ -86,6 +86,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Weekly and manual runs only, so a new advisory doesn't block unrelated PRs
+      - name: Audit production dependencies
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        run: pnpm audit --prod
+
       # PRs are squash-merged, so the title becomes the commit on main; the
       # commit-msg hook only sees local commits. Dependabot's titles come from
       # dependabot.yml's prefixes, and long image names overrun the length cap.
