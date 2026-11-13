@@ -55,6 +55,9 @@ export function formatTimestamp(iso: string): string {
   })
 }
 
+// toLocaleDateString is slow and the Done tab labels every task on each render
+const weekOfLabels = new Map<number, string>()
+
 // "This week", "Last week", or "Week of Mar 4"; weeks start on Monday
 export function weekLabel(iso: string, now: Date = new Date()): string {
   const monday = (d: Date) => {
@@ -67,7 +70,12 @@ export function weekLabel(iso: string, now: Date = new Date()): string {
   const weeksAgo = Math.round((monday(now).getTime() - start.getTime()) / (7 * 86400000))
   if (weeksAgo === 0) return 'This week'
   if (weeksAgo === 1) return 'Last week'
-  return `Week of ${formatTimestamp(start.toISOString())}`
+  let label = weekOfLabels.get(start.getTime())
+  if (!label) {
+    label = `Week of ${formatTimestamp(start.toISOString())}`
+    weekOfLabels.set(start.getTime(), label)
+  }
+  return label
 }
 
 // "3 done · median 2d" for a week of completed tasks (created → completed, in calendar days)

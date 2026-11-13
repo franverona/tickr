@@ -423,6 +423,19 @@ export default function Page() {
       return 0
     })
 
+  // Week groups in one pass: filtering per header was O(tasks × weeks) each render
+  const taskGroup = new Map<string, string>()
+  const groupMembers = new Map<string, Task[]>()
+  if (tab !== 'active' && !isSearching) {
+    for (const t of filteredTasks) {
+      const group = historyGroup(tab === 'done' ? t.completedAt : t.archivedAt)
+      taskGroup.set(t.id, group)
+      const members = groupMembers.get(group)
+      if (members) members.push(t)
+      else groupMembers.set(group, [t])
+    }
+  }
+
   // Search spans all tabs, so actions follow the tasks themselves, not the tab
   const contextTask = tasks.find((t) => t.id === contextMenu?.taskId)
   // Only visible selected tasks count: a search, tab or tag-filter change can
@@ -1384,15 +1397,10 @@ export default function Page() {
             ) : (
               <div data-task-grid className={listClass}>
                 {filteredTasks.map((task, i) => {
-                  const groupAt = (t: Task) => (tab === 'done' ? t.completedAt : t.archivedAt)
-                  const group =
-                    tab !== 'active' && !isSearching ? historyGroup(groupAt(task)) : null
+                  const group = taskGroup.get(task.id) ?? null
                   const startsGroup =
-                    group !== null &&
-                    (i === 0 || historyGroup(groupAt(filteredTasks[i - 1])) !== group)
-                  const groupTasks = startsGroup
-                    ? filteredTasks.filter((t) => historyGroup(groupAt(t)) === group)
-                    : []
+                    group !== null && (i === 0 || taskGroup.get(filteredTasks[i - 1].id) !== group)
+                  const groupTasks = startsGroup ? (groupMembers.get(group) ?? []) : []
                   const groupSelected = groupTasks.every((t) => selectedIds.has(t.id))
                   return (
                     <Fragment key={task.id}>

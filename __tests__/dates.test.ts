@@ -6,6 +6,7 @@ import {
   getDueStatus,
   localDateKey,
   quickDueDate,
+  weekLabel,
 } from '../lib/dates'
 
 function dateStr(offsetDays: number): string {
@@ -88,6 +89,21 @@ describe('quickDueDate', () => {
     ['2026-03-07', 'next-monday', '2026-03-09'],
   ] as const)('from %s, %s is %s', (from, kind, expected) => {
     expect(quickDueDate(kind, new Date(`${from}T15:00:00`))).toBe(expected)
+  })
+})
+
+describe('weekLabel', () => {
+  // 2026-03-11 is a Wednesday
+  const now = new Date('2026-03-11T12:00:00')
+
+  it('labels this week, last week, and older weeks by their Monday', () => {
+    expect(weekLabel('2026-03-09T08:00:00', now)).toBe('This week')
+    expect(weekLabel('2026-03-08T23:00:00', now)).toBe('Last week')
+    expect(weekLabel('2026-02-25T10:00:00', now)).toBe(
+      `Week of ${formatTimestamp(new Date('2026-02-23T00:00:00').toISOString())}`,
+    )
+    // Same older week, any day: the cached label
+    expect(weekLabel('2026-03-01T22:00:00', now)).toBe(weekLabel('2026-02-23T00:00:00', now))
   })
 })
 
