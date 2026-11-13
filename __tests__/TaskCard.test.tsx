@@ -94,6 +94,20 @@ describe('TaskCard', () => {
     expect(screen.getByTitle('1 of 3 checklist items done')).toHaveTextContent('1/3')
   })
 
+  it('previews a huge description with unclosed brackets quickly', () => {
+    const start = performance.now()
+    render(
+      <TaskCard
+        task={makeTask({ description: `First line ${'a < b [ '.repeat(20000)}` })}
+        tags={[]}
+        isSelected={false}
+        onClick={() => {}}
+      />,
+    )
+    expect(performance.now() - start).toBeLessThan(1000)
+    expect(screen.getByText(/^First line/)).toBeInTheDocument()
+  })
+
   it('links each ticket and review once, without opening the task', () => {
     const onClick = vi.fn()
     const jira = 'https://acme.atlassian.net/browse/NDC-1'

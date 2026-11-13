@@ -39,7 +39,10 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
   },
   ref,
 ) {
+  // The card shows two lines, and these regexes are quadratic on unclosed `<` or `[`,
+  // so a long pasted log froze every render
   const preview = task.description
+    .slice(0, 2000)
     .replace(/<[^>]*>/g, '')
     .replace(/```[\s\S]*?```/g, '')
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
