@@ -190,6 +190,30 @@ describe('sort by due date', () => {
   })
 })
 
+describe('copy a Done week', () => {
+  it('copies only that week, with MR links', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const done = (id: string, title: string, completedAt: string, urls: Task['urls'] = []) =>
+      makeTask({ id, title, completed: true, completedAt, urls })
+    localStorage.setItem('tickr:tab', 'done')
+    await renderReady([
+      done('a', 'Alpha', new Date().toISOString(), [
+        { id: 'u', url: 'https://gitlab.test/g/p/-/merge_requests/7', label: 'MR' },
+      ]),
+      done('b', 'Beta', new Date(Date.now() - 21 * 86400000).toISOString()),
+    ])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Copy this week as a list' }))
+
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        'Done (This week):\n- Alpha → https://gitlab.test/g/p/-/merge_requests/7',
+      ),
+    )
+  })
+})
+
 describe('quick add', () => {
   it('opens the new task in the detail panel', async () => {
     await renderReady([makeTask({ id: 'a', title: 'Alpha' })])

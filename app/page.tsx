@@ -30,7 +30,7 @@ import {
   quickDueDate,
   weekLabel,
 } from '@/lib/dates'
-import { doneLastWeekSummary, taskToMarkdown } from '@/lib/standup'
+import { doneLastWeekSummary, doneListMarkdown, taskToMarkdown } from '@/lib/standup'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
 const SELECTED_TASK_STORAGE_KEY = 'tickr:selectedTaskId'
@@ -395,6 +395,15 @@ export default function Page() {
       await navigator.clipboard.writeText(standupSummary)
       setStandupCopied(true)
       setTimeout(() => setStandupCopied(false), 2000)
+    } catch {
+      showToast('Failed to copy', 'error')
+    }
+  }
+
+  async function handleCopyWeek(group: string, groupTasks: Task[]) {
+    try {
+      await navigator.clipboard.writeText(doneListMarkdown(`Done (${group}):`, groupTasks))
+      showToast(`Copied ${group.toLowerCase()}`, 'success')
     } catch {
       showToast('Failed to copy', 'error')
     }
@@ -1489,6 +1498,16 @@ export default function Page() {
                               )}
                             </span>
                           </label>
+                          {tab === 'done' && !isSelectMode && (
+                            <button
+                              onClick={() => handleCopyWeek(group, groupTasks)}
+                              aria-label={`Copy ${group.toLowerCase()} as a list`}
+                              title="Copy as a list with MR/PR links"
+                              className="text-surface-500 hover:text-surface-200 ml-2 font-normal transition-colors"
+                            >
+                              Copy
+                            </button>
+                          )}
                         </h3>
                       )}
                       <TaskCard

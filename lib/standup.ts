@@ -19,13 +19,16 @@ export function doneLastWeekSummary(tasks: Task[], now = new Date()): string | n
   const done = tasks
     .filter((t) => t.completed && t.completedAt && Date.parse(t.completedAt) >= since)
     .sort((a, b) => b.completedAt!.localeCompare(a.completedAt!))
-  if (done.length === 0) return null
+  return done.length === 0 ? null : doneListMarkdown('Done in the last 7 days:', done)
+}
 
-  const lines = done.map((t) => {
+// A heading, then one line per task with its MR/PR links
+export function doneListMarkdown(heading: string, tasks: Task[]): string {
+  const lines = tasks.map((t) => {
     const reviews = t.urls.filter((u) => isReviewLink(u.url)).map((u) => u.url)
     return `- ${t.title}${reviews.length > 0 ? ` → ${reviews.join(', ')}` : ''}`
   })
-  return ['Done in the last 7 days:', ...lines].join('\n')
+  return [heading, ...lines].join('\n')
 }
 
 // One task as Markdown, for pasting into a Jira or GitLab comment
