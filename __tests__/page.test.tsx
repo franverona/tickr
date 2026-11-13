@@ -166,6 +166,30 @@ describe('tag filter', () => {
   })
 })
 
+describe('sort by due date', () => {
+  it('orders active tasks by due date, undated last, and remembers the choice', async () => {
+    const titles = () =>
+      screen
+        .getAllByRole('button', { name: /^(Alpha|Beta|Gamma)/ })
+        .map((b) => b.textContent?.match(/Alpha|Beta|Gamma/)?.[0])
+    const tasks = [
+      makeTask({ id: 'a', title: 'Alpha', dueDate: '2026-02-01' }),
+      makeTask({ id: 'b', title: 'Beta' }),
+      makeTask({ id: 'c', title: 'Gamma', dueDate: '2026-01-15' }),
+    ]
+    await renderReady(tasks)
+    await screen.findByRole('button', { name: /^Alpha/ })
+    expect(titles()).toEqual(['Alpha', 'Beta', 'Gamma'])
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: Manual' }))
+    expect(titles()).toEqual(['Gamma', 'Alpha', 'Beta'])
+
+    cleanup()
+    await renderReady(tasks)
+    expect(await screen.findByRole('button', { name: 'Sort: Due date' })).toBeInTheDocument()
+  })
+})
+
 describe('quick add', () => {
   it('opens the new task in the detail panel', async () => {
     await renderReady([makeTask({ id: 'a', title: 'Alpha' })])

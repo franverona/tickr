@@ -29,6 +29,7 @@ const TAB_STORAGE_KEY = 'tickr:tab'
 const SELECTED_TASK_STORAGE_KEY = 'tickr:selectedTaskId'
 const SIDEBAR_COLLAPSED_STORAGE_KEY = 'tickr:sidebarCollapsed'
 const DUE_NOTIFY_STORAGE_KEY = 'tickr:last-due-notify'
+const SORT_BY_DUE_STORAGE_KEY = 'tickr:sortActiveByDue'
 
 function taskStatus(task: Task): 'active' | 'done' | 'archived' {
   if (task.archived) return 'archived'
@@ -60,6 +61,8 @@ export default function Page() {
   const [searchQuery, setSearchQuery] = useState('')
   // Tasks must have every selected tag
   const [tagFilter, setTagFilter] = useState<string[]>([])
+  // A view only: the stored manual order is kept for when it's turned off
+  const [sortByDue, setSortByDue] = useState(false)
   const [quickTitle, setQuickTitle] = useState('')
   const [isQuickAdding, setIsQuickAdding] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -119,6 +122,7 @@ export default function Page() {
     const savedTaskId = localStorage.getItem(SELECTED_TASK_STORAGE_KEY)
     if (savedTaskId) setSelectedTaskId(savedTaskId)
     if (localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === '1') setIsSidebarCollapsed(true)
+    if (localStorage.getItem(SORT_BY_DUE_STORAGE_KEY) === '1') setSortByDue(true)
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [])
 
@@ -136,6 +140,10 @@ export default function Page() {
   useEffect(() => {
     localStorage.setItem(TAB_STORAGE_KEY, tab)
   }, [tab])
+
+  useEffect(() => {
+    localStorage.setItem(SORT_BY_DUE_STORAGE_KEY, sortByDue ? '1' : '0')
+  }, [sortByDue])
 
   useEffect(() => {
     if (selectedTaskId) localStorage.setItem(SELECTED_TASK_STORAGE_KEY, selectedTaskId)
@@ -425,6 +433,8 @@ export default function Page() {
       if (isSearching) return STATUS_ORDER[taskStatus(a)] - STATUS_ORDER[taskStatus(b)]
       if (tab === 'done') return (b.completedAt ?? '').localeCompare(a.completedAt ?? '')
       if (tab === 'archived') return (b.archivedAt ?? '').localeCompare(a.archivedAt ?? '')
+      // Undated tasks last, in manual order (the sort is stable)
+      if (sortByDue) return (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999')
       return 0
     })
 
@@ -1227,17 +1237,29 @@ export default function Page() {
                     </button>
                   ))}
                 </div>
-                {!isLoading && filteredTasks.length > 0 && (
-                  <button
-                    onClick={() => {
-                      setIsSelectMode(true)
-                      setSelectedTaskId(null)
-                    }}
-                    className="text-surface-400 hover:text-surface-100 ml-auto text-xs transition-colors"
-                  >
-                    Select
-                  </button>
-                )}
+                <div className="ml-auto flex items-center gap-4">
+                  {tab === 'active' && !isSearching && (
+                    <button
+                      onClick={() => setSortByDue((v) => !v)}
+                      aria-pressed={sortByDue}
+                      title={sortByDue ? 'Sorted by due date' : 'Sorted manually (drag to reorder)'}
+                      className="text-surface-400 hover:text-surface-100 text-xs transition-colors"
+                    >
+                      Sort: {sortByDue ? 'Due date' : 'Manual'}
+                    </button>
+                  )}
+                  {!isLoading && filteredTasks.length > 0 && (
+                    <button
+                      onClick={() => {
+                        setIsSelectMode(true)
+                        setSelectedTaskId(null)
+                      }}
+                      className="text-surface-400 hover:text-surface-100 text-xs transition-colors"
+                    >
+                      Select
+                    </button>
+                  )}
+                </div>
               </div>
               {(filterTags.length > 0 || standupSummary || isSearching) && (
                 <div className="border-surface-700 flex items-center gap-3 border-b px-3 py-2 sm:px-4">
@@ -1356,7 +1378,7 @@ export default function Page() {
                           : 'No active tasks'}
                 </p>
               </div>
-            ) : tab === 'active' && !isSearching && tagFilter.length === 0 ? (
+            ) : tab === 'active' && !isSearching && tagFilter.length === 0 && !sortByDue ? (
               <div data-task-grid className={listClass}>
                 {filteredTasks.map((task, i) => (
                   <div
