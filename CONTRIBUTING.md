@@ -25,4 +25,4 @@ Open an issue describing the problem it solves before writing code. Tickr is a s
 
 Comment only what the code can't say: the why, not the what.
 
-Changes that touch the database must work on every backend (SQLite, Postgres, MySQL and Firestore), and exports must keep importing across them.
+Changes that touch the database must work on every backend (SQLite, Postgres, MySQL and Firestore), and exports must keep importing across them. `pnpm test` skips the Postgres, MySQL and Firestore suites unless their services are up: run `docker compose up -d` first. They wipe what they use: a `tickr_test` database on Postgres and MySQL and a `tickr-test` project on the Firestore emulator (override with `POSTGRES_TEST_URL`, `MYSQL_TEST_URL` and `FIRESTORE_TEST_HOST`, see `.env.example`).

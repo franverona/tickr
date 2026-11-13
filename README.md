@@ -16,10 +16,11 @@ Next.js 16, TypeScript, Tailwind CSS v4, and SQLite (default), Postgres, MySQL o
 
 ## Features
 
-- Active / Done / Archived tabs; Done and Archived grouped by week
-- Quick add, drag-and-drop reordering, bulk actions, tag filters and search across tabs
-- Markdown descriptions with clickable checklists, rich paste, CSV-to-table, and `:emoji`, `@mention` and `/snippet` autocomplete
-- Attachments: images and videos inline; PDF, text, Markdown, CSV, JSON and ZIP as links (up to 100 MB)
+- Active / Done / Archived tabs; Done and Archived grouped by week, with each Done week's count and median cycle time
+- Quick add, drag-and-drop reordering, bulk actions (including select-all per week), tag filters with task counts, and search across tabs
+- Context menu to duplicate a task or set a quick due date (also in bulk); Undo in the toast after completing or archiving
+- Markdown descriptions with clickable checklists (progress shown on cards), rich paste, CSV-to-table, and `:emoji`, `@mention` and `/snippet` autocomplete
+- Attachments: images and videos inline and resizable, images downloadable from a hover button; PDF, text, Markdown, CSV, JSON and ZIP as links (up to 100 MB)
 - Due dates with overdue/today/soon badges and a daily browser notification
 - Links per task; Jira, GitLab MR and GitHub PR links show as card badges
 - Standup summary: copy last week's completed tasks with their MR/PR links

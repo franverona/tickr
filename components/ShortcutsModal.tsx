@@ -14,6 +14,7 @@ const SHORTCUTS: [string, string][] = [
   ['↑ ↓ ← →', 'Move between tasks'],
   ['Home / End', 'Jump to first / last task'],
   ['Shift+F10 / Menu key', 'Open task context menu'],
+  ['↑ ↓ / Enter', 'Move through and pick in menus and the palette'],
   ['Drag', 'Reorder active tasks (manual sort)'],
   ['Esc', 'Close panel / menu'],
   ['?', 'Show this list'],
