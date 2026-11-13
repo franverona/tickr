@@ -13,6 +13,7 @@ interface Props {
   onUnarchive: () => void
   onDelete: () => void
   onDuplicate: () => void
+  onCopyMarkdown: () => void
   onClose: () => void
   /** Quick due dates, shown for active tasks only (completed ones aren't due) */
   onSetDueDate?: (dueDate: string | null) => void
@@ -29,6 +30,7 @@ export default function TaskContextMenu({
   onUnarchive,
   onDelete,
   onDuplicate,
+  onCopyMarkdown,
   onClose,
   onSetDueDate,
   hasDueDate,
@@ -122,6 +124,9 @@ export default function TaskContextMenu({
         )}
         <button role="menuitem" onClick={onDuplicate} className={item}>
           Duplicate
+        </button>
+        <button role="menuitem" onClick={onCopyMarkdown} className={item}>
+          Copy as Markdown
         </button>
         {tab === 'active' && onSetDueDate && (
           <>

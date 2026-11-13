@@ -225,6 +225,20 @@ describe('duplicate', () => {
   })
 })
 
+describe('copy as Markdown', () => {
+  it('copies the task from the context menu', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    await renderReady([makeTask({ id: 'a', title: 'Release', tags: ['backend'] })], [TAG_BACKEND])
+
+    fireEvent.contextMenu(await screen.findByRole('button', { name: /^Release/ }))
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Copy as Markdown' }))
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('## Release\n\nTags: Backend'))
+    expect(await screen.findByText('Copied as Markdown')).toBeInTheDocument()
+  })
+})
+
 describe('undo', () => {
   it('undoes completing a task from the toast', async () => {
     const a = makeTask({ id: 'a', title: 'Alpha' })

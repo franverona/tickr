@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { doneLastWeekSummary, isReviewLink } from '../lib/standup'
+import { doneLastWeekSummary, isReviewLink, taskToMarkdown } from '../lib/standup'
 import type { Task } from '../lib/types'
 
 const NOW = new Date('2026-03-10T12:00:00.000Z')
@@ -61,5 +61,32 @@ describe('doneLastWeekSummary', () => {
 
   it('returns null when nothing was completed in the last 7 days', () => {
     expect(doneLastWeekSummary([makeTask()], NOW)).toBeNull()
+  })
+})
+
+describe('taskToMarkdown', () => {
+  it('gives the title, due date, tags, links and description', () => {
+    const task = makeTask({
+      title: 'Fix login',
+      description: 'Repro: expired token.\n',
+      tags: ['bug', 'gone'],
+      dueDate: '2026-03-20',
+      urls: [
+        { id: 'u1', url: 'https://gitlab.test/a/-/merge_requests/1', label: 'MR' },
+        { id: 'u2', url: 'https://example.test', label: '' },
+      ],
+    })
+    expect(taskToMarkdown(task, [{ id: 'bug', label: 'Bug', color: '' }])).toBe(
+      [
+        '## Fix login',
+        'Due: 2026-03-20 · Tags: Bug, gone',
+        '- [MR](https://gitlab.test/a/-/merge_requests/1)\n- https://example.test',
+        'Repro: expired token.',
+      ].join('\n\n'),
+    )
+  })
+
+  it('is just the title for a bare task', () => {
+    expect(taskToMarkdown(makeTask({ title: 'Bare' }), [])).toBe('## Bare')
   })
 })
