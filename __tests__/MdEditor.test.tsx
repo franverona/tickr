@@ -96,4 +96,23 @@ describe('replaceImageWidth', () => {
       '<video src="/uploads/c.mp4" controls width="200"></video>',
     )
   })
+
+  it('keeps self-closing tags and other *-width attributes intact', () => {
+    expect(replaceImageWidth('<img src="/uploads/a.png" />', '/uploads/a.png', 320)).toBe(
+      '<img src="/uploads/a.png" width="320" />',
+    )
+    expect(
+      replaceImageWidth(
+        '<img data-width="9" src="/uploads/a.png" width=100/>',
+        '/uploads/a.png',
+        50,
+      ),
+    ).toBe('<img data-width="9" src="/uploads/a.png" width="50"/>')
+  })
+
+  it('turns Markdown image syntax into a sized img tag', () => {
+    expect(replaceImageWidth('![a](/uploads/a.png "t")', '/uploads/a.png', 240)).toBe(
+      '<img src="/uploads/a.png" alt="a" width="240">',
+    )
+  })
 })
