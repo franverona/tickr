@@ -103,6 +103,14 @@ jobs:
 
       - run: pnpm test --exclude __tests__/cross-backend-import-export.test.ts
 
+      # Next.js's incremental build cache; the restore key reuses the last
+      # cache for the same lockfile when sources changed
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .next/cache
+          key: nextjs-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('app/**', 'components/**', 'lib/**', '*.ts', '*.mjs') }}
+          restore-keys: nextjs-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - run: pnpm build
 
       # The build passing doesn't mean the server runs: this catches a broken
