@@ -55,6 +55,18 @@ docker stop -t 60 tickr-mysql-hop && docker rm tickr-mysql-hop
 docker compose up -d mysql
 ```
 
+Postgres 18 mounts the volume one level up, so a volume created by the old Postgres 16 service starts as an empty database; the old data is still on the volume. To move it over, dump it with 16 and load it into 18:
+
+```bash
+docker compose stop postgres
+docker run -d --name tickr-pg16 -e POSTGRES_PASSWORD=postgres -v tickr_tickr-postgres-data:/var/lib/postgresql/data postgres:16-alpine
+docker exec tickr-pg16 pg_isready -U postgres   # repeat until it says "accepting connections"
+docker exec tickr-pg16 pg_dump -U postgres -d tickr --clean --if-exists > tickr-pg16.sql
+docker rm -f tickr-pg16
+docker compose up -d postgres
+docker exec -i tickr-postgres psql -U postgres -d tickr < tickr-pg16.sql
+```
+
 ## Running with pm2
 
 Tickr has no login, so it only listens on `127.0.0.1` and only answers `localhost` hosts. To reach it by another name, add it to `ALLOWED_HOSTS`; to expose it on a trusted network, use `pnpm exec next start -H 0.0.0.0 -p 9876`.
