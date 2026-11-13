@@ -5,6 +5,7 @@ import {
   formatTimestamp,
   getDueStatus,
   localDateKey,
+  parseQuickAdd,
   quickDueDate,
   weekLabel,
 } from '../lib/dates'
@@ -105,6 +106,29 @@ describe('weekLabel', () => {
     // Same older week, any day: the cached label
     expect(weekLabel('2026-03-01T22:00:00', now)).toBe(weekLabel('2026-02-23T00:00:00', now))
   })
+})
+
+describe('parseQuickAdd', () => {
+  // 2026-03-04 is a Wednesday
+  const now = new Date('2026-03-04T15:00:00')
+
+  it.each([
+    ['Ship it !tomorrow', 'Ship it', '2026-03-05'],
+    ['Ship it !today', 'Ship it', '2026-03-04'],
+    ['Ship it !fri', 'Ship it', '2026-03-06'],
+    ['Ship it !Friday', 'Ship it', '2026-03-06'],
+    ['Ship it !wed', 'Ship it', '2026-03-11'],
+    ['Ship it !2026-04-01', 'Ship it', '2026-04-01'],
+  ])('%s → %s due %s', (text, title, due) => {
+    expect(parseQuickAdd(text, now)).toEqual({ title, dueDate: due })
+  })
+
+  it.each(['Ship it', 'Ship it !', 'Ship it !fr', 'Ship it !soon', 'Ship it !2026-02-30', '!fri'])(
+    'leaves %s as the title',
+    (text) => {
+      expect(parseQuickAdd(text, now)).toEqual({ title: text, dueDate: null })
+    },
+  )
 })
 
 describe('doneSummary', () => {
