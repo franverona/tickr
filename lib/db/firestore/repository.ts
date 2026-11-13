@@ -391,8 +391,13 @@ export class FirestoreTaskRepository implements TaskRepository {
         writes.push({ apply: (batch) => batch.delete(ref), bytes: ref.path.length + 100 })
       }
     }
-    for (const tag of tagsToCreate) {
-      const data = { label: tag.label, color: tag.color, createdAt: now }
+    // One millisecond each, so tags keep import order like the SQL backends
+    for (const [i, tag] of tagsToCreate.entries()) {
+      const data = {
+        label: tag.label,
+        color: tag.color,
+        createdAt: new Date(Date.parse(now) + i).toISOString(),
+      }
       writes.push({
         apply: (batch) => batch.set(this.tagsCol.doc(tag.id), data),
         bytes: Buffer.byteLength(JSON.stringify(data)) + 200,
