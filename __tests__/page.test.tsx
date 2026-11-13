@@ -138,6 +138,34 @@ describe('detail panel', () => {
   })
 })
 
+describe('tag filter', () => {
+  it('shows only tasks with every selected tag', async () => {
+    const frontend: Tag = { id: 'frontend', label: 'Frontend', color: 'bg-red-600 text-red-100' }
+    await renderReady(
+      [
+        makeTask({ id: 'a', title: 'Alpha', tags: ['backend'] }),
+        makeTask({ id: 'b', title: 'Beta', tags: ['backend', 'frontend'] }),
+        makeTask({ id: 'c', title: 'Gamma', tags: ['frontend'] }),
+      ],
+      [TAG_BACKEND, frontend],
+    )
+    const card = (title: string) => screen.queryByRole('button', { name: new RegExp(`^${title}`) })
+
+    fireEvent.click(await screen.findByRole('button', { name: /^Backend/, pressed: false }))
+    expect(card('Alpha')).toBeInTheDocument()
+    expect(card('Gamma')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Frontend/, pressed: false }))
+    expect(card('Beta')).toBeInTheDocument()
+    expect(card('Alpha')).toBeNull()
+    expect(card('Gamma')).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Backend/, pressed: true }))
+    expect(card('Gamma')).toBeInTheDocument()
+    expect(card('Alpha')).toBeNull()
+  })
+})
+
 describe('quick add', () => {
   it('opens the new task in the detail panel', async () => {
     await renderReady([makeTask({ id: 'a', title: 'Alpha' })])

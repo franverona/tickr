@@ -58,7 +58,8 @@ export default function Page() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [tab, setTab] = useState<'active' | 'done' | 'archived'>('active')
   const [searchQuery, setSearchQuery] = useState('')
-  const [tagFilter, setTagFilter] = useState<string | null>(null)
+  // Tasks must have every selected tag
+  const [tagFilter, setTagFilter] = useState<string[]>([])
   const [quickTitle, setQuickTitle] = useState('')
   const [isQuickAdding, setIsQuickAdding] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -312,7 +313,7 @@ export default function Page() {
   function handleImported(result: { imported: number; tasks: Task[]; tags: Tag[] }) {
     setTasks(result.tasks)
     setTags(result.tags)
-    setTagFilter(null)
+    setTagFilter([])
     setPendingImportFile(null)
     setMenuFeedback(`Imported ${result.imported}`)
     setTimeout(() => setMenuFeedback(null), 4000)
@@ -357,7 +358,7 @@ export default function Page() {
 
   function handleTagDeleted(id: string) {
     setTags((prev) => prev.filter((t) => t.id !== id))
-    setTagFilter((f) => (f === id ? null : f))
+    setTagFilter((f) => f.filter((t) => t !== id))
     setTasks((prev) =>
       prev.map((t) =>
         t.tags.includes(id) ? { ...t, tags: t.tags.filter((tid) => tid !== id) } : t,
@@ -409,17 +410,17 @@ export default function Page() {
         : task.archived
   })
 
-  // The active filter stays listed even if its last task just left this tab,
-  // otherwise the list would be empty with no way to clear it.
+  // Active filters stay listed even if their last task just left this tab,
+  // otherwise the list would be empty with no way to clear them.
   const filterTags = tags.filter(
-    (tag) => tag.id === tagFilter || tabTasks.some((t) => t.tags.includes(tag.id)),
+    (tag) => tagFilter.includes(tag.id) || tabTasks.some((t) => t.tags.includes(tag.id)),
   )
 
   const tagUsage: Record<string, number> = {}
   for (const task of tasks) for (const id of task.tags) tagUsage[id] = (tagUsage[id] ?? 0) + 1
 
   const filteredTasks = tabTasks
-    .filter((task) => !tagFilter || task.tags.includes(tagFilter))
+    .filter((task) => tagFilter.every((id) => task.tags.includes(id)))
     .sort((a, b) => {
       if (isSearching) return STATUS_ORDER[taskStatus(a)] - STATUS_ORDER[taskStatus(b)]
       if (tab === 'done') return (b.completedAt ?? '').localeCompare(a.completedAt ?? '')
@@ -492,7 +493,7 @@ export default function Page() {
   function handleTaskCreated(task: Task) {
     setTasks((prev) => [task, ...prev])
     setTab('active')
-    setTagFilter(null)
+    setTagFilter([])
     // Otherwise a non-matching search hides the task that just opened
     setSearchQuery('')
     setIsSearchOpen(false)
@@ -662,11 +663,11 @@ export default function Page() {
     if (!title || isQuickAdding) return
     setIsQuickAdding(true)
     try {
-      // Carries the active filter's tag, otherwise the new task would be hidden by it
+      // Carries the active filter's tags, otherwise the new task would be hidden by it
       const task = await createTask({
         title,
         description: '',
-        tags: tagFilter ? [tagFilter] : [],
+        tags: tagFilter,
       })
       setTasks((prev) => [task, ...prev])
       setSelectedTaskId(task.id)
@@ -1065,9 +1066,10 @@ export default function Page() {
                   >
                     {allFilteredSelected ? 'Deselect all' : 'Select all'}
                   </button>
-                  {tagFilter && (
+                  {tagFilter.length > 0 && (
                     <span className="text-surface-500 truncate text-xs">
-                      Filtered by {tags.find((t) => t.id === tagFilter)?.label}
+                      Filtered by{' '}
+                      {tagFilter.map((id) => tags.find((t) => t.id === id)?.label).join(' + ')}
                     </span>
                   )}
                 </div>
@@ -1196,7 +1198,7 @@ export default function Page() {
                       key={t}
                       onClick={() => {
                         setTab(t)
-                        setTagFilter(null)
+                        setTagFilter([])
                         setSelectedTaskId(null)
                         cancelSelectMode()
                       }}
@@ -1235,10 +1237,14 @@ export default function Page() {
                     {filterTags.map((tag) => (
                       <button
                         key={tag.id}
-                        onClick={() => setTagFilter((f) => (f === tag.id ? null : tag.id))}
-                        aria-pressed={tagFilter === tag.id}
+                        onClick={() =>
+                          setTagFilter((f) =>
+                            f.includes(tag.id) ? f.filter((id) => id !== tag.id) : [...f, tag.id],
+                          )
+                        }
+                        aria-pressed={tagFilter.includes(tag.id)}
                         className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
-                          tagFilter === tag.id
+                          tagFilter.includes(tag.id)
                             ? tag.color
                             : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-200'
                         }`}
@@ -1329,8 +1335,8 @@ export default function Page() {
                 <p className="text-sm">
                   {query
                     ? 'No tasks match your search'
-                    : tagFilter
-                      ? 'No tasks with this tag'
+                    : tagFilter.length > 0
+                      ? `No tasks with ${tagFilter.length > 1 ? 'all these tags' : 'this tag'}`
                       : tab === 'done'
                         ? 'No completed tasks yet'
                         : tab === 'archived'
@@ -1338,7 +1344,7 @@ export default function Page() {
                           : 'No active tasks'}
                 </p>
               </div>
-            ) : tab === 'active' && !isSearching && !tagFilter ? (
+            ) : tab === 'active' && !isSearching && tagFilter.length === 0 ? (
               <div data-task-grid className={listClass}>
                 {filteredTasks.map((task, i) => (
                   <div
