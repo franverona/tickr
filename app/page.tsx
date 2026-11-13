@@ -23,7 +23,7 @@ import CommandPalette from '@/components/CommandPalette'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
 import { doneSummary, getDueStatus, localDateKey, quickDueDate, weekLabel } from '@/lib/dates'
-import { doneLastWeekSummary } from '@/lib/standup'
+import { doneLastWeekSummary, taskToMarkdown } from '@/lib/standup'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
 const SELECTED_TASK_STORAGE_KEY = 'tickr:selectedTaskId'
@@ -618,6 +618,18 @@ export default function Page() {
       showToast('Task duplicated', 'success')
     } catch {
       showToast('Failed to duplicate task', 'error')
+    }
+  }
+
+  async function handleContextMenuCopyMarkdown() {
+    const task = tasks.find((t) => t.id === contextMenu?.taskId)
+    setContextMenu(null)
+    if (!task) return
+    try {
+      await navigator.clipboard.writeText(taskToMarkdown(task, tags))
+      showToast('Copied as Markdown', 'success')
+    } catch {
+      showToast('Failed to copy', 'error')
     }
   }
 
@@ -1592,6 +1604,7 @@ export default function Page() {
           onUnarchive={() => handleContextMenuAction('unarchive')}
           onDelete={() => handleContextMenuAction('delete')}
           onDuplicate={handleContextMenuDuplicate}
+          onCopyMarkdown={handleContextMenuCopyMarkdown}
           onClose={() => setContextMenu(null)}
           onSetDueDate={handleContextMenuDueDate}
           hasDueDate={!!contextTask?.dueDate}

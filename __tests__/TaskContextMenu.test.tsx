@@ -13,6 +13,7 @@ function renderMenu(overrides: Partial<Parameters<typeof TaskContextMenu>[0]> = 
     onUnarchive: vi.fn(),
     onDelete: vi.fn(),
     onDuplicate: vi.fn(),
+    onCopyMarkdown: vi.fn(),
     onClose: vi.fn(),
   }
   render(<TaskContextMenu x={0} y={0} tab="active" {...handlers} {...overrides} />)

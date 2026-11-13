@@ -1,4 +1,4 @@
-import type { Task } from './types'
+import type { Tag, Task } from './types'
 
 // A GitLab merge request or GitHub pull request URL
 export function isReviewLink(url: string): boolean {
@@ -26,4 +26,22 @@ export function doneLastWeekSummary(tasks: Task[], now = new Date()): string | n
     return `- ${t.title}${reviews.length > 0 ? ` → ${reviews.join(', ')}` : ''}`
   })
   return ['Done in the last 7 days:', ...lines].join('\n')
+}
+
+// One task as Markdown, for pasting into a Jira or GitLab comment
+export function taskToMarkdown(task: Task, tags: Tag[]): string {
+  const labels = task.tags.map((id) => tags.find((t) => t.id === id)?.label ?? id)
+  const meta = [
+    task.dueDate && `Due: ${task.dueDate}`,
+    labels.length > 0 && `Tags: ${labels.join(', ')}`,
+  ].filter(Boolean)
+  const links = task.urls.map((u) => (u.label ? `- [${u.label}](${u.url})` : `- ${u.url}`))
+  return [
+    `## ${task.title}`,
+    meta.length > 0 ? meta.join(' · ') : null,
+    links.length > 0 ? links.join('\n') : null,
+    task.description.trim() || null,
+  ]
+    .filter((part) => part !== null)
+    .join('\n\n')
 }
