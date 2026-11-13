@@ -20,6 +20,7 @@ describe('sanitizeMarkdown', () => {
     ['javascript: link', '<a href="javascript:alert(1)">x</a>', /javascript:/],
     ['name (DOM clobbering)', '<img src="/a.png" name="getElementById">', /name=/],
     ['name on a form control', '<input name="cookie">', /name=/],
+    ['id outside headings (DOM clobbering)', '<div id="currentUser">x</div>', /id=/],
   ])('removes %s', (_, source, forbidden) => {
     expect(render(source)).not.toMatch(forbidden)
   })
@@ -57,6 +58,14 @@ describe('sanitizeMarkdown', () => {
     expect(html).toContain('href="#abc-123"')
     expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*checked/)
     expect(html).toContain('<table>')
+  })
+
+  it('keeps footnote links working', () => {
+    const html = render('A note[^1]\n\n[^1]: The note.')
+    expect(html).toContain('href="#user-content-fn-1"')
+    expect(html).toContain('id="user-content-fn-1"')
+    expect(html).toContain('id="user-content-fnref-1"')
+    expect(html).toContain('id="footnote-label"')
   })
 
   it('keeps callouts, highlighted code, the copy button and heading anchors', () => {

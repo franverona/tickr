@@ -31,12 +31,21 @@ const schema: Options = {
   tagNames: [...(defaultSchema.tagNames ?? []), 'svg', 'path', 'video'],
   attributes: {
     ...defaultSchema.attributes,
-    // No `name`: <img name="getElementById"> would shadow document properties
+    // No `name`: <img name="getElementById"> would shadow document properties.
+    // `id` likewise names a window global, so only heading slugs and the
+    // footnotes' prefixed ids keep it.
     '*': [
-      ...(defaultSchema.attributes?.['*'] ?? []).filter((a) => a !== 'name'),
+      ...(defaultSchema.attributes?.['*'] ?? []).filter((a) => a !== 'name' && a !== 'id'),
+      ['id', /^user-content-/],
       ['className', ...PREVIEW_CLASSES],
       ['class', ...PREVIEW_CLASSES],
     ],
+    ...Object.fromEntries(
+      ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].map((h) => [
+        h,
+        [...(defaultSchema.attributes?.[h] ?? []), 'id'],
+      ]),
+    ),
     a: [...(defaultSchema.attributes?.a ?? []), 'ariaHidden', 'tabIndex'],
     div: [...(defaultSchema.attributes?.div ?? []), 'data-code', 'dataCode'],
     svg: ['ariaHidden', 'viewBox', 'fill', 'height', 'width', 'version'],
