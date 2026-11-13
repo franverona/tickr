@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { makeImageHandlers } from '../components/MdEditor'
+import { makeImageHandlers, replaceImageWidth } from '../components/MdEditor'
 
 describe('makeImageHandlers', () => {
   afterEach(() => {
@@ -84,5 +84,16 @@ describe('makeImageHandlers', () => {
       ),
     )
     expect(onError).not.toHaveBeenCalled()
+  })
+})
+
+describe('replaceImageWidth', () => {
+  it('sets and updates the width of a video', () => {
+    const md = '<video src="/uploads/c.mp4" controls></video>'
+    const once = replaceImageWidth(md, '/uploads/c.mp4', 320)
+    expect(once).toBe('<video src="/uploads/c.mp4" controls width="320"></video>')
+    expect(replaceImageWidth(once, '/uploads/c.mp4', 200)).toBe(
+      '<video src="/uploads/c.mp4" controls width="200"></video>',
+    )
   })
 })
