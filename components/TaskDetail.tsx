@@ -50,7 +50,15 @@ function DownloadImageButton({ src }: { src: unknown }) {
         e.stopPropagation()
         const a = document.createElement('a')
         a.href = src
-        a.download = decodeURIComponent(new URL(src, location.href).pathname.split('/').pop() ?? '')
+        const name = new URL(src, location.href).pathname.split('/').pop() ?? ''
+        try {
+          a.download = decodeURIComponent(name)
+        } catch {
+          a.download = name // malformed escape like "100%.png"
+        }
+        // Browsers ignore `download` cross-origin and navigate instead, so not in this tab
+        a.target = '_blank'
+        a.rel = 'noopener'
         a.click()
       }}
       className="bg-surface-900/80 absolute top-1 right-1 flex h-6 w-6 items-center justify-center rounded-md opacity-0 ring-1 ring-white/20 transition-opacity group-hover/img:opacity-100 focus-visible:opacity-100"
