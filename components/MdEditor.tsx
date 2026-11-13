@@ -70,13 +70,18 @@ export function replaceImageWidth(markdown: string, src: string, newWidth: numbe
   )
 
   // Update or add width on existing HTML img/video tags referencing this src
-  result = result.replace(/<(img|video)\b([^>]*)>/gi, (match, tag: string, attrs: string) => {
-    if (!attrs.includes(src)) return match
-    if (/\bwidth\s*=/i.test(attrs)) {
-      return `<${tag}${attrs.replace(/\bwidth\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/i, `width="${newWidth}"`)}>`
-    }
-    return `<${tag}${attrs} width="${newWidth}">`
-  })
+  // A whole `width` attribute (not data-width), quoted or bare
+  const widthAttr = /(\s)width\s*=\s*(?:"[^"]*"|'[^']*'|[^\s"'/>]+)/i
+  result = result.replace(
+    /<(img|video)\b([^>]*?)(\s*\/)?>/gi,
+    (match, tag: string, attrs: string, selfClose = '') => {
+      if (!attrs.includes(src)) return match
+      const sized = widthAttr.test(attrs)
+        ? attrs.replace(widthAttr, `$1width="${newWidth}"`)
+        : `${attrs} width="${newWidth}"`
+      return `<${tag}${sized}${selfClose}>`
+    },
+  )
 
   return result
 }
