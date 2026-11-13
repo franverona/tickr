@@ -36,7 +36,7 @@ jobs:
 
       - name: Check for database-relevant changes
         run: |
-          if [ "$EVENT" != pull_request ] || ! git diff --quiet HEAD^1 HEAD -- lib/ __tests__/cross-backend-import-export.test.ts package.json pnpm-lock.yaml vitest.config.ts docker-compose.yml .github/workflows/ci.yml; then
+          if [ "$EVENT" != pull_request ] || ! git diff --quiet HEAD^1 HEAD -- lib/ __tests__/cross-backend-import-export.test.ts package.json pnpm-lock.yaml pnpm-workspace.yaml vitest.config.mts docker-compose.yml .github/workflows/ci.yml; then
             echo DB_TESTS=true >> "$GITHUB_ENV"
           fi
         env:
