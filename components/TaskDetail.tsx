@@ -82,8 +82,18 @@ function DownloadableImg({ src, alt, width, title }: React.ComponentPropsWithout
   )
 }
 
-function createResizableImg(onResize: (src: string, w: number) => void) {
-  return function ResizableImg({ src, alt, width }: React.ComponentPropsWithoutRef<'img'>) {
+function createResizableMedia(tag: 'img' | 'video', onResize: (src: string, w: number) => void) {
+  return function ResizableMedia({
+    src: rawSrc,
+    alt,
+    width,
+  }: {
+    src?: unknown
+    alt?: string
+    width?: number | string
+  }) {
+    // Markdown only produces string srcs
+    const src = typeof rawSrc === 'string' ? rawSrc : undefined
     const [displayWidth, setDisplayWidth] = useState<number | undefined>(
       typeof width === 'number'
         ? width
@@ -91,7 +101,7 @@ function createResizableImg(onResize: (src: string, w: number) => void) {
           ? parseInt(width) || undefined
           : undefined,
     )
-    const imgRef = useRef<HTMLImageElement>(null)
+    const imgRef = useRef<HTMLImageElement & HTMLVideoElement>(null)
     const dragState = useRef<{ startX: number; startWidth: number } | null>(null)
 
     function onHandleMouseDown(e: React.MouseEvent) {
@@ -122,22 +132,23 @@ function createResizableImg(onResize: (src: string, w: number) => void) {
       document.addEventListener('mouseup', onMouseUp)
     }
 
+    const style = { width: displayWidth ? `${displayWidth}px` : undefined, maxWidth: '100%' }
+
     return (
       <span className="group/img relative inline-block max-w-full">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          ref={imgRef}
-          src={src}
-          alt={alt ?? ''}
-          style={{
-            width: displayWidth ? `${displayWidth}px` : undefined,
-            maxWidth: '100%',
-          }}
-        />
-        <DownloadImageButton src={src} />
+        {tag === 'video' ? (
+          <video ref={imgRef} src={src} controls style={style} />
+        ) : (
+          <>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img ref={imgRef} src={src} alt={alt ?? ''} style={style} />
+            <DownloadImageButton src={src} />
+          </>
+        )}
         <span
           data-resize-handle="true"
-          className="bg-surface-900/80 absolute right-0 bottom-0 flex h-6 w-6 cursor-se-resize items-center justify-center rounded-tl-md opacity-0 ring-1 ring-white/20 transition-opacity group-hover/img:opacity-100"
+          // Top-right on videos so it doesn't cover the native controls bar
+          className={`bg-surface-900/80 absolute right-0 flex h-6 w-6 cursor-se-resize items-center justify-center opacity-0 ring-1 ring-white/20 transition-opacity group-hover/img:opacity-100 ${tag === 'video' ? 'top-0 rounded-bl-md' : 'bottom-0 rounded-tl-md'}`}
           onMouseDown={onHandleMouseDown}
           title="Drag to resize"
         >
@@ -374,13 +385,11 @@ export default function TaskDetail({
     : `open for ${days(daysBetween(task.createdAt, new Date().toISOString()))}`
   const imageHandlers = makeImageHandlers(setDescriptionDraft, onError)
 
-  const EditModeImg = useMemo(
-    () =>
-      createResizableImg((src, w) =>
-        setDescriptionDraft((prev) => replaceImageWidth(prev, src, w)),
-      ),
-    [],
-  )
+  const [EditModeImg, EditModeVideo] = useMemo(() => {
+    const onResize = (src: string, w: number) =>
+      setDescriptionDraft((prev) => replaceImageWidth(prev, src, w))
+    return [createResizableMedia('img', onResize), createResizableMedia('video', onResize)]
+  }, [])
 
   // Lookbehind, not a group: insertion replaces match[0], which must be just `:query`
   const EMOJI_RE = /(?<=^|\s):([a-z0-9_+\-]+)$/
@@ -1565,7 +1574,12 @@ export default function TaskDetail({
                       skipHtml: false,
                       remarkPlugins: [remarkOutlineList],
                       rehypePlugins: [sanitizeMarkdown],
-                      components: { img: EditModeImg, table: ScrollableTable, a: MarkdownLink },
+                      components: {
+                        img: EditModeImg,
+                        video: EditModeVideo,
+                        table: ScrollableTable,
+                        a: MarkdownLink,
+                      },
                     }}
                   />
                 </div>

@@ -69,13 +69,13 @@ export function replaceImageWidth(markdown: string, src: string, newWidth: numbe
     (_, alt) => `<img src="${src}" alt="${alt}" width="${newWidth}">`,
   )
 
-  // Update or add width on existing HTML img tags referencing this src
-  result = result.replace(/<img\b([^>]*)>/gi, (match, attrs: string) => {
+  // Update or add width on existing HTML img/video tags referencing this src
+  result = result.replace(/<(img|video)\b([^>]*)>/gi, (match, tag: string, attrs: string) => {
     if (!attrs.includes(src)) return match
     if (/\bwidth\s*=/i.test(attrs)) {
-      return `<img${attrs.replace(/\bwidth\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/i, `width="${newWidth}"`)}>`
+      return `<${tag}${attrs.replace(/\bwidth\s*=\s*(?:"[^"]*"|'[^']*'|\S+)/i, `width="${newWidth}"`)}>`
     }
-    return `<img${attrs} width="${newWidth}">`
+    return `<${tag}${attrs} width="${newWidth}">`
   })
 
   return result
