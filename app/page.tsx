@@ -331,7 +331,11 @@ export default function Page() {
   async function undoStatusChange(ids: string[], data: { completed: false } | { archived: false }) {
     try {
       if (ids.length === 1) {
-        handleTaskUpdated(await updateTask(ids[0], data))
+        const updated = await updateTask(ids[0], data)
+        // Not handleTaskUpdated: the toast holds this closure from the render that
+        // completed the task, so that copy's `tasks` still shows it as open
+        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)))
+        showToast('completed' in data ? 'Task reopened' : 'Task unarchived', 'success')
       } else {
         const result = await updateTasks(ids, data)
         setTasks((prev) => prev.map((t) => result.succeeded.find((u) => u.id === t.id) ?? t))
