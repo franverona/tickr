@@ -202,6 +202,21 @@ describe('quick add', () => {
     expect(await screen.findByRole('heading', { name: 'Beta' })).toBeInTheDocument()
     expect(input).toHaveValue('')
   })
+
+  it('takes a trailing !date as the due date', async () => {
+    await renderReady([makeTask({ id: 'a', title: 'Alpha' })])
+    createTask.mockResolvedValueOnce(makeTask({ id: 'b', title: 'Beta' }))
+
+    const input = await screen.findByRole('textbox', { name: 'Quick add task' })
+    fireEvent.change(input, { target: { value: 'Beta !2026-12-01' } })
+    fireEvent.submit(input)
+
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(
+        expect.objectContaining({ title: 'Beta', dueDate: '2026-12-01' }),
+      ),
+    )
+  })
 })
 
 describe('new task modal', () => {

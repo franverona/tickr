@@ -22,7 +22,14 @@ import ShortcutsModal from '@/components/ShortcutsModal'
 import CommandPalette from '@/components/CommandPalette'
 import Logo from '@/components/Logo'
 import { exportToZip } from '@/lib/export'
-import { doneSummary, getDueStatus, localDateKey, quickDueDate, weekLabel } from '@/lib/dates'
+import {
+  doneSummary,
+  getDueStatus,
+  localDateKey,
+  parseQuickAdd,
+  quickDueDate,
+  weekLabel,
+} from '@/lib/dates'
 import { doneLastWeekSummary, taskToMarkdown } from '@/lib/standup'
 
 const TAB_STORAGE_KEY = 'tickr:tab'
@@ -681,7 +688,7 @@ export default function Page() {
 
   async function handleQuickAdd(e: React.FormEvent) {
     e.preventDefault()
-    const title = quickTitle.trim()
+    const { title, dueDate } = parseQuickAdd(quickTitle)
     if (!title || isQuickAdding) return
     setIsQuickAdding(true)
     try {
@@ -690,6 +697,7 @@ export default function Page() {
         title,
         description: '',
         tags: tagFilter,
+        dueDate,
       })
       setTasks((prev) => [task, ...prev])
       setSelectedTaskId(task.id)
@@ -1324,7 +1332,7 @@ export default function Page() {
                   }}
                   readOnly={isQuickAdding}
                   aria-label="Quick add task"
-                  placeholder="Add a task and press Enter…"
+                  placeholder="Add a task and press Enter… (end with !fri or !tomorrow to set a due date)"
                   className="border-surface-700 bg-surface-800 text-surface-100 placeholder-surface-500 focus:border-surface-400 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none"
                 />
               </form>
