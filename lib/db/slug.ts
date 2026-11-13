@@ -1,11 +1,18 @@
 import { randomUUID } from 'crypto'
 
+// MySQL ids are varchar(255); this leaves room for uniqueSlug's "-N"
+const MAX_SLUG_LENGTH = 200
+
 export function slugify(text: string): string {
-  const slug = text
-    .toLowerCase()
-    .trim()
-    .replace(/[^\p{L}\p{N}\s_-]/gu, '')
-    .replace(/[\s_]+/g, '-')
+  const slug = [
+    ...text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+      .replace(/[\s_]+/g, '-'),
+  ]
+    .slice(0, MAX_SLUG_LENGTH)
+    .join('')
     .replace(/^-+|-+$/g, '')
   // A name with no letters or digits ("🔥") is still a valid tag
   return slug || (text.trim() ? randomUUID() : '')
