@@ -99,6 +99,12 @@ async function isFirestoreAvailable(): Promise<boolean> {
   }
 }
 
+// Several links created together, so their order depends on more than a shared timestamp
+const SEED_LINKS = ['Ticket', 'MR', 'Docs', 'Design', 'Logs'].map((label, i) => ({
+  url: `https://example.com/${i}`,
+  label,
+}))
+
 async function seedSource(repo: TaskRepository): Promise<void> {
   // Postgres/MySQL persist between runs
   await repo.importTasks([], true)
@@ -117,7 +123,7 @@ async function seedSource(repo: TaskRepository): Promise<void> {
     description: 'Repro: log in with an expired token.',
     tags: [bug.id, wip.id],
     dueDate: '2026-08-01',
-    urls: [{ url: 'https://example.com/ticket/42', label: 'Ticket' }],
+    urls: SEED_LINKS,
   })
 
   const [{ id: doneTaskId }] = await repo.getTasks()
@@ -139,6 +145,7 @@ async function assertRoundTrip(source: TaskRepository, destination: TaskReposito
   const { tasks: destTasks, tags: destTags } = await destination.importTasks(jsonItems, true)
 
   expect(destTasks).toHaveLength(sourceTasks.length)
+  expect(sourceTasks[0].urls.map((u) => u.label)).toEqual(SEED_LINKS.map((l) => l.label))
 
   const byTitle = new Map(destTasks.map((t) => [t.title, t]))
   for (const sourceTask of sourceTasks) {

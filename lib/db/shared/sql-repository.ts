@@ -239,7 +239,9 @@ export function createSqlTaskRepository<Bool>(
             .execute()
         }
 
-        for (const link of data.urls ?? []) {
+        // Links and tags are read back ordered by created_at, so each gets its own
+        // millisecond: Postgres and MySQL don't keep insertion order on ties
+        for (const [i, link] of (data.urls ?? []).entries()) {
           await trx
             .insertInto('task_urls')
             .values({
@@ -247,7 +249,7 @@ export function createSqlTaskRepository<Bool>(
               task_id: id,
               url: link.url.trim(),
               label: link.label.trim(),
-              created_at: now,
+              created_at: new Date(Date.parse(now) + i).toISOString(),
             })
             .execute()
         }
@@ -443,10 +445,14 @@ export function createSqlTaskRepository<Bool>(
           .executeTakeFirstOrThrow()
         let sortOrder = (maxRow.max ?? -1000) + 1000
 
-        for (const tag of tagsToCreate) {
-          const insert = trx
-            .insertInto('tags')
-            .values({ id: tag.id, label: tag.label, color: tag.color, created_at: now })
+        // One millisecond each, like createTask's links: ties have no stable order
+        for (const [i, tag] of tagsToCreate.entries()) {
+          const insert = trx.insertInto('tags').values({
+            id: tag.id,
+            label: tag.label,
+            color: tag.color,
+            created_at: new Date(Date.parse(now) + i).toISOString(),
+          })
           await (
             tagConflictStrategy === 'ignore'
               ? insert.ignore()
@@ -490,7 +496,7 @@ export function createSqlTaskRepository<Bool>(
               .execute()
           }
 
-          for (const link of item.links) {
+          for (const [i, link] of item.links.entries()) {
             await trx
               .insertInto('task_urls')
               .values({
@@ -498,7 +504,7 @@ export function createSqlTaskRepository<Bool>(
                 task_id: taskId,
                 url: link.url,
                 label: link.label,
-                created_at: now,
+                created_at: new Date(Date.parse(now) + i).toISOString(),
               })
               .execute()
           }
