@@ -1088,7 +1088,7 @@ export default function Page() {
             selectedTask
               ? isSidebarCollapsed
                 ? 'hidden'
-                : 'hidden border-r md:flex md:w-90'
+                : 'hidden border-r md:flex md:w-100'
               : 'flex w-full'
           }`}
         >
@@ -1254,15 +1254,29 @@ export default function Page() {
                     </button>
                   ))}
                 </div>
-                <div className="ml-auto flex items-center gap-4">
+                <div className="ml-auto flex h-full items-center gap-3 border-b-2 border-transparent pl-3">
                   {tab === 'active' && !isSearching && (
                     <button
                       onClick={() => setSortByDue((v) => !v)}
                       aria-pressed={sortByDue}
                       title={sortByDue ? 'Sorted by due date' : 'Sorted manually (drag to reorder)'}
-                      className="text-surface-400 hover:text-surface-100 text-xs transition-colors"
+                      aria-label={`Sort: ${sortByDue ? 'Due date' : 'Manual'}`}
+                      className="text-surface-400 hover:text-surface-100 flex items-center gap-1 text-xs whitespace-nowrap transition-colors"
                     >
-                      Sort: {sortByDue ? 'Due date' : 'Manual'}
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M7 4v16M3 8l4-4 4 4M17 20V4M21 16l-4 4-4-4" />
+                      </svg>
+                      {sortByDue ? 'Due' : 'Manual'}
                     </button>
                   )}
                   {!isLoading && filteredTasks.length > 0 && (
