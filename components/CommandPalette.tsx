@@ -20,6 +20,10 @@ interface CommandPaletteProps {
   onImport: () => void
   onOpenShortcuts: () => void
   onSelectTask: (taskId: string) => void
+  sortByDue: boolean
+  onToggleSortByDue: () => void
+  onCopyLast7Days: () => void
+  onGoToTab: (tab: 'active' | 'done' | 'archived') => void
 }
 
 export default function CommandPalette({
@@ -32,6 +36,10 @@ export default function CommandPalette({
   onImport,
   onOpenShortcuts,
   onSelectTask,
+  sortByDue,
+  onToggleSortByDue,
+  onCopyLast7Days,
+  onGoToTab,
 }: CommandPaletteProps) {
   const [query, setQuery] = useState('')
   const [activeIndex, setActiveIndex] = useState(0)
@@ -57,6 +65,15 @@ export default function CommandPalette({
     { id: 'export-csv', label: 'Export as CSV', action: () => onExport('csv') },
     { id: 'import', label: 'Import Tasks', action: onImport },
     { id: 'shortcuts', label: 'Keyboard Shortcuts', hint: '?', action: onOpenShortcuts },
+    { id: 'go-active', label: 'Go to Active', action: () => onGoToTab('active') },
+    { id: 'go-done', label: 'Go to Done', action: () => onGoToTab('done') },
+    { id: 'go-archived', label: 'Go to Archived', action: () => onGoToTab('archived') },
+    {
+      id: 'sort-due',
+      label: sortByDue ? 'Sort Active manually' : 'Sort Active by due date',
+      action: onToggleSortByDue,
+    },
+    { id: 'copy-week', label: 'Copy last 7 days', action: onCopyLast7Days },
   ]
 
   const q = query.trim().toLowerCase()
