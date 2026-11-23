@@ -849,6 +849,18 @@ export default function Page() {
     }
   }
 
+  async function handleBulkCopyMarkdown() {
+    try {
+      await navigator.clipboard.writeText(
+        selectedTasks.map((t) => taskToMarkdown(t, tags)).join('\n\n'),
+      )
+      const n = selectedTasks.length
+      showToast(`Copied ${n} task${n === 1 ? '' : 's'} as Markdown`, 'success')
+    } catch {
+      showToast('Failed to copy', 'error')
+    }
+  }
+
   const hasNoTasks = !isLoading && tasks.length === 0
   const compactCards = selectedTask !== null
   const listClass = `grid gap-2 ${
@@ -1154,6 +1166,14 @@ export default function Page() {
                     </div>
                   )}
                 </div>
+                <button
+                  onClick={handleBulkCopyMarkdown}
+                  disabled={selectedTasks.length === 0}
+                  title="Copy the selected tasks as Markdown"
+                  className="text-surface-300 hover:text-surface-100 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Copy
+                </button>
                 {bulkStatuses.has('active') && (
                   <select
                     aria-label="Set due date"
