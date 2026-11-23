@@ -1,5 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { parseCSVContent, parseCSVRows, parseJSONContent, processImportZip } from '../lib/import'
+import {
+  ImportError,
+  parseCSVContent,
+  parseCSVRows,
+  parseJSONContent,
+  processImportZip,
+} from '../lib/import'
 
 const HEADER_WITH_DUE = 'Title,Tags,Status,Due Date,Description,Created At,Updated At'
 
@@ -290,6 +296,29 @@ describe('processImportZip', () => {
   it('rejects a task file over the size cap', async () => {
     const big = JSON.stringify([{ title: 'T', description: 'x'.repeat(21 * 1024 * 1024) }])
     await expect(processImportZip(await zipOf({ 'tasks.json': big }))).rejects.toThrow('too large')
+  })
+
+  it('reads a backup nested one folder down, as Finder zips it', async () => {
+    const fetchMock = vi.fn(async () => Response.json({ url: '/uploads/new.png' }))
+    vi.stubGlobal('fetch', fetchMock)
+    const file = await zipOf({
+      'backup/tasks.json': JSON.stringify([{ title: 'T', description: '![a](uploads/a.png)' }]),
+      'backup/tags.json': JSON.stringify([{ label: 'Bug', color: 'x' }]),
+      'backup/uploads/a.png': 'png',
+      '__MACOSX/backup/._tasks.json': 'junk',
+    })
+
+    const { tasks, tags } = await processImportZip(file)
+    expect(tasks[0].description).toBe('![a](/uploads/new.png)')
+    expect(tags).toHaveLength(1)
+  })
+
+  it('rejects invalid content with an ImportError the modal can show', async () => {
+    const file = await zipOf({ 'tasks.csv': 'Name\nT' })
+    await expect(processImportZip(file)).rejects.toThrow(
+      new ImportError('CSV is missing a "Title" column'),
+    )
+    await expect(processImportZip(await zipOf({}))).rejects.toBeInstanceOf(ImportError)
   })
 
   it('skips entries of unsupported types', async () => {

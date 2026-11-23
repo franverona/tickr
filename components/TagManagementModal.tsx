@@ -55,6 +55,10 @@ export default function TagManagementModal({
     setIsSaving(true)
     try {
       const updated = await updateTag(id, { label, color: editColor })
+      if ('error' in updated) {
+        setError(updated.error)
+        return
+      }
       onTagUpdated(updated)
       setEditingId(null)
     } catch (err) {

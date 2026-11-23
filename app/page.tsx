@@ -121,6 +121,21 @@ export default function Page() {
       .catch(() => setLoadError(true))
   }, [])
 
+  // A filter tag deleted in another tab would make every quick add fail
+  useEffect(() => {
+    function refreshTags() {
+      if (document.visibilityState !== 'visible') return
+      getTags()
+        .then((g) => {
+          setTags(g)
+          setTagFilter((f) => f.filter((id) => g.some((t) => t.id === id)))
+        })
+        .catch(() => {})
+    }
+    document.addEventListener('visibilitychange', refreshTags)
+    return () => document.removeEventListener('visibilitychange', refreshTags)
+  }, [])
+
   // Restored after mount, not in useState initializers, to avoid a hydration mismatch
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
@@ -303,7 +318,9 @@ export default function Page() {
     setIsExporting(true)
     setMenuFeedback('Exporting…')
     try {
-      const skipped = await exportToZip(tasks, tags, format)
+      // Fresh, not state: another tab or device may have changed tasks since load
+      const [freshTasks, freshTags] = await Promise.all([getTasks(), getTags()])
+      const skipped = await exportToZip(freshTasks, freshTags, format)
       if (skipped.length > 0) {
         showToast(
           `Exported without ${skipped.length} attachment${skipped.length === 1 ? '' : 's'}: ${skipped.join(', ')}`,

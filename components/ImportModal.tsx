@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useState } from 'react'
 import { importTasks } from '@/app/actions'
-import { ImportUploadError, processImportZip } from '@/lib/import'
+import { ImportError, processImportZip } from '@/lib/import'
 import type { Tag, Task } from '@/lib/types'
 import { useFocusTrap } from '@/lib/useFocusTrap'
 
@@ -47,9 +47,7 @@ export default function ImportModal({ file, onClose, onImported }: ImportModalPr
       onImported(result)
     } catch (err) {
       setError(
-        err instanceof ImportUploadError
-          ? err.message
-          : 'Import failed. Check the file and try again.',
+        err instanceof ImportError ? err.message : 'Import failed. Check the file and try again.',
       )
       setIsPending(false)
     }

@@ -69,11 +69,21 @@ export function detectTableDelimiter(text: string): '\t' | ',' | null {
   // Only treat commas as delimiter when lines have a consistent column count —
   // prevents prose/code with commas from being mangled into a table.
   const lines = text.split(/\r?\n/).filter((l) => l.trim())
-  if (lines.length < 2) return null
+  // Two lines ("Thanks, Bob" / "Regards, Alice") are too often prose
+  if (lines.length < 3) return null
   const c0 = lines[0].split(',').length
   if (c0 < 2) return null
   if (lines.some((l) => l.split(',').length !== c0)) return null
   return ','
+}
+
+// An odd number of fence lines before the cursor means it sits inside one
+export function isInCodeFence(value: string, cursor: number): boolean {
+  const fences = value
+    .slice(0, cursor)
+    .split('\n')
+    .filter((l) => /^\s*(```|~~~)/.test(l))
+  return fences.length % 2 === 1
 }
 
 // "1.1. Foo" → "   1. Foo": outline numbering to nested markdown lists

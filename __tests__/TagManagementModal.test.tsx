@@ -116,6 +116,28 @@ describe('TagManagementModal', () => {
     expect(screen.queryByDisplayValue('urgent-bug')).not.toBeInTheDocument()
   })
 
+  it('shows the error returned for a duplicate name and stays in edit mode', async () => {
+    updateTag.mockResolvedValueOnce({ error: 'A tag named "wip" already exists' })
+    const onTagUpdated = vi.fn()
+
+    render(
+      <TagManagementModal
+        usage={{}}
+        tags={[makeTag()]}
+        onClose={() => {}}
+        onTagUpdated={onTagUpdated}
+        onTagDeleted={() => {}}
+      />,
+    )
+    fireEvent.click(screen.getByTitle('Edit tag'))
+    fireEvent.change(screen.getByDisplayValue('bug'), { target: { value: 'wip' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText('A tag named "wip" already exists')).toBeInTheDocument()
+    expect(onTagUpdated).not.toHaveBeenCalled()
+    expect(screen.getByDisplayValue('wip')).toBeInTheDocument()
+  })
+
   it('shows a validation error and does not call updateTag when the label is emptied', () => {
     render(
       <TagManagementModal

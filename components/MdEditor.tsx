@@ -5,6 +5,7 @@ import { visit } from 'unist-util-visit'
 import {
   convertOutlineList,
   detectTableDelimiter,
+  isInCodeFence,
   insertAtCursor,
   uploadPlaceholder,
   toMarkdownTable,
@@ -298,6 +299,9 @@ export function makeImageHandlers(
         return
       }
     }
+
+    // Code is pasted verbatim
+    if (isInCodeFence(textarea.value, textarea.selectionStart)) return
 
     const outlineMd = convertOutlineList(text)
     if (outlineMd !== null) {

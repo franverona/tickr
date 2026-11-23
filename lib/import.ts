@@ -45,7 +45,7 @@ function parseTimestamp(value: unknown): string | undefined {
 }
 
 // Message is shown to the user as-is
-export class ImportUploadError extends Error {}
+export class ImportError extends Error {}
 
 async function uploadFile(filename: string, data: BlobPart): Promise<string | null> {
   const ext = filename.split('.').pop()?.toLowerCase() ?? ''
@@ -111,11 +111,12 @@ export function parseCSVRows(content: string): string[][] {
 
 export function parseJSONContent(content: string): ImportedTask[] {
   const data = JSON.parse(content)
-  if (!Array.isArray(data)) throw new Error('Expected a JSON array')
+  if (!Array.isArray(data)) throw new ImportError('Expected a JSON array')
 
   return data
     .map((item: unknown, i: number): ImportedTask | null => {
-      if (typeof item !== 'object' || item === null) throw new Error(`Item ${i} is not an object`)
+      if (typeof item !== 'object' || item === null)
+        throw new ImportError(`Item ${i} is not an object`)
       const t = item as Record<string, unknown>
       const title = typeof t.title === 'string' ? t.title.trim() : ''
       if (!title) return null
@@ -173,7 +174,7 @@ export function parseCSVContent(content: string): ImportedTask[] {
   const col = (name: string) => headers.indexOf(name)
 
   const titleIdx = col('title')
-  if (titleIdx === -1) throw new Error('CSV is missing a "Title" column')
+  if (titleIdx === -1) throw new ImportError('CSV is missing a "Title" column')
 
   const tagsIdx = col('tags')
   const statusIdx = col('status')
@@ -269,7 +270,7 @@ function parseCSVLinkCell(cell: string): ImportedLink {
 
 export function parseTagsContent(content: string): ImportedTag[] {
   const data = JSON.parse(content)
-  if (!Array.isArray(data)) throw new Error('Expected a JSON array')
+  if (!Array.isArray(data)) throw new ImportError('Expected a JSON array')
   return data.map(parseTagEntry).filter((x): x is ImportedTag => x !== null)
 }
 
@@ -312,7 +313,7 @@ function readZipEntry(
         budget.left -= chunk.length
         if (size > maxBytes || budget.left < 0) {
           stream.pause()
-          reject(new Error(ZIP_TOO_LARGE))
+          reject(new ImportError(ZIP_TOO_LARGE))
           return
         }
         chunks.push(chunk)
@@ -342,9 +343,15 @@ export async function processImportZip(
   const zip = await JSZip.loadAsync(file)
 
   // Parsed before anything is uploaded, so a bad file leaves no orphans behind
-  const jsonFile = zip.file('tasks.json')
-  const csvFile = zip.file('tasks.csv')
-  if (!jsonFile && !csvFile) throw new Error('ZIP does not contain tasks.json or tasks.csv')
+  // Finder's Compress nests everything in one top-level folder
+  const nested = zip.file(/^[^/]+\/tasks\.(json|csv)$/)[0]
+  const root =
+    zip.file('tasks.json') || zip.file('tasks.csv') || !nested
+      ? zip
+      : zip.folder(nested.name.split('/')[0])!
+  const jsonFile = root.file('tasks.json')
+  const csvFile = root.file('tasks.csv')
+  if (!jsonFile && !csvFile) throw new ImportError('ZIP does not contain tasks.json or tasks.csv')
 
   let tasks: ImportedTask[]
   if (jsonFile) {
@@ -355,7 +362,7 @@ export async function processImportZip(
 
   // Upload attachments from uploads/ and build old-filename → new-url mapping
   const imageMapping = new Map<string, string>()
-  const uploadsFolder = zip.folder('uploads')
+  const uploadsFolder = root.folder('uploads')
   if (uploadsFolder) {
     const entries: [string, JSZipObject][] = []
     uploadsFolder.forEach((relativePath, entry) => {
@@ -372,7 +379,7 @@ export async function processImportZip(
       0,
     )
     if (entries.length > MAX_ZIP_ATTACHMENTS || declaredBytes > MAX_ZIP_ATTACHMENT_BYTES) {
-      throw new Error(ZIP_TOO_LARGE)
+      throw new ImportError(ZIP_TOO_LARGE)
     }
     const budget = { left: MAX_ZIP_ATTACHMENT_BYTES }
 
@@ -394,7 +401,7 @@ export async function processImportZip(
     // Checked before anything is imported: an override would otherwise replace
     // the data with tasks whose attachments are gone
     if (failed.length > 0) {
-      throw new ImportUploadError(
+      throw new ImportError(
         `Couldn't upload ${failed.length} attachment${failed.length === 1 ? '' : 's'} (${failed.join(', ')}). Nothing was imported.`,
       )
     }
@@ -411,7 +418,7 @@ export async function processImportZip(
   }
 
   // Absent from ZIPs made before tags.json existed
-  const tagsFile = zip.file('tags.json')
+  const tagsFile = root.file('tags.json')
   const tags = tagsFile ? parseTagsContent(await readZipText(tagsFile)) : []
 
   return { tasks, tags }

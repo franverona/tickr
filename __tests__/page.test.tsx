@@ -164,6 +164,25 @@ describe('tag filter', () => {
     expect(card('Gamma')).toBeInTheDocument()
     expect(card('Alpha')).toBeNull()
   })
+
+  it('drops a filter tag deleted in another tab when the page is shown again', async () => {
+    await renderReady([makeTask({ id: 'a', title: 'Alpha', tags: ['backend'] })], [TAG_BACKEND])
+    fireEvent.click(await screen.findByRole('button', { name: /^Backend/, pressed: false }))
+
+    getTags.mockResolvedValue([])
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    fireEvent(document, new Event('visibilitychange'))
+    await waitFor(() => expect(screen.queryByRole('button', { name: /^Backend/ })).toBeNull())
+
+    createTask.mockResolvedValueOnce(makeTask({ id: 'b', title: 'Beta' }))
+    const input = screen.getByRole('textbox', { name: 'Quick add task' })
+    fireEvent.change(input, { target: { value: 'Beta' } })
+    fireEvent.submit(input)
+    await waitFor(() =>
+      expect(createTask).toHaveBeenCalledWith(expect.objectContaining({ tags: [] })),
+    )
+    vi.restoreAllMocks()
+  })
 })
 
 describe('sort by due date', () => {
