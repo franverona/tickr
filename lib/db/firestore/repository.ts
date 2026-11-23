@@ -367,7 +367,7 @@ export class FirestoreTaskRepository implements TaskRepository {
           completed: item.completed,
           archived: item.archived,
           dueDate: item.dueDate ?? null,
-          createdAt: item.createdAt ?? now,
+          createdAt: item.createdAt ?? item.completedAt ?? now,
           updatedAt: item.updatedAt ?? now,
           completedAt: item.completed ? (item.completedAt ?? now) : null,
           archivedAt: item.archived ? (item.archivedAt ?? now) : null,

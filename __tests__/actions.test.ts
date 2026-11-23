@@ -371,6 +371,25 @@ describe('importTasks', () => {
     expect(fresh.completedAt! >= before).toBe(true)
     expect(fresh.archivedAt! >= before).toBe(true)
   })
+
+  it('falls back to completedAt for a missing createdAt, so durations stay positive', async () => {
+    const { tasks } = await importTasks(
+      [
+        {
+          title: 'Done',
+          description: '',
+          tags: [],
+          dueDate: null,
+          links: [],
+          completed: true,
+          archived: false,
+          completedAt: '2024-01-03T00:00:00.000Z',
+        },
+      ],
+      false,
+    )
+    expect(tasks[0].createdAt).toBe('2024-01-03T00:00:00.000Z')
+  })
 })
 
 describe('restoring unused tags', () => {
