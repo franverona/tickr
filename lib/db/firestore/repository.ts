@@ -6,7 +6,7 @@ import type { Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTag, ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
-import { slugify, uniqueSlug } from '../slug'
+import { slugify, TagNameError, uniqueSlug } from '../slug'
 import { ensureSeeded } from './seed'
 import { chunk } from './chunk'
 
@@ -77,13 +77,13 @@ export class FirestoreTaskRepository implements TaskRepository {
   async createTag(data: { label: string; color: string }): Promise<Tag> {
     await this.ready()
     const slug = slugify(data.label)
-    if (!slug) throw new Error('Invalid tag name')
+    if (!slug) throw new TagNameError('Invalid tag name')
 
     const now = new Date().toISOString()
     const label = data.label.trim()
     const existing = (await this.tagsCol.get()).docs
     if (existing.some((d) => (d.get('label') as string).toLowerCase() === label.toLowerCase()))
-      throw new Error(`A tag named "${data.label}" already exists`)
+      throw new TagNameError(`A tag named "${data.label}" already exists`)
     const id = uniqueSlug(slug, new Set(existing.map((d) => d.id)))
     // create() fails atomically if the doc exists, so two concurrent creates
     // with the same slug can't both pass a get() check and overwrite each other
@@ -92,7 +92,7 @@ export class FirestoreTaskRepository implements TaskRepository {
     } catch (err) {
       if ((err as { code?: number }).code === 6) {
         // ALREADY_EXISTS
-        throw new Error(`A tag named "${data.label}" already exists`)
+        throw new TagNameError(`A tag named "${data.label}" already exists`)
       }
       throw err
     }
@@ -118,7 +118,7 @@ export class FirestoreTaskRepository implements TaskRepository {
             (d.data() as FirestoreTagDoc).label.toLowerCase() === label.toLowerCase(),
         )
       )
-        throw new Error(`A tag named "${label}" already exists`)
+        throw new TagNameError(`A tag named "${label}" already exists`)
     }
 
     await this.tagsCol.doc(id).update({ label, color })

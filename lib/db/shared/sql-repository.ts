@@ -5,7 +5,7 @@ import type { Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTag, ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
-import { slugify, uniqueSlug } from '../slug'
+import { slugify, TagNameError, uniqueSlug } from '../slug'
 
 // Generic over how completed/archived is stored: boolean on Postgres, 0|1 elsewhere
 export interface SqlSchema<Bool> {
@@ -139,12 +139,12 @@ export function createSqlTaskRepository<Bool>(
     async createTag(data: { label: string; color: string }): Promise<Tag> {
       const db = await ready()
       const slug = slugify(data.label)
-      if (!slug) throw new Error('Invalid tag name')
+      if (!slug) throw new TagNameError('Invalid tag name')
 
       const tags = await db.selectFrom('tags').select(['id', 'label']).execute()
       const key = data.label.trim().toLowerCase()
       if (tags.some((t) => t.label.toLowerCase() === key))
-        throw new Error(`A tag named "${data.label}" already exists`)
+        throw new TagNameError(`A tag named "${data.label}" already exists`)
       const id = uniqueSlug(slug, new Set(tags.map((t) => t.id)))
 
       const now = new Date().toISOString()
@@ -172,7 +172,7 @@ export function createSqlTaskRepository<Bool>(
       if (label.toLowerCase() !== current.label.toLowerCase()) {
         const tags = await db.selectFrom('tags').select(['id', 'label']).execute()
         if (tags.some((t) => t.id !== id && t.label.toLowerCase() === label.toLowerCase()))
-          throw new Error(`A tag named "${label}" already exists`)
+          throw new TagNameError(`A tag named "${label}" already exists`)
       }
 
       await db.updateTable('tags').set({ label, color }).where('id', '=', id).execute()

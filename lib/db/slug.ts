@@ -25,3 +25,7 @@ export function uniqueSlug(slug: string, taken: Set<string>): string {
   while (taken.has(`${slug}-${n}`)) n++
   return `${slug}-${n}`
 }
+
+// Expected tag-name rejections; Server Actions return these as { error } because
+// production builds redact thrown messages
+export class TagNameError extends Error {}

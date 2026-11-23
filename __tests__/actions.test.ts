@@ -57,6 +57,12 @@ function seedTag(tag: { id: string; label: string; color: string } = SEED_TAG) {
     .run(tag.id, tag.label, tag.color, new Date().toISOString())
 }
 
+async function newTag(data: { label: string; color: string }) {
+  const tag = await createTag(data)
+  if ('error' in tag) throw new Error(tag.error)
+  return tag
+}
+
 describe('createTask', () => {
   it('returns correct JS types (not raw SQLite integers)', async () => {
     const task = await createTask({ title: 'Test task', description: '', tags: [] })
@@ -128,7 +134,7 @@ describe('tag names', () => {
   it.each(['日本語', 'Рефакторинг', 'Déjà vu', '🔥'])(
     'creates and round-trips %s',
     async (label) => {
-      const tag = await createTag({ label, color })
+      const tag = await newTag({ label, color })
       expect(tag).toMatchObject({ label })
 
       const task = await createTask({ title: 'T', description: '', tags: [tag.id] })
@@ -152,7 +158,7 @@ describe('tag names', () => {
   )
 
   it('still rejects a blank name', async () => {
-    await expect(createTag({ label: '   ', color })).rejects.toThrow('Invalid tag name')
+    expect(await createTag({ label: '   ', color })).toEqual({ error: 'Invalid tag name' })
   })
 })
 
@@ -381,21 +387,23 @@ describe('duplicate tags', () => {
   const base = { description: '', dueDate: null, links: [], completed: false, archived: false }
 
   it("reuses a renamed tag's old name under a new id", async () => {
-    const bug = await createTag({ label: 'Bug', color })
+    const bug = await newTag({ label: 'Bug', color })
     await updateTag(bug.id, { label: 'Defect' })
 
     expect(await createTag({ label: 'Bug', color })).toMatchObject({ id: 'bug-2', label: 'Bug' })
   })
 
   it("rejects creating a tag with a renamed tag's new label", async () => {
-    const bug = await createTag({ label: 'Bug', color })
+    const bug = await newTag({ label: 'Bug', color })
     await updateTag(bug.id, { label: 'Defect' })
 
-    await expect(createTag({ label: 'defect', color })).rejects.toThrow('already exists')
+    expect(await createTag({ label: 'defect', color })).toEqual({
+      error: 'A tag named "defect" already exists',
+    })
   })
 
   it("doesn't merge an imported label into a tag renamed from it", async () => {
-    const bug = await createTag({ label: 'Bug', color })
+    const bug = await newTag({ label: 'Bug', color })
     await updateTag(bug.id, { label: 'Defect' })
 
     const { tasks, tags } = await importTasks(
@@ -410,7 +418,9 @@ describe('duplicate tags', () => {
   it("rejects renaming a tag to another tag's label, ignoring case", async () => {
     seedTag(SEED_TAG)
     seedTag(BLOCKED_TAG)
-    await expect(updateTag(BLOCKED_TAG.id, { label: 'wip' })).rejects.toThrow('already exists')
+    expect(await updateTag(BLOCKED_TAG.id, { label: 'wip' })).toEqual({
+      error: 'A tag named "wip" already exists',
+    })
     await expect(updateTag(SEED_TAG.id, { label: 'wip' })).resolves.toMatchObject({ label: 'wip' })
   })
 

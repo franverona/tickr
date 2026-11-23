@@ -77,6 +77,22 @@ describe('TagSelector', () => {
     expect(screen.queryByPlaceholderText('e.g. needs-clarification')).not.toBeInTheDocument()
   })
 
+  it('shows the error returned for a duplicate name and keeps the form open', async () => {
+    createTag.mockResolvedValueOnce({ error: 'A tag named "urgent" already exists' })
+    const onTagCreated = vi.fn()
+
+    render(<TagSelector tags={[]} selected={[]} onChange={() => {}} onTagCreated={onTagCreated} />)
+    fireEvent.click(screen.getByRole('button', { name: '+ New tag' }))
+    fireEvent.change(screen.getByPlaceholderText('e.g. needs-clarification'), {
+      target: { value: 'urgent' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByText('A tag named "urgent" already exists')).toBeInTheDocument()
+    expect(onTagCreated).not.toHaveBeenCalled()
+    expect(screen.getByPlaceholderText('e.g. needs-clarification')).toBeInTheDocument()
+  })
+
   it('shows a validation error and does not call createTag when the label is empty', () => {
     render(<TagSelector tags={[]} selected={[]} onChange={() => {}} onTagCreated={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: '+ New tag' }))

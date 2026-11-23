@@ -52,6 +52,10 @@ export default function TagSelector({
     setIsSubmitting(true)
     try {
       const tag = await createTag({ label, color: newColor })
+      if ('error' in tag) {
+        setError(tag.error)
+        return
+      }
       onTagCreated(tag)
       onChange([...selected, tag.id])
       cancelCreate()

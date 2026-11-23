@@ -1,6 +1,7 @@
 'use server'
 
 import { getRepository } from '@/lib/db'
+import { TagNameError } from '@/lib/db/slug'
 import type { Tag, Task } from '@/lib/types'
 import type { ImportedTag, ImportedTask } from '@/lib/import'
 
@@ -8,15 +9,28 @@ export async function getTags(): Promise<Tag[]> {
   return getRepository().getTags()
 }
 
-export async function createTag(data: { label: string; color: string }): Promise<Tag> {
-  return getRepository().createTag(data)
+// Duplicate/invalid names come back as { error }: production redacts thrown messages
+async function tagNameErrorAsResult(op: Promise<Tag>): Promise<Tag | { error: string }> {
+  try {
+    return await op
+  } catch (err) {
+    if (err instanceof TagNameError) return { error: err.message }
+    throw err
+  }
+}
+
+export async function createTag(data: {
+  label: string
+  color: string
+}): Promise<Tag | { error: string }> {
+  return tagNameErrorAsResult(getRepository().createTag(data))
 }
 
 export async function updateTag(
   id: string,
   data: { label?: string; color?: string },
-): Promise<Tag> {
-  return getRepository().updateTag(id, data)
+): Promise<Tag | { error: string }> {
+  return tagNameErrorAsResult(getRepository().updateTag(id, data))
 }
 
 export async function deleteTag(id: string): Promise<void> {
