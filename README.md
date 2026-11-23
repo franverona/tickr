@@ -17,13 +17,15 @@ Next.js 16, TypeScript, Tailwind CSS v4, and SQLite (default), Postgres, MySQL o
 ## Features
 
 - Active / Done / Archived tabs; Done and Archived grouped by week, with each Done week's count and median cycle time
-- Quick add, drag-and-drop reordering, bulk actions (including select-all per week), tag filters with task counts, and search across tabs
-- Context menu to duplicate a task or set a quick due date (also in bulk); Undo in the toast after completing or archiving
+- Quick add with an optional trailing due date (`!today`, `!tomorrow`, `!fri`, `!YYYY-MM-DD`), drag-and-drop reordering, bulk actions (including select-all per week), and search across tabs
+- Tag filters with task counts; selecting several tags shows only tasks that have all of them
+- Active tasks sorted manually or by due date (undated last)
+- Context menu to duplicate a task, copy it as Markdown or set a quick due date (also in bulk); Undo in the toast after completing or archiving
 - Markdown descriptions with clickable checklists (progress shown on cards), rich paste, CSV-to-table, and `:emoji`, `@mention` and `/snippet` autocomplete
 - Attachments: images and videos inline and resizable, images downloadable from a hover button; PDF, text, Markdown, CSV, JSON and ZIP as links (up to 100 MB)
 - Due dates with overdue/today/soon badges and a daily browser notification
 - Links per task; Jira, GitLab MR and GitHub PR links show as card badges
-- Standup summary: copy last week's completed tasks with their MR/PR links
+- Standup summary: "Copy last 7 days" copies tasks completed in the past 7 days with their MR/PR links; each Done week also has a Copy button (it follows the tag filter)
 - Command palette (`Cmd/Ctrl+K`) and keyboard shortcuts (`?`)
 - Export/import as ZIP (JSON or CSV, with attachments), across any backend
 
@@ -40,13 +42,13 @@ Open [http://localhost:3000](http://localhost:3000). A fresh database starts wit
 
 ## Database
 
-Set `DB_TYPE` (default `sqlite`). See `.env.example`.
+Set `DB_TYPE` (default `sqlite`). Copy `.env.example` to `.env.local`; `next dev`/`next start`, `pnpm backup` and `pnpm uploads:prune` all read it.
 
 - **SQLite**: `./data/tasks.db`, created on first run. Delete it to reset.
 - **Postgres / MySQL**: set `DATABASE_URL`. Local containers: `docker compose up -d postgres` or `mysql`. To reset one, `docker compose rm -sf <service> && docker volume rm tickr_tickr-<service>-data` (not `down -v`, which wipes both).
 - **Firestore**: set `FIRESTORE_SERVICE_ACCOUNT_KEY` (service-account JSON on one line). This writes to the live project; for local work run `docker compose up -d firestore` and set `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` instead. On a real project, the first task creation fails until you create the composite index linked in the server logs.
 
-MySQL 26.7 won't open a volume created by 8.4. To keep that data, start it once on 9.7:
+MySQL 26 won't open a volume created by 8.4. To keep that data, start it once on 9.7:
 
 ```bash
 docker compose stop mysql
