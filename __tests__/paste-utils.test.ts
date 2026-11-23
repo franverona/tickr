@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   convertOutlineList,
   detectTableDelimiter,
+  isInCodeFence,
   insertAtCursor,
   parseDelimitedRows,
   stripUploadPlaceholders,
@@ -62,6 +63,21 @@ describe('detectTableDelimiter', () => {
 
   it('tabs take priority over commas', () => {
     expect(detectTableDelimiter('a\tb,c\n1\t2,3')).toBe('\t')
+  })
+
+  it('returns null for two comma lines, which are usually prose or code', () => {
+    expect(detectTableDelimiter('Thanks, Bob\nRegards, Alice')).toBeNull()
+    expect(detectTableDelimiter('foo(a, b)\nbar(c, d)')).toBeNull()
+  })
+})
+
+describe('isInCodeFence', () => {
+  it('is true only between an opening and closing fence', () => {
+    const md = 'text\n```js\ncode\n```\nafter'
+    expect(isInCodeFence(md, md.indexOf('text'))).toBe(false)
+    expect(isInCodeFence(md, md.indexOf('code'))).toBe(true)
+    expect(isInCodeFence(md, md.indexOf('after'))).toBe(false)
+    expect(isInCodeFence('~~~\n', 4)).toBe(true)
   })
 })
 
