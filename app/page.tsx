@@ -70,6 +70,7 @@ export default function Page() {
   const [tagFilter, setTagFilter] = useState<string[]>([])
   // A view only: the stored manual order is kept for when it's turned off
   const [sortByDue, setSortByDue] = useState(false)
+  const [dueFilter, setDueFilter] = useState(false)
   const [quickTitle, setQuickTitle] = useState('')
   const [isQuickAdding, setIsQuickAdding] = useState(false)
   const [isSearchOpen, setIsSearchOpen] = useState(false)
@@ -443,8 +444,17 @@ export default function Page() {
   const tagUsage: Record<string, number> = {}
   for (const task of tasks) for (const id of task.tags) tagUsage[id] = (tagUsage[id] ?? 0) + 1
 
+  const isDueToday = (t: Task) => {
+    const s = getDueStatus(t.dueDate, t.completed)
+    return s === 'overdue' || s === 'today'
+  }
+  const dueCount = tab === 'active' && !isSearching ? tabTasks.filter(isDueToday).length : 0
+  // Kept across tab switches but only applied on Active, where due dates matter
+  const dueOnly = dueFilter && tab === 'active' && !isSearching
+
   const filteredTasks = tabTasks
     .filter((task) => tagFilter.every((id) => task.tags.includes(id)))
+    .filter((task) => !dueOnly || isDueToday(task))
     .sort((a, b) => {
       if (isSearching) return STATUS_ORDER[taskStatus(a)] - STATUS_ORDER[taskStatus(b)]
       if (tab === 'done') return (b.completedAt ?? '').localeCompare(a.completedAt ?? '')
@@ -1292,13 +1302,32 @@ export default function Page() {
                   )}
                 </div>
               </div>
-              {(filterTags.length > 0 || standupSummary || isSearching) && (
+              {(filterTags.length > 0 ||
+                standupSummary ||
+                isSearching ||
+                dueCount > 0 ||
+                dueOnly) && (
                 <div className="border-surface-700 flex items-center gap-3 border-b px-3 py-2 sm:px-4">
                   <div
                     className={`flex min-w-0 flex-1 items-center gap-1.5 ${
                       compactCards ? '[scrollbar-width:none] overflow-x-auto' : 'flex-wrap'
                     }`}
                   >
+                    {(dueCount > 0 || dueOnly) && (
+                      <button
+                        onClick={() => setDueFilter((v) => !v)}
+                        aria-pressed={dueOnly}
+                        title="Show only overdue tasks and tasks due today"
+                        className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                          dueOnly
+                            ? 'border-red-500 bg-red-950 text-red-300'
+                            : 'border-surface-600 text-surface-400 hover:border-surface-400 hover:text-surface-200'
+                        }`}
+                      >
+                        Due today / overdue
+                        <span className="ml-1 opacity-60">{dueCount}</span>
+                      </button>
+                    )}
                     {filterTags.map((tag) => (
                       <button
                         key={tag.id}
@@ -1400,16 +1429,22 @@ export default function Page() {
                 <p className="text-sm">
                   {query
                     ? 'No tasks match your search'
-                    : tagFilter.length > 0
-                      ? `No tasks with ${tagFilter.length > 1 ? 'all these tags' : 'this tag'}`
-                      : tab === 'done'
-                        ? 'No completed tasks yet'
-                        : tab === 'archived'
-                          ? 'No archived tasks'
-                          : 'No active tasks'}
+                    : dueOnly
+                      ? 'No overdue or due-today tasks'
+                      : tagFilter.length > 0
+                        ? `No tasks with ${tagFilter.length > 1 ? 'all these tags' : 'this tag'}`
+                        : tab === 'done'
+                          ? 'No completed tasks yet'
+                          : tab === 'archived'
+                            ? 'No archived tasks'
+                            : 'No active tasks'}
                 </p>
               </div>
-            ) : tab === 'active' && !isSearching && tagFilter.length === 0 && !sortByDue ? (
+            ) : tab === 'active' &&
+              !isSearching &&
+              tagFilter.length === 0 &&
+              !dueOnly &&
+              !sortByDue ? (
               <div data-task-grid className={listClass}>
                 {filteredTasks.map((task, i) => (
                   <div
