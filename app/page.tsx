@@ -417,6 +417,7 @@ export default function Page() {
     }
   }
 
+  // groupTasks follows the tag filter on purpose: a filtered Copy is a per-tag timesheet
   async function handleCopyWeek(group: string, groupTasks: Task[]) {
     try {
       await navigator.clipboard.writeText(doneListMarkdown(`Done (${group}):`, groupTasks))
