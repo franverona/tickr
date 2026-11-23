@@ -120,15 +120,36 @@ describe('parseQuickAdd', () => {
     ['Ship it !wed', 'Ship it', '2026-03-11'],
     ['Ship it !2026-04-01', 'Ship it', '2026-04-01'],
   ])('%s → %s due %s', (text, title, due) => {
-    expect(parseQuickAdd(text, now)).toEqual({ title, dueDate: due })
+    expect(parseQuickAdd(text, now)).toEqual({ title, dueDate: due, tagIds: [] })
   })
 
   it.each(['Ship it', 'Ship it !', 'Ship it !fr', 'Ship it !soon', 'Ship it !2026-02-30', '!fri'])(
     'leaves %s as the title',
     (text) => {
-      expect(parseQuickAdd(text, now)).toEqual({ title: text, dueDate: null })
+      expect(parseQuickAdd(text, now)).toEqual({ title: text, dueDate: null, tagIds: [] })
     },
   )
+
+  const tags = [
+    { id: 't-bug', label: 'Bug' },
+    { id: 't-ui', label: 'ui' },
+    { id: 't-123', label: '123' },
+  ]
+
+  it.each([
+    ['Fix login #bug', 'Fix login', null, ['t-bug']],
+    ['Fix login #BUG !tomorrow', 'Fix login', '2026-03-05', ['t-bug']],
+    ['Fix login !tomorrow #ui #bug', 'Fix login', '2026-03-05', ['t-ui', 't-bug']],
+    ['Fix login #bug #Bug', 'Fix login', null, ['t-bug']],
+    ['Fix #bug in login', 'Fix #bug in login', null, []],
+    ['Ping #unknown', 'Ping #unknown', null, []],
+    ['Ping #unknown #bug', 'Ping #unknown', null, ['t-bug']],
+    ['Follow up on #123', 'Follow up on #123', null, []],
+    ['Ship it !fri !tomorrow', 'Ship it !fri', '2026-03-05', []],
+    ['#bug', '#bug', null, []],
+  ])('%s → %s due %s tags %j', (text, title, dueDate, tagIds) => {
+    expect(parseQuickAdd(text, now, tags)).toEqual({ title, dueDate, tagIds })
+  })
 })
 
 describe('doneSummary', () => {

@@ -26,29 +26,49 @@ export function quickDueDate(kind: 'tomorrow' | 'next-monday', now: Date = new D
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 
-// Quick add's trailing due-date token: "Ship it !fri", "!tomorrow", "!today" or
-// "!2026-11-20". A weekday is never today, like next-monday. Anything else stays in the title.
+function parseDueToken(token: string, now: Date): string | null {
+  token = token.toLowerCase()
+  if (token === 'today') return localDateKey(now)
+  if (token === 'tomorrow') return quickDueDate('tomorrow', now)
+  if (/^\d{4}-\d{2}-\d{2}$/.test(token)) {
+    // Rejects dates that roll over, like 2026-02-30
+    return localDateKey(new Date(`${token}T00:00:00`)) === token ? token : null
+  }
+  const day = token.length >= 3 ? WEEKDAYS.findIndex((d) => d.startsWith(token)) : -1
+  if (day < 0) return null
+  const d = new Date(now)
+  d.setDate(d.getDate() + ((day - d.getDay() + 7) % 7 || 7))
+  return localDateKey(d)
+}
+
+// Quick add's trailing tokens, in any order: one due date ("!fri", "!tomorrow", "!today",
+// "!2026-11-20"; a weekday is never today, like next-monday) and "#label" for existing tags
+// (case-insensitive). Unknown or numeric "#" tokens, and anything before them, stay in the title.
+// shortcut: only single-word tag labels match; accept quoted labels if multi-word tags need it.
 export function parseQuickAdd(
   text: string,
   now: Date = new Date(),
-): { title: string; dueDate: string | null } {
-  const match = text.trim().match(/^(.*\S)\s+!(\S+)$/)
-  const token = match?.[2].toLowerCase() ?? ''
+  tags: { id: string; label: string }[] = [],
+): { title: string; dueDate: string | null; tagIds: string[] } {
+  let title = text.trim()
   let dueDate: string | null = null
-  if (token === 'today') dueDate = localDateKey(now)
-  else if (token === 'tomorrow') dueDate = quickDueDate('tomorrow', now)
-  else if (/^\d{4}-\d{2}-\d{2}$/.test(token)) {
-    // Rejects dates that roll over, like 2026-02-30
-    if (localDateKey(new Date(`${token}T00:00:00`)) === token) dueDate = token
-  } else if (token.length >= 3) {
-    const day = WEEKDAYS.findIndex((d) => d.startsWith(token))
-    if (day >= 0) {
-      const d = new Date(now)
-      d.setDate(d.getDate() + ((day - d.getDay() + 7) % 7 || 7))
-      dueDate = localDateKey(d)
+  const tagIds: string[] = []
+  for (let m; (m = title.match(/^(.*\S)\s+([!#])(\S+)$/)); title = m[1]) {
+    const token = m[3]
+    if (m[2] === '!') {
+      if (dueDate) break
+      dueDate = parseDueToken(token, now)
+      if (!dueDate) break
+    } else {
+      // A bare number reads as a task or issue reference, never a tag
+      const tag = /^\d+$/.test(token)
+        ? undefined
+        : tags.find((t) => t.label.toLowerCase() === token.toLowerCase())
+      if (!tag) break
+      if (!tagIds.includes(tag.id)) tagIds.unshift(tag.id)
     }
   }
-  return match && dueDate ? { title: match[1], dueDate } : { title: text.trim(), dueDate: null }
+  return { title, dueDate, tagIds }
 }
 
 // "YYYY-MM-DD" for the local calendar day (toISOString would give the UTC day)
