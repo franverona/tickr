@@ -1654,6 +1654,22 @@ export default function Page() {
           onImport={() => importInputRef.current?.click()}
           onOpenShortcuts={() => setIsShortcutsOpen(true)}
           onSelectTask={setSelectedTaskId}
+          sortByDue={sortByDue}
+          onToggleSortByDue={() => setSortByDue((v) => !v)}
+          onCopyLast7Days={() => {
+            const summary = doneLastWeekSummary(tasks)
+            if (!summary) return showToast('Nothing completed in the last 7 days', 'error')
+            navigator.clipboard.writeText(summary).then(
+              () => showToast('Copied last 7 days', 'success'),
+              () => showToast('Failed to copy', 'error'),
+            )
+          }}
+          onGoToTab={(t) => {
+            setTab(t)
+            setTagFilter([])
+            setSelectedTaskId(null)
+            cancelSelectMode()
+          }}
         />
       )}
 
