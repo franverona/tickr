@@ -5,11 +5,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import ImportModal from '../components/ImportModal'
 import type { ImportedTask } from '../lib/import'
 
-const { processImportZip, ImportUploadError } = vi.hoisted(() => ({
+const { processImportZip, ImportError } = vi.hoisted(() => ({
   processImportZip: vi.fn(),
-  ImportUploadError: class extends Error {},
+  ImportError: class extends Error {},
 }))
-vi.mock('@/lib/import', () => ({ processImportZip, ImportUploadError }))
+vi.mock('@/lib/import', () => ({ processImportZip, ImportError }))
 
 const { importTasks } = vi.hoisted(() => ({ importTasks: vi.fn() }))
 vi.mock('@/app/actions', () => ({ importTasks }))
@@ -117,7 +117,7 @@ describe('ImportModal', () => {
   })
 
   it('names failed attachments and imports nothing', async () => {
-    processImportZip.mockRejectedValueOnce(new ImportUploadError("Couldn't upload a.png"))
+    processImportZip.mockRejectedValueOnce(new ImportError("Couldn't upload a.png"))
 
     render(<ImportModal file={makeFile()} onClose={() => {}} onImported={() => {}} />)
     fireEvent.click(screen.getByRole('button', { name: 'Import' }))
