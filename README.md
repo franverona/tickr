@@ -17,8 +17,9 @@ Next.js 16, TypeScript, Tailwind CSS v4, and SQLite (default), Postgres, MySQL o
 ## Features
 
 - Active / Done / Archived tabs; Done and Archived grouped by week, with each Done week's count and median cycle time
-- Quick add with an optional trailing due date (`!today`, `!tomorrow`, `!fri`, `!YYYY-MM-DD`), drag-and-drop reordering, bulk actions (including select-all per week), and search across tabs
-- Tag filters with task counts; selecting several tags shows only tasks that have all of them
+- Quick add with optional trailing tokens: a due date (`!today`, `!tomorrow`, `!fri`, `!YYYY-MM-DD`) and existing one-word tags (`#bug`)
+- Drag-and-drop reordering, search across tabs, and bulk actions (including select-all per week and copying the selection as Markdown)
+- Tag filters with task counts; selecting several tags shows only tasks that have all of them. A "Due today / overdue" chip narrows Active to what's due
 - Active tasks sorted manually or by due date (undated last)
 - Context menu to duplicate a task, copy it as Markdown or set a quick due date (also in bulk); Undo in the toast after completing or archiving
 - Markdown descriptions with clickable checklists (progress shown on cards), rich paste, CSV-to-table, and `:emoji`, `@mention` and `/snippet` autocomplete
@@ -26,7 +27,7 @@ Next.js 16, TypeScript, Tailwind CSS v4, and SQLite (default), Postgres, MySQL o
 - Due dates with overdue/today/soon badges and a daily browser notification
 - Links per task; Jira, GitLab MR and GitHub PR links show as card badges
 - Standup summary: "Copy last 7 days" copies tasks completed in the past 7 days with their MR/PR links; each Done week also has a Copy button (it follows the tag filter)
-- Command palette (`Cmd/Ctrl+K`) and keyboard shortcuts (`?`)
+- Command palette (`Cmd/Ctrl+K`), which also switches tabs, toggles the due-date sort and copies the last 7 days, and keyboard shortcuts (`?`)
 - Export/import as ZIP (JSON or CSV, with attachments), across any backend
 
 ## Getting started
