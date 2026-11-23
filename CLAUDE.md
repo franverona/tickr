@@ -16,6 +16,7 @@ Read `node_modules/next/dist/docs/` before writing Next.js code; APIs differ fro
 
 - **No API routes** except `/api/upload` and `/api/uploads/[...path]`. Route handlers get no CSRF check, so `/api/upload` checks `Origin` and `Content-Length` before parsing. `proxyClientMaxBodySize` in `next.config.ts` must stay above its 100 MB cap.
 - **Uploads** are served through `/api/uploads` (a `beforeFiles` rewrite), because production indexes `public/` only at startup. Keep its `nosniff` + `sandbox` CSP; `next.config.ts` headers skip uploads because they'd replace that CSP.
+- **Expected errors** from Server Actions are returned as `{ error }`, not thrown: production builds redact thrown messages (see `TagNameError` in `app/actions.ts`). Client-side import errors throw `ImportError` (`lib/import.ts`), the only type `ImportModal` shows.
 - **Markdown previews** always pass `sanitizeMarkdown` in `rehypePlugins`: the preview enables `rehype-raw`.
 - **Tag colors** are full Tailwind class strings and must appear literally in `COLOR_PALETTE` (`lib/constants.ts`).
 - **SQLite migrations** live in `lib/db/sqlite/migrate.ts`: `ADD COLUMN` in try/catch, existence checks for anything not safely retryable. Postgres/MySQL create the final schema directly.
@@ -28,4 +29,5 @@ Read `node_modules/next/dist/docs/` before writing Next.js code; APIs differ fro
 - Cross-backend tests use `POSTGRES_TEST_URL` / `MYSQL_TEST_URL` / `FIRESTORE_TEST_HOST` (never `DATABASE_URL` or a live Firestore project): they wipe the target database. They skip when the docker-compose service is down, except in CI.
 - `lib/db/sqlite/migrate.ts` caches its run per module, so a test creating several in-memory DBs needs `vi.resetModules()` between them.
 - Don't run `pnpm build` in this checkout: it overwrites the `.next` that pm2 serves. Use a separate worktree.
-- Browser testing: never change remote Firestore data. Use SQLite or the emulator (`DB_TYPE=firestore FIRESTORE_EMULATOR_HOST=127.0.0.1:8080`).
+- Browser testing: never change remote Firestore data. Use SQLite or the emulator (`DB_TYPE=firestore FIRESTORE_EMULATOR_HOST=127.0.0.1:8080`). Don't copy `.env.local` into a worktree: it may point at the live project.
+- Parallel agents share one Playwright MCP browser: give each its own dev port (`PORT=31xx pnpm dev`) and tab, and target the page by URL.
