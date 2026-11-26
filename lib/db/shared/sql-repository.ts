@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { Kysely, sql } from 'kysely'
 import type { TagsTable, TaskUrlsTable, TaskTagsTable, TasksTable, TaskRepository } from '../types'
-import type { Tag, Task, TaskUrl } from '../../types'
+import type { LinkStatus, Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTag, ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
@@ -87,13 +87,20 @@ export function createSqlTaskRepository<Bool>(
     return rowToTask(row, await getTaskTagIds(db, taskId), await getTaskUrls(db, taskId))
   }
 
+  // status only when set, so links read back the same as Firestore's
+  function rowToUrl(row: Pick<TaskUrlsTable, 'id' | 'url' | 'label' | 'status'>): TaskUrl {
+    const { status, ...url } = row
+    return status ? { ...url, status } : url
+  }
+
   async function getTaskUrls(db: Kysely<SqlSchema<Bool>>, taskId: string): Promise<TaskUrl[]> {
-    return db
+    const rows = await db
       .selectFrom('task_urls')
-      .select(['id', 'url', 'label'])
+      .select(['id', 'url', 'label', 'status'])
       .where('task_id', '=', taskId)
       .orderBy('created_at', 'asc')
       .execute()
+    return rows.map(rowToUrl)
   }
 
   async function buildTagMap(db: Kysely<SqlSchema<Bool>>): Promise<Map<string, string[]>> {
@@ -114,14 +121,14 @@ export function createSqlTaskRepository<Bool>(
   async function buildUrlMap(db: Kysely<SqlSchema<Bool>>): Promise<Map<string, TaskUrl[]>> {
     const rows = await db
       .selectFrom('task_urls')
-      .select(['id', 'task_id', 'url', 'label'])
+      .select(['id', 'task_id', 'url', 'label', 'status'])
       .orderBy('created_at', 'asc')
       .execute()
     const map = new Map<string, TaskUrl[]>()
-    for (const row of rows) {
-      const arr = map.get(row.task_id) ?? []
-      arr.push({ id: row.id, url: row.url, label: row.label })
-      map.set(row.task_id, arr)
+    for (const { task_id, ...row } of rows) {
+      const arr = map.get(task_id) ?? []
+      arr.push(rowToUrl(row))
+      map.set(task_id, arr)
     }
     return map
   }
@@ -385,6 +392,21 @@ export function createSqlTaskRepository<Bool>(
       )
     },
 
+    async setTaskUrlStatus(
+      taskId: string,
+      urlId: string,
+      status: LinkStatus | null,
+    ): Promise<Task> {
+      return changeTaskUrls(taskId, (trx) =>
+        trx
+          .updateTable('task_urls')
+          .set({ status })
+          .where('id', '=', urlId)
+          .where('task_id', '=', taskId)
+          .execute(),
+      )
+    },
+
     async importTasks(
       items: ImportedTask[],
       overrideAll = false,
@@ -504,6 +526,7 @@ export function createSqlTaskRepository<Bool>(
                 task_id: taskId,
                 url: link.url,
                 label: link.label,
+                status: link.status ?? null,
                 created_at: new Date(Date.parse(now) + i).toISOString(),
               })
               .execute()

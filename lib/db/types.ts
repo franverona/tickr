@@ -1,4 +1,4 @@
-import type { Tag, Task } from '../types'
+import type { LinkStatus, Tag, Task } from '../types'
 import type { ImportedTag, ImportedTask } from '../import'
 
 // completed/archived: 0|1 on SQLite/MySQL, boolean on Postgres
@@ -29,6 +29,7 @@ export interface TaskUrlsTable {
   task_id: string
   url: string
   label: string
+  status: LinkStatus | null
   created_at: string
 }
 
@@ -78,6 +79,7 @@ export interface TaskRepository {
   addTaskUrl(taskId: string, data: { url: string; label: string }): Promise<Task>
   deleteTaskUrl(taskId: string, urlId: string): Promise<Task>
   updateTaskUrl(taskId: string, urlId: string, data: { url: string; label: string }): Promise<Task>
+  setTaskUrlStatus(taskId: string, urlId: string, status: LinkStatus | null): Promise<Task>
 
   importTasks(
     items: ImportedTask[],

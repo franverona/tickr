@@ -25,8 +25,8 @@ Next.js 16, TypeScript, Tailwind CSS v4, and SQLite (default), Postgres, MySQL o
 - Markdown descriptions with clickable checklists (progress shown on cards), rich paste, CSV-to-table, and `:emoji`, `@mention` and `/snippet` autocomplete
 - Attachments: images and videos inline and resizable, images downloadable from a hover button; PDF, text, Markdown, CSV, JSON and ZIP as links (up to 100 MB)
 - Due dates with overdue/today/soon badges and a daily browser notification
-- Links per task; Jira, GitLab MR and GitHub PR links show as card badges
-- Standup summary: "Copy last 7 days" copies tasks completed in the past 7 days with their MR/PR links; each Done week also has a Copy button (it follows the tag filter)
+- Links per task; Jira, GitLab MR and GitHub PR links show as card badges. Each MR/PR link has a review status (in review, merged, closed): click its icon in the task panel to change it
+- Standup summary: "Copy last 7 days" copies tasks completed in the past 7 days with their MR/PR links (closed ones left out); each Done week also has a Copy button (it follows the tag filter)
 - Command palette (`Cmd/Ctrl+K`), which also switches tabs, toggles the due-date sort and copies the last 7 days, and keyboard shortcuts (`?`)
 - Export/import as ZIP (JSON or CSV, with attachments), across any backend
 

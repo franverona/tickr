@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto'
 import { FieldValue } from '@google-cloud/firestore'
 import type { DocumentSnapshot, Firestore, WriteBatch } from '@google-cloud/firestore'
 import type { TaskRepository } from '../types'
-import type { Tag, Task, TaskUrl } from '../../types'
+import type { LinkStatus, Tag, Task, TaskUrl } from '../../types'
 import type { ImportedTag, ImportedTask } from '../../import'
 import { COLOR_PALETTE } from '../../constants'
 import { planImportIds } from '../mentions'
@@ -295,6 +295,22 @@ export class FirestoreTaskRepository implements TaskRepository {
     return docToTask(updated)
   }
 
+  async setTaskUrlStatus(taskId: string, urlId: string, status: LinkStatus | null): Promise<Task> {
+    await this.ready()
+    const ref = this.tasksCol.doc(taskId)
+    const current = await ref.get()
+    if (!current.exists) throw new Error(`Task ${taskId} not found`)
+    const currentData = current.data() as FirestoreTaskDoc
+    const urls = currentData.urls.map((u) => {
+      if (u.id !== urlId) return u
+      // Left out, not stored as undefined: Firestore rejects undefined fields
+      return status ? { ...u, status } : { id: u.id, url: u.url, label: u.label }
+    })
+    await ref.update({ urls, updatedAt: new Date().toISOString() })
+    const updated = await ref.get()
+    return docToTask(updated)
+  }
+
   async importTasks(
     items: ImportedTask[],
     overrideAll = false,
@@ -363,7 +379,11 @@ export class FirestoreTaskRepository implements TaskRepository {
           title: item.title.trim(),
           description: remap(item.description),
           tags: tagIds,
-          urls: item.links.map((link) => ({ id: randomUUID(), url: link.url, label: link.label })),
+          urls: item.links.map(({ status, ...link }) => ({
+            id: randomUUID(),
+            ...link,
+            ...(status && { status }),
+          })),
           completed: item.completed,
           archived: item.archived,
           dueDate: item.dueDate ?? null,

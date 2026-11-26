@@ -30,6 +30,8 @@ export class PostgresTaskRepository implements TaskRepository {
   addTaskUrl: TaskRepository['addTaskUrl'] = (...args) => this.inner.addTaskUrl(...args)
   deleteTaskUrl: TaskRepository['deleteTaskUrl'] = (...args) => this.inner.deleteTaskUrl(...args)
   updateTaskUrl: TaskRepository['updateTaskUrl'] = (...args) => this.inner.updateTaskUrl(...args)
+  setTaskUrlStatus: TaskRepository['setTaskUrlStatus'] = (...args) =>
+    this.inner.setTaskUrlStatus(...args)
 
   importTasks: TaskRepository['importTasks'] = (...args) => this.inner.importTasks(...args)
 }

@@ -25,7 +25,10 @@ export function doneLastWeekSummary(tasks: Task[], now = new Date()): string | n
 // A heading, then one line per task with its MR/PR links
 export function doneListMarkdown(heading: string, tasks: Task[]): string {
   const lines = tasks.map((t) => {
-    const reviews = t.urls.filter((u) => isReviewLink(u.url)).map((u) => u.url)
+    // Closed MRs were abandoned, not shipped
+    const reviews = t.urls
+      .filter((u) => isReviewLink(u.url) && u.status !== 'closed')
+      .map((u) => u.url)
     return `- ${t.title}${reviews.length > 0 ? ` → ${reviews.join(', ')}` : ''}`
   })
   return [heading, ...lines].join('\n')

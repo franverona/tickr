@@ -74,8 +74,18 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     .addColumn('task_id', ID, (c) => c.notNull().references('tasks.id').onDelete('cascade'))
     .addColumn('url', 'text', (c) => c.notNull())
     .addColumn('label', 'text', (c) => c.notNull())
+    .addColumn('status', 'text')
     .addColumn('created_at', 'text', (c) => c.notNull())
     .execute()
+
+  // Databases created before link statuses (MySQL has no ADD COLUMN IF NOT EXISTS)
+  const { rows: statusCols } = await sql<{ n: number }>`
+    SELECT COUNT(*) AS n FROM information_schema.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'task_urls' AND COLUMN_NAME = 'status'
+  `.execute(db)
+  if (Number(statusCols[0]?.n) === 0) {
+    await sql`ALTER TABLE task_urls ADD COLUMN status TEXT`.execute(db)
+  }
 
   await db.schema
     .createTable('task_tags')

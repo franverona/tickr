@@ -2,7 +2,7 @@
 
 import { getRepository } from '@/lib/db'
 import { TagNameError } from '@/lib/db/slug'
-import type { Tag, Task } from '@/lib/types'
+import type { LinkStatus, Tag, Task } from '@/lib/types'
 import type { ImportedTag, ImportedTask } from '@/lib/import'
 
 export async function getTags(): Promise<Tag[]> {
@@ -135,6 +135,17 @@ export async function updateTaskUrl(
   data: { url: string; label: string },
 ): Promise<Task> {
   return getRepository().updateTaskUrl(taskId, urlId, data)
+}
+
+export async function setTaskUrlStatus(
+  taskId: string,
+  urlId: string,
+  status: LinkStatus | null,
+): Promise<Task> {
+  // Server Actions take any client value; only these reach the database
+  if (status !== null && status !== 'merged' && status !== 'closed')
+    throw new Error('Invalid link status')
+  return getRepository().setTaskUrlStatus(taskId, urlId, status)
 }
 
 export async function importTasks(

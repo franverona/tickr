@@ -118,13 +118,14 @@ async function seedSource(repo: TaskRepository): Promise<void> {
     color: 'bg-blue-600 text-blue-100 border-blue-500',
   })
 
-  await repo.createTask({
+  const seeded = await repo.createTask({
     title: 'Fix login crash',
     description: 'Repro: log in with an expired token.',
     tags: [bug.id, wip.id],
     dueDate: '2026-08-01',
     urls: SEED_LINKS,
   })
+  await repo.setTaskUrlStatus(seeded.id, seeded.urls[1].id, 'merged')
 
   const [{ id: doneTaskId }] = await repo.getTasks()
   await repo.updateTask(doneTaskId, { completed: true })
@@ -146,6 +147,13 @@ async function assertRoundTrip(source: TaskRepository, destination: TaskReposito
 
   expect(destTasks).toHaveLength(sourceTasks.length)
   expect(sourceTasks[0].urls.map((u) => u.label)).toEqual(SEED_LINKS.map((l) => l.label))
+  expect(sourceTasks[0].urls.map((u) => u.status)).toEqual([
+    undefined,
+    'merged',
+    undefined,
+    undefined,
+    undefined,
+  ])
 
   const byTitle = new Map(destTasks.map((t) => [t.title, t]))
   for (const sourceTask of sourceTasks) {
@@ -160,9 +168,8 @@ async function assertRoundTrip(source: TaskRepository, destination: TaskReposito
     expect(imported!.completedAt).toBe(sourceTask.completedAt)
     expect(imported!.archivedAt).toBe(sourceTask.archivedAt)
     expect(tagLabelsOf(imported!, destTags)).toEqual(tagLabelsOf(sourceTask, sourceTags))
-    expect(imported!.urls.map((u) => ({ url: u.url, label: u.label }))).toEqual(
-      sourceTask.urls.map((u) => ({ url: u.url, label: u.label })),
-    )
+    const links = (t: Task) => t.urls.map(({ url, label, status }) => ({ url, label, status }))
+    expect(links(imported!)).toEqual(links(sourceTask))
   }
 
   // CSV is a lossier format, but tags/status/links/due date/timestamps must
@@ -356,5 +363,56 @@ describe('accented and plain tag ids stay distinct per backend', () => {
       return
     }
     await assertAccentedTagsDistinct(makeFirestoreRepo())
+  })
+})
+
+async function assertLinkStatus(repo: TaskRepository): Promise<void> {
+  await repo.importTasks([], true)
+  const task = await repo.createTask({
+    title: 'T',
+    description: '',
+    tags: [],
+    urls: SEED_LINKS.slice(0, 2),
+  })
+  const [first, second] = task.urls
+
+  let updated = await repo.setTaskUrlStatus(task.id, second.id, 'closed')
+  expect(updated.urls.map((u) => u.status)).toEqual([undefined, 'closed'])
+  updated = await repo.setTaskUrlStatus(task.id, second.id, null)
+  // Cleared, not stored as null, so it reads back like a link that never had one
+  expect(updated.urls[1]).toEqual({ id: second.id, url: second.url, label: second.label })
+
+  await repo.setTaskUrlStatus(task.id, first.id, 'merged')
+  const [stored] = await repo.getTasks()
+  expect(stored.urls.map((u) => u.status)).toEqual(['merged', undefined])
+}
+
+describe('link status per backend', () => {
+  it('sqlite', async () => {
+    await assertLinkStatus(await makeSqliteRepo())
+  })
+
+  it('postgres', async (ctx) => {
+    if (!(await isPostgresAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertLinkStatus(makePostgresRepo())
+  })
+
+  it('mysql', async (ctx) => {
+    if (!(await isMysqlAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertLinkStatus(makeMysqlRepo())
+  })
+
+  it('firestore', async (ctx) => {
+    if (!(await isFirestoreAvailable())) {
+      ctx.skip()
+      return
+    }
+    await assertLinkStatus(makeFirestoreRepo())
   })
 })

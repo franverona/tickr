@@ -112,6 +112,13 @@ async function runMigrations(db: Kysely<DbSchema>): Promise<void> {
     })
   }
 
+  // After the rebuild above, which recreates task_urls without it
+  try {
+    await sql`ALTER TABLE task_urls ADD COLUMN status TEXT`.execute(db)
+  } catch {
+    // column already exists
+  }
+
   // Initialize sort_order for any tasks that don't have one yet,
   // preserving the current newest-first display order (created_at DESC).
   const uninit = await db

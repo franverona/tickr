@@ -1,4 +1,4 @@
-import { Kysely } from 'kysely'
+import { Kysely, sql } from 'kysely'
 import type { PgDbSchema } from './schema'
 import { PREDEFINED_TAG_CREATED_AT, PREDEFINED_TAGS } from '../../constants'
 
@@ -49,8 +49,11 @@ async function runMigrations(db: Kysely<PgDbSchema>): Promise<void> {
     .addColumn('task_id', 'text', (c) => c.notNull().references('tasks.id').onDelete('cascade'))
     .addColumn('url', 'text', (c) => c.notNull())
     .addColumn('label', 'text', (c) => c.notNull())
+    .addColumn('status', 'text')
     .addColumn('created_at', 'text', (c) => c.notNull())
     .execute()
+  // Databases created before link statuses
+  await sql`ALTER TABLE task_urls ADD COLUMN IF NOT EXISTS status text`.execute(db)
 
   await db.schema
     .createTable('task_tags')

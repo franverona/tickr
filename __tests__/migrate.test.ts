@@ -82,9 +82,9 @@ describe('ensureSchema', () => {
     const taskTags = raw.prepare('SELECT * FROM task_tags WHERE task_id = ?').all('t1')
     expect(taskTags).toEqual([{ task_id: 't1', tag_id: 'wip', position: 0 }])
 
-    const urls = raw.prepare('SELECT id, task_id, url, label FROM task_urls').all()
+    const urls = raw.prepare('SELECT id, task_id, url, label, status FROM task_urls').all()
     expect(urls).toEqual([
-      { id: 'u1', task_id: 't1', url: 'https://example.com', label: 'Example' },
+      { id: 'u1', task_id: 't1', url: 'https://example.com', label: 'Example', status: null },
     ])
   })
 

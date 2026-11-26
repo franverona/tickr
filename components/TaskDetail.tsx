@@ -2,7 +2,15 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react'
 import type { Tag, Task } from '@/lib/types'
-import { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } from '@/app/actions'
+import {
+  updateTask,
+  deleteTask,
+  addTaskUrl,
+  deleteTaskUrl,
+  updateTaskUrl,
+  setTaskUrlStatus,
+} from '@/app/actions'
+import { LinkStatusIcon, linkStatusLabel, nextLinkStatus } from './LinkStatusIcon'
 import TagSelector from './TagSelector'
 import ConfirmModal from './ConfirmModal'
 import {
@@ -1003,6 +1011,17 @@ export default function TaskDetail({
     }
   }
 
+  async function handleCycleStatus(u: Task['urls'][number]) {
+    setSavingSection('links')
+    try {
+      onUpdate(await setTaskUrlStatus(task.id, u.id, nextLinkStatus(u.status)))
+    } catch {
+      onError('Failed to update link status')
+    } finally {
+      setSavingSection(null)
+    }
+  }
+
   async function handleCopyForSlack(u: Task['urls'][number]) {
     const message = `For review:\n${task.title} → ${u.url}`
     // navigator.clipboard is undefined outside a secure context (plain HTTP)
@@ -1378,6 +1397,17 @@ export default function TaskDetail({
                   ) : (
                     <div key={u.id} className="group flex items-center gap-2">
                       <ProviderIcon url={u.url} />
+                      {isReviewLink(u.url) && (
+                        <button
+                          onClick={() => handleCycleStatus(u)}
+                          disabled={savingSection === 'links'}
+                          title={`${linkStatusLabel(u.status)}: click to change`}
+                          aria-label={`Status: ${linkStatusLabel(u.status)}. Change status`}
+                          className="hover:bg-surface-700 flex h-5 w-5 shrink-0 items-center justify-center rounded transition-colors disabled:opacity-50"
+                        >
+                          <LinkStatusIcon status={u.status} size={13} />
+                        </button>
+                      )}
                       <a
                         href={safeLinkHref(u.url)}
                         target="_blank"

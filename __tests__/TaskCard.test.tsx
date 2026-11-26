@@ -129,6 +129,29 @@ describe('TaskCard', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
+  it('shows each review link status on its chip', () => {
+    const urls = [
+      { id: 'u1', url: 'https://gitlab.com/g/p/-/merge_requests/1', label: 'x' },
+      { id: 'u2', url: 'https://gitlab.com/g/p/-/merge_requests/2', label: 'x', status: 'merged' },
+      { id: 'u3', url: 'https://github.com/o/r/pull/3', label: 'x', status: 'closed' },
+      { id: 'u4', url: 'https://acme.atlassian.net/browse/NDC-1', label: 'x' },
+    ] as const
+    render(
+      <TaskCard
+        task={makeTask({ urls: [...urls] })}
+        tags={[]}
+        isSelected={false}
+        onClick={() => {}}
+      />,
+    )
+    expect(screen.getAllByRole('link').map((l) => l.getAttribute('aria-label'))).toEqual([
+      'Open MR !1 (In review)',
+      'Open MR !2 (Merged)',
+      'Open PR #3 (Closed)',
+      'Open NDC-1',
+    ])
+  })
+
   it('hides ticket links in select mode', () => {
     const urls = [{ id: 'u1', url: 'https://github.com/o/r/pull/1', label: 'PR' }]
     render(
