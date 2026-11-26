@@ -4,9 +4,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { DbSchema } from '../lib/db/types'
 import { ensureSchema } from '../lib/db/sqlite/migrate'
 import { SqliteTaskRepository } from '../lib/db/sqlite/repository'
-import { mapMrState, parseMrUrl, resetGitlabThrottle, syncGitlabStatuses } from '../lib/gitlab'
+import {
+  mapMrState,
+  parseMrUrl,
+  pollGitlabSync,
+  resetGitlabThrottle,
+  syncGitlabStatuses,
+} from '../lib/gitlab'
 
 const GL = 'https://gitlab.com'
+
+// One DB for the file: ensureSchema() only runs once per module
+const sqlite = new Database(':memory:')
+const kysely = new Kysely<DbSchema>({ dialect: new SqliteDialect({ database: sqlite }) })
+const repo = new SqliteTaskRepository(kysely)
 
 describe('parseMrUrl', () => {
   it('reads project path and iid, subgroups included', () => {
@@ -29,6 +40,17 @@ describe('parseMrUrl', () => {
     expect(parseMrUrl('https://github.com/acme/app/pull/1', GL)).toBeNull()
     expect(parseMrUrl(`${GL}/acme/app/-/issues/1`, GL)).toBeNull()
     expect(parseMrUrl('not a url', GL)).toBeNull()
+    expect(parseMrUrl(`${GL}/acme/%zz/-/merge_requests/1`, GL)).toBeNull()
+  })
+
+  it('handles a GitLab installed under a sub-path', () => {
+    const base = 'https://host.example/gitlab'
+    expect(parseMrUrl(`${base}/acme/app/-/merge_requests/5`, base)).toEqual({
+      project: 'acme/app',
+      iid: 5,
+    })
+    expect(parseMrUrl('https://host.example/acme/app/-/merge_requests/5', base)).toBeNull()
+    expect(parseMrUrl('https://host.example/gitlabx/acme/app/-/merge_requests/5', base)).toBeNull()
   })
 })
 
@@ -43,10 +65,6 @@ describe('mapMrState', () => {
 })
 
 describe('syncGitlabStatuses', () => {
-  // One DB for the file: ensureSchema() only runs once per module
-  const sqlite = new Database(':memory:')
-  const kysely = new Kysely<DbSchema>({ dialect: new SqliteDialect({ database: sqlite }) })
-  const repo = new SqliteTaskRepository(kysely)
   const fetchMock = vi.fn()
 
   beforeEach(async () => {
@@ -96,13 +114,18 @@ describe('syncGitlabStatuses', () => {
     ])
     respond([{ iid: 9, state: 'opened' }])
 
-    const [updated] = await syncGitlabStatuses(repo)
+    const changes = await syncGitlabStatuses(repo)
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
     const [url, init] = fetchMock.mock.calls[0]
-    expect(url).toBe(`${GL}/api/v4/projects/acme%2Fapp/merge_requests?iids%5B%5D=1&iids%5B%5D=2`)
+    expect(url).toBe(
+      `${GL}/api/v4/projects/acme%2Fapp/merge_requests?per_page=100&iids%5B%5D=1&iids%5B%5D=2`,
+    )
     expect(init.headers).toEqual({ 'PRIVATE-TOKEN': 'tok' })
-    expect(updated.urls.map((u) => u.status)).toEqual(['draft', 'merged', undefined, undefined])
+    expect(init.redirect).toBe('manual')
+    expect(changes.map((c) => c.status)).toEqual(['draft', 'merged'])
+    const [saved] = await repo.getTasks()
+    expect(saved.urls.map((u) => u.status)).toEqual(['draft', 'merged', undefined, undefined])
   })
 
   it('skips merged/closed links, archived tasks and other hosts', async () => {
@@ -130,10 +153,11 @@ describe('syncGitlabStatuses', () => {
       label: '',
     })
     respond([{ iid: 2, state: 'merged' }])
-    const [updated] = await syncGitlabStatuses(repo)
+    expect(await syncGitlabStatuses(repo)).toEqual([
+      { taskId: t.id, urlId: withNew.urls[1].id, status: 'merged' },
+    ])
     expect(fetchMock).toHaveBeenCalledTimes(2)
     expect(fetchMock.mock.calls[1][0]).toContain('iids%5B%5D=2')
-    expect(updated.urls[1].status).toBe('merged')
 
     await repo.updateTaskUrl(t.id, withNew.urls[0].id, {
       url: `${GL}/acme/app/-/merge_requests/3`,
@@ -171,5 +195,91 @@ describe('syncGitlabStatuses', () => {
     await repo.addTaskUrl(t.id, { url: `${GL}/acme/app/-/merge_requests/2`, label: '' })
     await syncGitlabStatuses(repo)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('skips a redirecting project without following it or pausing', async () => {
+    await taskWithLinks([`${GL}/acme/app/-/merge_requests/1`, `${GL}/acme/api/-/merge_requests/2`])
+    fetchMock.mockResolvedValueOnce(
+      new Response(null, { status: 302, headers: { location: 'https://evil.example/' } }),
+    )
+    respond([{ iid: 2, state: 'merged' }])
+    expect((await syncGitlabStatuses(repo)).map((c) => c.status)).toEqual(['merged'])
+  })
+
+  it('skips a response that is not a list', async () => {
+    await taskWithLinks([`${GL}/acme/app/-/merge_requests/1`, `${GL}/acme/api/-/merge_requests/2`])
+    respond({ message: 'Sign in' })
+    respond([{ iid: 2, state: 'merged' }])
+    expect((await syncGitlabStatuses(repo)).map((c) => c.status)).toEqual(['merged'])
+  })
+
+  it('splits more than 100 MRs of one project into several requests', async () => {
+    await taskWithLinks(
+      Array.from({ length: 101 }, (_, i) => `${GL}/acme/app/-/merge_requests/${i + 1}`),
+    )
+    respond([{ iid: 1, state: 'merged' }])
+    respond([{ iid: 101, state: 'merged' }])
+    expect(await syncGitlabStatuses(repo)).toHaveLength(2)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[1][0]).toContain('iids%5B%5D=101')
+  })
+
+  it('keeps going when a task is deleted mid-sync', async () => {
+    const gone = await taskWithLinks([`${GL}/acme/app/-/merge_requests/1`])
+    await taskWithLinks([`${GL}/acme/api/-/merge_requests/2`])
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url.includes('acme%2Fapp')) await repo.deleteTask(gone.id)
+      return new Response(
+        JSON.stringify([{ iid: url.includes('acme%2Fapp') ? 1 : 2, state: 'merged' }]),
+      )
+    })
+    expect((await syncGitlabStatuses(repo)).map((c) => c.urlId)).toHaveLength(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('uses a sub-path GITLAB_URL for the API', async () => {
+    vi.stubEnv('GITLAB_URL', 'https://host.example/gitlab/')
+    await taskWithLinks(['https://host.example/gitlab/acme/app/-/merge_requests/1'])
+    respond([{ iid: 1, state: 'merged' }])
+    await syncGitlabStatuses(repo)
+    expect(fetchMock.mock.calls[0][0]).toMatch(
+      /^https:\/\/host\.example\/gitlab\/api\/v4\/projects\/acme%2Fapp\//,
+    )
+  })
+})
+
+describe('pollGitlabSync', () => {
+  beforeEach(async () => {
+    await ensureSchema(kysely)
+    resetGitlabThrottle()
+    vi.stubEnv('GITLAB_TOKEN', 'tok')
+    vi.stubEnv('GITLAB_URL', '')
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+    vi.unstubAllGlobals()
+  })
+
+  it('returns while GitLab is slow, then hands over the result on a later call', async () => {
+    const task = await repo.createTask({ title: 'T', description: '', tags: [], dueDate: null })
+    await repo.addTaskUrl(task.id, { url: `${GL}/acme/app/-/merge_requests/1`, label: '' })
+    let answer!: () => void
+    const gate = new Promise<void>((r) => (answer = r))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        await gate
+        return new Response(JSON.stringify([{ iid: 1, state: 'merged' }]))
+      }),
+    )
+
+    expect(await pollGitlabSync(repo)).toEqual({ changes: [], running: true })
+    answer()
+    await vi.waitFor(async () => {
+      const { changes } = await pollGitlabSync(repo)
+      expect(changes.map((c) => c.status)).toEqual(['merged'])
+    })
+    expect(await pollGitlabSync(repo)).toEqual({ changes: [], running: false })
   })
 })

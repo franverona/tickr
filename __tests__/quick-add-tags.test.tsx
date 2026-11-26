@@ -14,7 +14,7 @@ vi.mock('@/app/actions', () => ({
   getTasks,
   getTags,
   createTask,
-  syncGitlabStatuses: vi.fn().mockResolvedValue([]),
+  syncGitlabStatuses: vi.fn().mockResolvedValue({ changes: [], running: false }),
 }))
 
 function makeTask(overrides: Partial<Task> = {}): Task {

@@ -74,7 +74,7 @@ const TAG_BACKEND: Tag = { id: 'backend', label: 'Backend', color: 'bg-blue-600 
 async function renderReady(tasks: Task[], tags: Tag[] = []) {
   getTasks.mockResolvedValue(tasks)
   getTags.mockResolvedValue(tags)
-  syncGitlabStatuses.mockResolvedValue([])
+  syncGitlabStatuses.mockResolvedValue({ changes: [], running: false })
   const utils = render(<Page />)
   await waitFor(() => expect(getTasks).toHaveBeenCalled())
   return utils
@@ -795,7 +795,10 @@ describe('GitLab MR sync', () => {
     const task = makeTask({ urls: [mr] })
     getTasks.mockResolvedValue([task])
     getTags.mockResolvedValue([])
-    syncGitlabStatuses.mockResolvedValue([{ ...task, urls: [{ ...mr, status: 'draft' }] }])
+    syncGitlabStatuses.mockResolvedValue({
+      changes: [{ taskId: task.id, urlId: 'u1', status: 'draft' }],
+      running: false,
+    })
     render(<Page />)
     expect(await screen.findByLabelText(/\(Draft\)/)).toBeInTheDocument()
   })
@@ -814,5 +817,17 @@ describe('GitLab MR sync', () => {
     await waitFor(() => expect(syncGitlabStatuses).toHaveBeenCalledTimes(1))
     fireEvent.click(screen.getByText('MR task'))
     await waitFor(() => expect(syncGitlabStatuses).toHaveBeenCalledTimes(2))
+  })
+
+  it('polls again while the server sync is running', async () => {
+    const task = makeTask({ urls: [mr] })
+    getTasks.mockResolvedValue([task])
+    getTags.mockResolvedValue([])
+    syncGitlabStatuses.mockResolvedValueOnce({ changes: [], running: true }).mockResolvedValue({
+      changes: [{ taskId: task.id, urlId: 'u1', status: 'merged' }],
+      running: false,
+    })
+    render(<Page />)
+    expect(await screen.findByLabelText(/\(Merged\)/, {}, { timeout: 4000 })).toBeInTheDocument()
   })
 })

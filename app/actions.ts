@@ -2,7 +2,7 @@
 
 import { getRepository } from '@/lib/db'
 import { TagNameError } from '@/lib/db/slug'
-import { syncGitlabStatuses as syncGitlab } from '@/lib/gitlab'
+import { pollGitlabSync, type LinkStatusChange } from '@/lib/gitlab'
 import { isLinkStatus, type LinkStatus, type Tag, type Task } from '@/lib/types'
 import type { ImportedTag, ImportedTask } from '@/lib/import'
 
@@ -148,9 +148,13 @@ export async function setTaskUrlStatus(
   return getRepository().setTaskUrlStatus(taskId, urlId, status)
 }
 
-// Throttled on the server and never throws, so the page can call it on every load
-export async function syncGitlabStatuses(): Promise<Task[]> {
-  return syncGitlab(getRepository())
+// Throttled and run in the background on the server, and never throws, so the page can call it
+// freely; `running` means call again to collect the rest
+export async function syncGitlabStatuses(): Promise<{
+  changes: LinkStatusChange[]
+  running: boolean
+}> {
+  return pollGitlabSync(getRepository())
 }
 
 export async function importTasks(
