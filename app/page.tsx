@@ -11,6 +11,7 @@ import {
   deleteTask,
   updateTasks,
   deleteTasks,
+  syncGitlabStatuses,
 } from '@/app/actions'
 import TaskCard from '@/components/TaskCard'
 import TaskDetail from '@/components/TaskDetail'
@@ -400,6 +401,26 @@ export default function Page() {
   }
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
+
+  // MR statuses from GitLab: on load, tab focus, opening a task and changing its links. The server
+  // checks each link at most every 5 min, so extra triggers are cheap. After the first load, so
+  // the result isn't merged into an empty list
+  const selectedLinks = selectedTask?.urls.map((u) => u.url).join('\n')
+  useEffect(() => {
+    if (isLoading) return
+    function sync() {
+      if (document.visibilityState !== 'visible') return
+      syncGitlabStatuses()
+        .then((updated) => {
+          if (updated.length === 0) return
+          setTasks((prev) => prev.map((t) => updated.find((u) => u.id === t.id) ?? t))
+        })
+        .catch(() => {})
+    }
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => document.removeEventListener('visibilitychange', sync)
+  }, [isLoading, selectedTaskId, selectedLinks])
 
   const query = searchQuery.trim().toLowerCase()
   const tagLabelById = new Map(tags.map((t) => [t.id, t.label.toLowerCase()]))

@@ -38,6 +38,7 @@ const {
   createTask: vi.fn(),
 }))
 vi.mock('@/app/actions', () => ({
+  syncGitlabStatuses: vi.fn().mockResolvedValue([]),
   getTasks,
   getTags,
   reorderTasks,

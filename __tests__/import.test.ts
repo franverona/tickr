@@ -89,12 +89,14 @@ describe('parseJSONContent', () => {
         links: [
           { url: 'https://a.example', label: 'A', status: 'merged' },
           { url: 'https://b.example', label: 'B', status: 'bogus' },
+          { url: 'https://c.example', label: 'C', status: 'draft' },
         ],
       },
     ])
     expect(parseJSONContent(json)[0].links).toEqual([
       { url: 'https://a.example', label: 'A', status: 'merged' },
       { url: 'https://b.example', label: 'B' },
+      { url: 'https://c.example', label: 'C', status: 'draft' },
     ])
   })
 

@@ -27,6 +27,7 @@ const {
   updateTasks,
   deleteTasks,
   createTask,
+  syncGitlabStatuses,
 } = vi.hoisted(() => ({
   getTasks: vi.fn(),
   getTags: vi.fn(),
@@ -36,8 +37,10 @@ const {
   updateTasks: vi.fn(),
   deleteTasks: vi.fn(),
   createTask: vi.fn(),
+  syncGitlabStatuses: vi.fn(),
 }))
 vi.mock('@/app/actions', () => ({
+  syncGitlabStatuses,
   getTasks,
   getTags,
   reorderTasks,
@@ -71,6 +74,7 @@ const TAG_BACKEND: Tag = { id: 'backend', label: 'Backend', color: 'bg-blue-600 
 async function renderReady(tasks: Task[], tags: Tag[] = []) {
   getTasks.mockResolvedValue(tasks)
   getTags.mockResolvedValue(tags)
+  syncGitlabStatuses.mockResolvedValue([])
   const utils = render(<Page />)
   await waitFor(() => expect(getTasks).toHaveBeenCalled())
   return utils
@@ -88,6 +92,7 @@ afterEach(() => {
   updateTasks.mockReset()
   deleteTasks.mockReset()
   createTask.mockReset()
+  syncGitlabStatuses.mockReset()
 })
 
 describe('initial load', () => {
@@ -780,5 +785,34 @@ describe('keyboard list navigation', () => {
 
     expect(await screen.findByRole('menu')).toBeInTheDocument()
     expect(screen.getByRole('menuitem', { name: 'Mark as Complete' })).toBeInTheDocument()
+  })
+})
+
+describe('GitLab MR sync', () => {
+  const mr = { id: 'u1', url: 'https://gitlab.com/acme/app/-/merge_requests/7', label: '' }
+
+  it('shows statuses synced after load', async () => {
+    const task = makeTask({ urls: [mr] })
+    getTasks.mockResolvedValue([task])
+    getTags.mockResolvedValue([])
+    syncGitlabStatuses.mockResolvedValue([{ ...task, urls: [{ ...mr, status: 'draft' }] }])
+    render(<Page />)
+    expect(await screen.findByLabelText(/\(Draft\)/)).toBeInTheDocument()
+  })
+
+  it('keeps tasks as loaded when the sync fails', async () => {
+    getTasks.mockResolvedValue([makeTask({ urls: [mr] })])
+    getTags.mockResolvedValue([])
+    syncGitlabStatuses.mockRejectedValue(new Error('offline'))
+    render(<Page />)
+    expect(await screen.findByLabelText(/\(In review\)/)).toBeInTheDocument()
+    await waitFor(() => expect(syncGitlabStatuses).toHaveBeenCalled())
+  })
+
+  it('syncs again when a task is opened', async () => {
+    await renderReady([makeTask({ title: 'MR task', urls: [mr] })])
+    await waitFor(() => expect(syncGitlabStatuses).toHaveBeenCalledTimes(1))
+    fireEvent.click(screen.getByText('MR task'))
+    await waitFor(() => expect(syncGitlabStatuses).toHaveBeenCalledTimes(2))
   })
 })

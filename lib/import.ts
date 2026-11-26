@@ -1,5 +1,5 @@
 import type { JSZipObject } from 'jszip'
-import type { LinkStatus } from './types'
+import { isLinkStatus, type LinkStatus } from './types'
 import { UPLOAD_EXT_TO_MIME } from './upload-types'
 
 export interface ImportedTag {
@@ -166,9 +166,7 @@ function parseLinkEntry(entry: unknown): ImportedLink | null {
   const url = typeof e.url === 'string' ? e.url.trim() : ''
   if (!url) return null
   const label = typeof e.label === 'string' ? e.label.trim() : ''
-  return e.status === 'merged' || e.status === 'closed'
-    ? { url, label, status: e.status }
-    : { url, label }
+  return isLinkStatus(e.status) ? { url, label, status: e.status } : { url, label }
 }
 
 export function parseCSVContent(content: string): ImportedTask[] {

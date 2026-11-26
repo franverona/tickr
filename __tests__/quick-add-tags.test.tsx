@@ -10,7 +10,12 @@ const { getTasks, getTags, createTask } = vi.hoisted(() => ({
   getTags: vi.fn(),
   createTask: vi.fn(),
 }))
-vi.mock('@/app/actions', () => ({ getTasks, getTags, createTask }))
+vi.mock('@/app/actions', () => ({
+  getTasks,
+  getTags,
+  createTask,
+  syncGitlabStatuses: vi.fn().mockResolvedValue([]),
+}))
 
 function makeTask(overrides: Partial<Task> = {}): Task {
   return {

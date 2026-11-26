@@ -14,6 +14,19 @@ const STATUSES = {
       </>
     ),
   },
+  draft: {
+    label: 'Draft',
+    className: 'text-surface-400',
+    icon: (
+      <>
+        <circle cx="18" cy="18" r="3" />
+        <circle cx="6" cy="6" r="3" />
+        <path d="M18 6V5" />
+        <path d="M18 11v-1" />
+        <line x1="6" y1="9" x2="6" y2="21" />
+      </>
+    ),
+  },
   merged: {
     label: 'Merged',
     className: 'text-purple-400',
@@ -42,7 +55,7 @@ const STATUSES = {
 }
 
 function meta(status: LinkStatus | undefined) {
-  return status === 'merged' || status === 'closed' ? STATUSES[status] : STATUSES.review
+  return status && Object.hasOwn(STATUSES, status) ? STATUSES[status] : STATUSES.review
 }
 
 export function linkStatusLabel(status: LinkStatus | undefined): string {

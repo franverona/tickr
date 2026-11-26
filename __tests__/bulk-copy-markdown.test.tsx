@@ -16,6 +16,7 @@ vi.mock('@/components/MdEditor', () => ({
 
 const { getTasks, getTags } = vi.hoisted(() => ({ getTasks: vi.fn(), getTags: vi.fn() }))
 vi.mock('@/app/actions', () => ({
+  syncGitlabStatuses: vi.fn().mockResolvedValue([]),
   getTasks,
   getTags,
   reorderTasks: vi.fn(),

@@ -2,7 +2,8 @@
 
 import { getRepository } from '@/lib/db'
 import { TagNameError } from '@/lib/db/slug'
-import type { LinkStatus, Tag, Task } from '@/lib/types'
+import { syncGitlabStatuses as syncGitlab } from '@/lib/gitlab'
+import { isLinkStatus, type LinkStatus, type Tag, type Task } from '@/lib/types'
 import type { ImportedTag, ImportedTask } from '@/lib/import'
 
 export async function getTags(): Promise<Tag[]> {
@@ -143,9 +144,13 @@ export async function setTaskUrlStatus(
   status: LinkStatus | null,
 ): Promise<Task> {
   // Server Actions take any client value; only these reach the database
-  if (status !== null && status !== 'merged' && status !== 'closed')
-    throw new Error('Invalid link status')
+  if (status !== null && !isLinkStatus(status)) throw new Error('Invalid link status')
   return getRepository().setTaskUrlStatus(taskId, urlId, status)
+}
+
+// Throttled on the server and never throws, so the page can call it on every load
+export async function syncGitlabStatuses(): Promise<Task[]> {
+  return syncGitlab(getRepository())
 }
 
 export async function importTasks(
