@@ -11,6 +11,7 @@ import {
   deleteTask,
   updateTasks,
   deleteTasks,
+  syncGitlabStatuses,
 } from '@/app/actions'
 import TaskCard from '@/components/TaskCard'
 import TaskDetail from '@/components/TaskDetail'
@@ -400,6 +401,45 @@ export default function Page() {
   }
 
   const selectedTask = tasks.find((t) => t.id === selectedTaskId) ?? null
+
+  // MR statuses from GitLab: on load, tab focus, opening a task and changing its links. The server
+  // checks each link at most every 5 min, so extra triggers are cheap, and syncs in the background,
+  // so this polls while a sync runs. After the first load, so the result isn't merged into an empty
+  // list. Only the changed statuses are patched in, so a late result can't undo newer edits
+  const selectedLinks = selectedTask?.urls.map((u) => u.url).join('\n')
+  useEffect(() => {
+    if (isLoading) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    function sync() {
+      if (document.visibilityState !== 'visible') return
+      clearTimeout(timer)
+      syncGitlabStatuses()
+        .then(({ changes, running }) => {
+          if (running) timer = setTimeout(sync, 2000)
+          if (changes.length === 0) return
+          const statusById = new Map(changes.map((c) => [c.urlId, c.status ?? undefined]))
+          setTasks((prev) =>
+            prev.map((t) =>
+              t.urls.some((u) => statusById.has(u.id))
+                ? {
+                    ...t,
+                    urls: t.urls.map((u) =>
+                      statusById.has(u.id) ? { ...u, status: statusById.get(u.id) } : u,
+                    ),
+                  }
+                : t,
+            ),
+          )
+        })
+        .catch(() => {})
+    }
+    sync()
+    document.addEventListener('visibilitychange', sync)
+    return () => {
+      clearTimeout(timer)
+      document.removeEventListener('visibilitychange', sync)
+    }
+  }, [isLoading, selectedTaskId, selectedLinks])
 
   const query = searchQuery.trim().toLowerCase()
   const tagLabelById = new Map(tags.map((t) => [t.id, t.label.toLowerCase()]))

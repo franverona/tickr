@@ -1,5 +1,9 @@
 // Review state of an MR/PR link; absent means still in review
-export type LinkStatus = 'merged' | 'closed'
+export type LinkStatus = 'draft' | 'merged' | 'closed'
+
+export function isLinkStatus(value: unknown): value is LinkStatus {
+  return value === 'draft' || value === 'merged' || value === 'closed'
+}
 
 export interface TaskUrl {
   id: string
