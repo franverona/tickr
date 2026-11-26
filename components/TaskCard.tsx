@@ -6,6 +6,8 @@ import TagBadge from './TagBadge'
 import { formatDueDate, formatTimestamp, getDueStatus } from '@/lib/dates'
 import { checklistProgress } from '@/lib/checklist'
 import { ticketLabel } from '@/lib/suggestLabel'
+import { isReviewLink } from '@/lib/standup'
+import { LinkStatusIcon, linkStatusLabel } from './LinkStatusIcon'
 
 interface TaskCardProps {
   task: Task
@@ -61,7 +63,7 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
         ...new Map(
           task.urls.flatMap((u) => {
             const label = ticketLabel(u.url)
-            return label ? [[u.url, label] as const] : []
+            return label ? [[u.url, { label, status: u.status }] as const] : []
           }),
         ).entries(),
       ]
@@ -195,7 +197,7 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
         // Siblings of the card like the complete button: a link can't sit
         // inside a <button>, and clicking one mustn't open the task
         <div className="absolute right-3 bottom-3 left-3 flex gap-1 overflow-hidden">
-          {tickets.map(([url, label]) => (
+          {tickets.map(([url, { label, status }]) => (
             <a
               key={url}
               href={url}
@@ -203,25 +205,31 @@ const TaskCard = forwardRef<HTMLButtonElement, TaskCardProps>(function TaskCard(
               rel="noopener noreferrer"
               tabIndex={tabIndex}
               draggable={false}
-              title={url}
-              aria-label={`Open ${label}`}
+              title={isReviewLink(url) ? `${linkStatusLabel(status)}: ${url}` : url}
+              aria-label={
+                isReviewLink(url) ? `Open ${label} (${linkStatusLabel(status)})` : `Open ${label}`
+              }
               className="border-surface-600 bg-surface-700 text-surface-200 hover:border-surface-400 hover:text-surface-100 inline-flex shrink-0 items-center gap-1 rounded-full border px-1.5 py-0.5 text-[11px] font-medium transition-colors"
             >
-              <svg
-                width="9"
-                height="9"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                <polyline points="15 3 21 3 21 9" />
-                <line x1="10" y1="14" x2="21" y2="3" />
-              </svg>
+              {isReviewLink(url) ? (
+                <LinkStatusIcon status={status} size={10} />
+              ) : (
+                <svg
+                  width="9"
+                  height="9"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
+              )}
               {label}
             </a>
           ))}

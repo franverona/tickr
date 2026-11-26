@@ -82,6 +82,22 @@ describe('parseJSONContent', () => {
     expect(result[0].links).toEqual([{ url: 'https://example.com', label: 'Example' }])
   })
 
+  it('keeps a known link status and drops an unknown one', () => {
+    const json = JSON.stringify([
+      {
+        title: 'Task A',
+        links: [
+          { url: 'https://a.example', label: 'A', status: 'merged' },
+          { url: 'https://b.example', label: 'B', status: 'bogus' },
+        ],
+      },
+    ])
+    expect(parseJSONContent(json)[0].links).toEqual([
+      { url: 'https://a.example', label: 'A', status: 'merged' },
+      { url: 'https://b.example', label: 'B' },
+    ])
+  })
+
   it('defaults links to an empty array when absent', () => {
     const result = parseJSONContent(JSON.stringify([{ title: 'Task A' }]))
     expect(result[0].links).toEqual([])

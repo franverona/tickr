@@ -59,6 +59,31 @@ describe('doneLastWeekSummary', () => {
     )
   })
 
+  it('leaves closed MRs out, keeping merged ones', () => {
+    const task = makeTask({
+      title: 'Done',
+      completed: true,
+      completedAt: daysAgo(1),
+      urls: [
+        {
+          id: 'u1',
+          url: 'https://gitlab.com/g/p/-/merge_requests/1',
+          label: 'MR',
+          status: 'closed',
+        },
+        {
+          id: 'u2',
+          url: 'https://gitlab.com/g/p/-/merge_requests/2',
+          label: 'MR',
+          status: 'merged',
+        },
+      ],
+    })
+    expect(doneLastWeekSummary([task], NOW)).toBe(
+      'Done in the last 7 days:\n- Done → https://gitlab.com/g/p/-/merge_requests/2',
+    )
+  })
+
   it('returns null when nothing was completed in the last 7 days', () => {
     expect(doneLastWeekSummary([makeTask()], NOW)).toBeNull()
   })

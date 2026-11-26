@@ -17,7 +17,11 @@ export function exportToJSON(tasks: Task[], tags: Tag[]): string {
     updatedAt: task.updatedAt,
     completedAt: task.completedAt,
     archivedAt: task.archivedAt,
-    links: task.urls.map((u) => ({ url: u.url, label: u.label })),
+    links: task.urls.map((u) => ({
+      url: u.url,
+      label: u.label,
+      ...(u.status && { status: u.status }),
+    })),
   }))
   return JSON.stringify(data, null, 2)
 }

@@ -7,19 +7,22 @@ import type { Tag, Task } from '../lib/types'
 import { formatTimestamp } from '../lib/dates'
 import { EMOJI_LIST } from '../lib/emojis'
 
-const { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl } = vi.hoisted(() => ({
-  updateTask: vi.fn(),
-  deleteTask: vi.fn(),
-  addTaskUrl: vi.fn(),
-  deleteTaskUrl: vi.fn(),
-  updateTaskUrl: vi.fn(),
-}))
+const { updateTask, deleteTask, addTaskUrl, deleteTaskUrl, updateTaskUrl, setTaskUrlStatus } =
+  vi.hoisted(() => ({
+    updateTask: vi.fn(),
+    deleteTask: vi.fn(),
+    addTaskUrl: vi.fn(),
+    deleteTaskUrl: vi.fn(),
+    updateTaskUrl: vi.fn(),
+    setTaskUrlStatus: vi.fn(),
+  }))
 vi.mock('@/app/actions', () => ({
   updateTask,
   deleteTask,
   addTaskUrl,
   deleteTaskUrl,
   updateTaskUrl,
+  setTaskUrlStatus,
 }))
 
 // MDPreview renders checklist lines through TaskDetail's real `input` renderer,
@@ -153,6 +156,7 @@ describe('TaskDetail', () => {
     addTaskUrl.mockReset()
     deleteTaskUrl.mockReset()
     updateTaskUrl.mockReset()
+    setTaskUrlStatus.mockReset()
   })
 
   it('shows when a completed task was created and completed, and how long it took', () => {
@@ -555,6 +559,33 @@ describe('TaskDetail', () => {
       url: 'https://example.com/updated',
       label: 'Example',
     })
+  })
+
+  it('cycles an MR link status: in review → merged → closed → in review', async () => {
+    const mr = { id: 'url-1', url: 'https://gitlab.com/g/p/-/merge_requests/7', label: 'MR' }
+    const steps = [
+      [undefined, 'merged'],
+      ['merged', 'closed'],
+      ['closed', null],
+    ] as const
+    for (const [from, to] of steps) {
+      const updated = makeTask({ urls: [{ ...mr, ...(to && { status: to }) }] })
+      setTaskUrlStatus.mockResolvedValueOnce(updated)
+      const { props } = renderTaskDetail(
+        makeTask({ urls: [{ ...mr, ...(from && { status: from }) }] }),
+      )
+      fireEvent.click(screen.getByRole('button', { name: /^Status: .*Change status$/ }))
+      await vi.waitFor(() => expect(props.onUpdate).toHaveBeenCalledWith(updated))
+      expect(setTaskUrlStatus).toHaveBeenLastCalledWith('task-1', 'url-1', to)
+      cleanup()
+    }
+  })
+
+  it('shows no status button on links that are not MRs or PRs', () => {
+    renderTaskDetail(
+      makeTask({ urls: [{ id: 'url-1', url: 'https://example.com', label: 'Example' }] }),
+    )
+    expect(screen.queryByRole('button', { name: /^Status:/ })).not.toBeInTheDocument()
   })
 
   it('deletes a link after confirmation', async () => {

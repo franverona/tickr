@@ -1,7 +1,11 @@
+// Review state of an MR/PR link; absent means still in review
+export type LinkStatus = 'merged' | 'closed'
+
 export interface TaskUrl {
   id: string
   url: string
   label: string
+  status?: LinkStatus
 }
 
 export interface Task {
